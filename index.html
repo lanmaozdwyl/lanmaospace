@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lanmao Space | 懒猫空间</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#home" class="nav-logo">
+                <span class="logo-icon">🐱</span>
+                <span class="logo-text">Lanmao Space</span>
+            </a>
+            <div class="nav-links" id="nav-links">
+                <a href="#home" class="nav-link active">首页</a>
+                <a href="#books" class="nav-link">书单</a>
+                <a href="#music" class="nav-link">音乐影视</a>
+                <a href="#links" class="nav-link">友链</a>
+                <a href="#toolbox" class="nav-link">工具箱</a>
+                <a href="#contact" class="nav-link">留言</a>
+            </div>
+            <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ========== 首页 Hero ========== -->
+    <section class="hero" id="home">
+        <div class="hero-bg">
+            <div class="floating-leaf leaf-1">🍃</div>
+            <div class="floating-leaf leaf-2">🌿</div>
+            <div class="floating-leaf leaf-3">🍂</div>
+            <div class="floating-leaf leaf-4">🌱</div>
+            <div class="floating-leaf leaf-5">🍃</div>
+        </div>
+        <div class="hero-content">
+            <div class="avatar-wrapper">
+                <div class="avatar">
+                    <span class="avatar-emoji">🐱</span>
+                </div>
+                <div class="avatar-ring"></div>
+            </div>
+            <h1 class="hero-title">
+                <span class="greeting" id="greeting">你好呀</span>，欢迎来到
+                <br>
+                <span class="highlight">懒猫的小空间</span>
+            </h1>
+            <p class="hero-subtitle">
+                一只在学术海洋中漫游的懒猫 🐾<br>
+                在这里记录阅读、收藏美好、分享工具
+            </p>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <span class="stat-number" data-target="42">0</span>
+                    <span class="stat-label">读过的书</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" data-target="128">0</span>
+                    <span class="stat-label">收藏歌曲</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" data-target="36">0</span>
+                    <span class="stat-label">收藏工具</span>
+                </div>
+            </div>
+            <a href="#books" class="scroll-hint">
+                <span>向下探索</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg>
+            </a>
+        </div>
+    </section>
+
+    <!-- ========== 书单 ========== -->
+    <section class="section" id="books">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-icon">📚</span>
+                <h2 class="section-title">阅读书单</h2>
+                <p class="section-desc">阅读是与伟大灵魂的对话</p>
+            </div>
+
+            <!-- 书单筛选 -->
+            <div class="filter-tabs">
+                <button class="filter-btn active" data-filter="all">全部</button>
+                <button class="filter-btn" data-filter="reading">在读</button>
+                <button class="filter-btn" data-filter="finished">已读</button>
+                <button class="filter-btn" data-filter="wishlist">想读</button>
+            </div>
+
+            <div class="books-grid">
+                <div class="book-card" data-category="finished">
+                    <div class="book-cover" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                        <span class="book-emoji">📘</span>
+                    </div>
+                    <div class="book-info">
+                        <h3 class="book-title">百年孤独</h3>
+                        <p class="book-author">加西亚·马尔克斯</p>
+                        <div class="book-rating">
+                            <span>⭐⭐⭐⭐⭐</span>
+                        </div>
+                        <span class="book-tag tag-finished">已读</span>
+                        <p class="book-note">"多年以后，面对行刑队，奥雷良诺上校将会回想起，他父亲带他去见识冰块的那个遥远的下午。"</p>
+                    </div>
+                </div>
+
+                <div class="book-card" data-category="reading">
+                    <div class="book-cover" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                        <span class="book-emoji">📗</span>
+                    </div>
+                    <div class="book-info">
+                        <h3 class="book-title">深度学习</h3>
+                        <p class="book-author">Ian Goodfellow</p>
+                        <div class="book-rating">
+                            <span>⭐⭐⭐⭐</span>
+                        </div>
+                        <span class="book-tag tag-reading">在读</span>
+                        <p class="book-note">AI 领域的圣经级教材，数学推导很硬核但很有收获。</p>
+                    </div>
+                </div>
+
+                <div class="book-card" data-category="finished">
+                    <div class="book-cover" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                        <span class="book-emoji">📙</span>
+                    </div>
+                    <div class="book-info">
+                        <h3 class="book-title">小王子</h3>
+                        <p class="book-author">圣埃克苏佩里</p>
+                        <div class="book-rating">
+                            <span>⭐⭐⭐⭐⭐</span>
+                        </div>
+                        <span class="book-tag tag-finished">已读</span>
+                        <p class="book-note">"真正重要的东西，用眼睛是看不见的。" 每次重读都有新的感悟。</p>
+                    </div>
+                </div>
+
+                <div class="book-card" data-category="wishlist">
+                    <div class="book-cover" style="background: linear-gradient(135deg, #a18cd1, #fbc2eb);">
+                        <span class="book-emoji">📕</span>
+                    </div>
+                    <div class="book-info">
+                        <h3 class="book-title">人类简史</h3>
+                        <p class="book-author">尤瓦尔·赫拉利</p>
+                        <div class="book-rating">
+                            <span>⭐⭐⭐⭐</span>
+                        </div>
+                        <span class="book-tag tag-wishlist">想读</span>
+                        <p class="book-note">好多朋友推荐，据说能刷新世界观。</p>
+                    </div>
+                </div>
+
+                <div class="book-card" data-category="reading">
+                    <div class="book-cover" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                        <span class="book-emoji">📒</span>
+                    </div>
+                    <div class="book-info">
+                        <h3 class="book-title">统计学习方法</h3>
+                        <p class="book-author">李航</p>
+                        <div class="book-rating">
+                            <span>⭐⭐⭐⭐⭐</span>
+                        </div>
+                        <span class="book-tag tag-reading">在读</span>
+                        <p class="book-note">机器学习入门必读，公式推导清晰，适合反复品味。</p>
+                    </div>
+                </div>
+
+                <div class="book-card" data-category="wishlist">
+                    <div class="book-cover" style="background: linear-gradient(135deg, #fa709a, #fee140);">
+                        <span class="book-emoji">📓</span>
+                    </div>
+                    <div class="book-info">
+                        <h3 class="book-title">刻意练习</h3>
+                        <p class="book-author">安德斯·艾利克森</p>
+                        <div class="book-rating">
+                            <span>⭐⭐⭐⭐</span>
+                        </div>
+                        <span class="book-tag tag-wishlist">想读</span>
+                        <p class="book-note">关于如何高效学习的方法论，列入下一本阅读计划。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== 音乐影视 ========== -->
+    <section class="section section-alt" id="music">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-icon">🎵</span>
+                <h2 class="section-title">音乐 & 影视</h2>
+                <p class="section-desc">用音乐治愈时光，用影像记录感动</p>
+            </div>
+
+            <div class="media-tabs">
+                <button class="media-tab active" data-tab="music-tab">🎵 音乐</button>
+                <button class="media-tab" data-tab="movie-tab">🎬 影视</button>
+            </div>
+
+            <!-- 音乐播放列表 -->
+            <div class="media-content active" id="music-tab">
+                <div class="playlist-header">
+                    <h3>🎧 最近在听</h3>
+                    <p class="playlist-desc">这些歌陪我度过了无数个学习的夜晚</p>
+                </div>
+                <div class="playlist-grid">
+                    <div class="song-card">
+                        <div class="song-cover" style="background: linear-gradient(135deg, #ff9a9e, #fad0c4);">
+                            <span>🎸</span>
+                        </div>
+                        <div class="song-info">
+                            <h4>晴天</h4>
+                            <p>周杰伦</p>
+                        </div>
+                        <span class="song-tag">华语</span>
+                    </div>
+                    <div class="song-card">
+                        <div class="song-cover" style="background: linear-gradient(135deg, #a1c4fd, #c2e9fb);">
+                            <span>🎹</span>
+                        </div>
+                        <div class="song-info">
+                            <h4>Nuvole Bianche</h4>
+                            <p>Ludovico Einaudi</p>
+                        </div>
+                        <span class="song-tag">纯音乐</span>
+                    </div>
+                    <div class="song-card">
+                        <div class="song-cover" style="background: linear-gradient(135deg, #d4fc79, #96e6a1);">
+                            <span>🎤</span>
+                        </div>
+                        <div class="song-info">
+                            <h4>起风了</h4>
+                            <p>买辣椒也用券</p>
+                        </div>
+                        <span class="song-tag">华语</span>
+                    </div>
+                    <div class="song-card">
+                        <div class="song-cover" style="background: linear-gradient(135deg, #fbc2eb, #a6c1ee);">
+                            <span>🎻</span>
+                        </div>
+                        <div class="song-info">
+                            <h4>River Flows in You</h4>
+                            <p>Yiruma</p>
+                        </div>
+                        <span class="song-tag">纯音乐</span>
+                    </div>
+                    <div class="song-card">
+                        <div class="song-cover" style="background: linear-gradient(135deg, #ffecd2, #fcb69f);">
+                            <span>🎶</span>
+                        </div>
+                        <div class="song-info">
+                            <h4>夜曲</h4>
+                            <p>周杰伦</p>
+                        </div>
+                        <span class="song-tag">华语</span>
+                    </div>
+                    <div class="song-card">
+                        <div class="song-cover" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            <span>🎷</span>
+                        </div>
+                        <div class="song-info">
+                            <h4>Fly Me to the Moon</h4>
+                            <p>Frank Sinatra</p>
+                        </div>
+                        <span class="song-tag">爵士</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 影视推荐 -->
+            <div class="media-content" id="movie-tab">
+                <div class="playlist-header">
+                    <h3>🍿 影视推荐</h3>
+                    <p class="playlist-desc">值得反复观看的影视作品</p>
+                </div>
+                <div class="movie-grid">
+                    <div class="movie-card">
+                        <div class="movie-poster" style="background: linear-gradient(135deg, #2c3e50, #3498db);">
+                            <span>🎬</span>
+                        </div>
+                        <div class="movie-info">
+                            <h4>星际穿越</h4>
+                            <p class="movie-genre">科幻 | 冒险</p>
+                            <div class="movie-rating">⭐ 9.4</div>
+                            <p class="movie-comment">关于爱、时间与宇宙的终极浪漫</p>
+                        </div>
+                    </div>
+                    <div class="movie-card">
+                        <div class="movie-poster" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">
+                            <span>🎭</span>
+                        </div>
+                        <div class="movie-info">
+                            <h4>肖申克的救赎</h4>
+                            <p class="movie-genre">剧情 | 犯罪</p>
+                            <div class="movie-rating">⭐ 9.7</div>
+                            <p class="movie-comment">希望是一个好东西，也许是最好的东西</p>
+                        </div>
+                    </div>
+                    <div class="movie-card">
+                        <div class="movie-poster" style="background: linear-gradient(135deg, #1abc9c, #16a085);">
+                            <span>🌸</span>
+                        </div>
+                        <div class="movie-info">
+                            <h4>千与千寻</h4>
+                            <p class="movie-genre">动画 | 奇幻</p>
+                            <div class="movie-rating">⭐ 9.4</div>
+                            <p class="movie-comment">宫崎骏的世界里，每一帧都是艺术</p>
+                        </div>
+                    </div>
+                    <div class="movie-card">
+                        <div class="movie-poster" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
+                            <span>🤖</span>
+                        </div>
+                        <div class="movie-info">
+                            <h4>Her</h4>
+                            <p class="movie-genre">科幻 | 爱情</p>
+                            <div class="movie-rating">⭐ 8.4</div>
+                            <p class="movie-comment">AI 时代下的孤独与爱，细腻又深刻</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== 友情链接 ========== -->
+    <section class="section" id="links">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-icon">🔗</span>
+                <h2 class="section-title">友情链接</h2>
+                <p class="section-desc">志同道合的伙伴们</p>
+            </div>
+            <div class="friends-grid">
+                <a href="#" class="friend-card" target="_blank">
+                    <div class="friend-avatar" style="background: linear-gradient(135deg, #667eea, #764ba2);">🦊</div>
+                    <div class="friend-info">
+                        <h4>小狐狸的博客</h4>
+                        <p>前端开发 · 设计爱好者</p>
+                    </div>
+                </a>
+                <a href="#" class="friend-card" target="_blank">
+                    <div class="friend-avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">🐼</div>
+                    <div class="friend-info">
+                        <h4>熊猫笔记</h4>
+                        <p>机器学习 · 论文分享</p>
+                    </div>
+                </a>
+                <a href="#" class="friend-card" target="_blank">
+                    <div class="friend-avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">🐬</div>
+                    <div class="friend-info">
+                        <h4>海豚日记</h4>
+                        <p>数据科学 · 可视化</p>
+                    </div>
+                </a>
+                <a href="#" class="friend-card" target="_blank">
+                    <div class="friend-avatar" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">🦉</div>
+                    <div class="friend-info">
+                        <h4>猫头鹰书房</h4>
+                        <p>学术研究 · 书评分享</p>
+                    </div>
+                </a>
+            </div>
+            <div class="friend-apply">
+                <p>🤝 想要交换友链？请在留言板留言或发邮件给我～</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== 工具箱 ========== -->
+    <section class="section section-alt" id="toolbox">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-icon">🛠️</span>
+                <h2 class="section-title">工具箱</h2>
+                <p class="section-desc">我常用的学习 & 生产力工具</p>
+            </div>
+
+            <div class="tools-category">
+                <h3 class="category-title">📝 学术写作</h3>
+                <div class="tools-grid">
+                    <a href="https://www.overleaf.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #47a141;">📝</div>
+                        <div class="tool-info">
+                            <h4>Overleaf</h4>
+                            <p>在线 LaTeX 编辑器</p>
+                        </div>
+                    </a>
+                    <a href="https://www.zotero.org" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #cc2936;">📎</div>
+                        <div class="tool-info">
+                            <h4>Zotero</h4>
+                            <p>文献管理工具</p>
+                        </div>
+                    </a>
+                    <a href="https://www.notion.so" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #000;">📋</div>
+                        <div class="tool-info">
+                            <h4>Notion</h4>
+                            <p>全能笔记 & 知识库</p>
+                        </div>
+                    </a>
+                    <a href="https://scholar.google.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #4285f4;">🔍</div>
+                        <div class="tool-info">
+                            <h4>Google Scholar</h4>
+                            <p>学术论文搜索</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <div class="tools-category">
+                <h3 class="category-title">💻 编程开发</h3>
+                <div class="tools-grid">
+                    <a href="https://code.visualstudio.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #007acc;">💎</div>
+                        <div class="tool-info">
+                            <h4>VS Code</h4>
+                            <p>代码编辑器</p>
+                        </div>
+                    </a>
+                    <a href="https://github.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #24292e;">🐙</div>
+                        <div class="tool-info">
+                            <h4>GitHub</h4>
+                            <p>代码托管平台</p>
+                        </div>
+                    </a>
+                    <a href="https://colab.research.google.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #f9ab00;">🧪</div>
+                        <div class="tool-info">
+                            <h4>Google Colab</h4>
+                            <p>在线 Jupyter 环境</p>
+                        </div>
+                    </a>
+                    <a href="https://www.anaconda.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #44a833;">🐍</div>
+                        <div class="tool-info">
+                            <h4>Anaconda</h4>
+                            <p>Python 环境管理</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <div class="tools-category">
+                <h3 class="category-title">🎨 设计 & 效率</h3>
+                <div class="tools-grid">
+                    <a href="https://www.figma.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #f24e1e;">🎨</div>
+                        <div class="tool-info">
+                            <h4>Figma</h4>
+                            <p>界面设计工具</p>
+                        </div>
+                    </a>
+                    <a href="https://excalidraw.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #6965db;">✏️</div>
+                        <div class="tool-info">
+                            <h4>Excalidraw</h4>
+                            <p>手绘风格白板</p>
+                        </div>
+                    </a>
+                    <a href="https://todoist.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #e44332;">✅</div>
+                        <div class="tool-info">
+                            <h4>Todoist</h4>
+                            <p>待办事项管理</p>
+                        </div>
+                    </a>
+                    <a href="https://www.deepl.com" class="tool-card" target="_blank">
+                        <div class="tool-icon" style="background: #0f2b46;">🌐</div>
+                        <div class="tool-info">
+                            <h4>DeepL</h4>
+                            <p>AI 翻译工具</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== 留言板 & 联系方式 ========== -->
+    <section class="section" id="contact">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-icon">📮</span>
+                <h2 class="section-title">留言板</h2>
+                <p class="section-desc">来都来了，说点什么吧 💬</p>
+            </div>
+
+            <div class="contact-wrapper">
+                <!-- 留言表单 -->
+                <div class="guestbook">
+                    <form class="message-form" id="messageForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name">昵称</label>
+                                <input type="text" id="name" placeholder="你的名字" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">邮箱（选填）</label>
+                                <input type="email" id="email" placeholder="your@email.com">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="message">留言内容</label>
+                            <textarea id="message" rows="4" placeholder="想说什么都可以哦～" required></textarea>
+                        </div>
+                        <button type="submit" class="submit-btn">
+                            <span>发送留言</span>
+                            <span class="btn-icon">🐾</span>
+                        </button>
+                    </form>
+
+                    <!-- 留言列表 -->
+                    <div class="messages-list" id="messagesList">
+                        <div class="message-item">
+                            <div class="message-avatar" style="background: linear-gradient(135deg, #667eea, #764ba2);">🐰</div>
+                            <div class="message-content">
+                                <div class="message-header">
+                                    <span class="message-name">小白兔</span>
+                                    <span class="message-time">2026-10-28</span>
+                                </div>
+                                <p>好喜欢你的网站！书单里有好多我也喜欢的书～</p>
+                            </div>
+                        </div>
+                        <div class="message-item">
+                            <div class="message-avatar" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">🐸</div>
+                            <div class="message-content">
+                                <div class="message-header">
+                                    <span class="message-name">青蛙王子</span>
+                                    <span class="message-time">2026-10-25</span>
+                                </div>
+                                <p>工具箱很实用！已收藏～</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 联系方式卡片 -->
+                <div class="contact-card">
+                    <h3>📬 找到我</h3>
+                    <div class="contact-links">
+                        <a href="mailto:lanmao@example.com" class="contact-link">
+                            <span class="contact-icon">📧</span>
+                            <div>
+                                <span class="contact-label">邮箱</span>
+                                <span class="contact-value">lanmao@example.com</span>
+                            </div>
+                        </a>
+                        <a href="https://github.com" class="contact-link" target="_blank">
+                            <span class="contact-icon">🐙</span>
+                            <div>
+                                <span class="contact-label">GitHub</span>
+                                <span class="contact-value">@lanmaospace</span>
+                            </div>
+                        </a>
+                        <a href="#" class="contact-link">
+                            <span class="contact-icon">💬</span>
+                            <div>
+                                <span class="contact-label">微信</span>
+                                <span class="contact-value">lanmaospace</span>
+                            </div>
+                        </a>
+                        <a href="https://space.bilibili.com" class="contact-link" target="_blank">
+                            <span class="contact-icon">📺</span>
+                            <div>
+                                <span class="contact-label">B站</span>
+                                <span class="contact-value">懒猫空间</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="contact-qrcode">
+                        <div class="qr-placeholder">
+                            <span>📱</span>
+                            <p>微信二维码</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== 页脚 ========== -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <span>🐱</span>
+                    <span>Lanmao Space</span>
+                </div>
+                <p class="footer-text">
+                    © 2026 懒猫空间 | 用 ❤️ 和 ☕ 建造
+                </p>
+                <p class="footer-quote">
+                    "生活不止眼前的代码，还有远方和猫。" 🐾
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 回到顶部按钮 -->
+    <button class="back-to-top" id="backToTop" aria-label="回到顶部">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+    </button>
+
+    <script src="script.js"></script>
+</body>
+</html>
