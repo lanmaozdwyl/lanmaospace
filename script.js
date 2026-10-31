@@ -1,160 +1,149 @@
-// ===== 导航栏滚动效果 =====
+// ===== 导航与动效：优先使用合成动画，尊重系统减少动态效果设置 =====
 const navbar = document.getElementById('navbar');
 const navToggle = document.getElementById('nav-toggle');
 const navLinks = document.getElementById('nav-links');
-const sections = document.querySelectorAll('.section, .hero');
-const navLinkElements = document.querySelectorAll('.nav-link');
+const sections = [...document.querySelectorAll('.section, .hero')];
+const navLinkElements = [...document.querySelectorAll('.nav-link')];
+const backToTop = document.getElementById('backToTop');
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-// 滚动时添加导航栏阴影
-window.addEventListener('scroll', () => {
-    if (window.scrollY > 50) {
-        navbar.classList.add('scrolled');
-    } else {
-        navbar.classList.remove('scrolled');
+function setMenu(open) {
+    navToggle.classList.toggle('open', open);
+    navLinks.classList.toggle('open', open);
+    navToggle.setAttribute('aria-expanded', String(open));
+    navToggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
+}
+navToggle.addEventListener('click', () => setMenu(!navLinks.classList.contains('open')));
+navLinkElements.forEach(link => link.addEventListener('click', () => setMenu(false)));
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && navLinks.classList.contains('open')) {
+        setMenu(false);
+        navToggle.focus();
     }
+});
+document.addEventListener('click', event => {
+    if (!navbar.contains(event.target)) setMenu(false);
+});
+window.matchMedia('(max-width: 768px)').addEventListener('change', () => setMenu(false));
 
-    // 高亮当前导航
-    let current = '';
+let scrollFrame = 0;
+function updateScrollState() {
+    const y = window.scrollY;
+    navbar.classList.toggle('scrolled', y > 50);
+    backToTop.classList.toggle('visible', y > 400);
+    let current = 'home';
     sections.forEach(section => {
-        const sectionTop = section.offsetTop - 100;
-        if (window.scrollY >= sectionTop) {
-            current = section.getAttribute('id');
-        }
+        if (y >= section.offsetTop - 120) current = section.id;
     });
-
     navLinkElements.forEach(link => {
-        link.classList.remove('active');
-        if (link.getAttribute('href') === '#' + current) {
-            link.classList.add('active');
-        }
+        const active = link.hash === '#' + current;
+        link.classList.toggle('active', active);
+        if (active) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
     });
-});
-
-// 移动端汉堡菜单
-navToggle.addEventListener('click', () => {
-    navToggle.classList.toggle('open');
-    navLinks.classList.toggle('open');
-});
-
-// 点击导航链接后关闭菜单
-navLinkElements.forEach(link => {
-    link.addEventListener('click', () => {
-        navToggle.classList.remove('open');
-        navLinks.classList.remove('open');
-    });
-});
-
-// ===== 问候语 =====
-function setGreeting() {
-    const hour = new Date().getHours();
-    const greetingEl = document.getElementById('greeting');
-    if (hour < 6) {
-        greetingEl.textContent = '夜深了';
-    } else if (hour < 12) {
-        greetingEl.textContent = '早上好';
-    } else if (hour < 14) {
-        greetingEl.textContent = '中午好';
-    } else if (hour < 18) {
-        greetingEl.textContent = '下午好';
-    } else {
-        greetingEl.textContent = '晚上好';
-    }
+    scrollFrame = 0;
 }
-setGreeting();
+window.addEventListener('scroll', () => {
+    if (!scrollFrame) scrollFrame = requestAnimationFrame(updateScrollState);
+}, { passive: true });
+window.addEventListener('resize', updateScrollState);
+updateScrollState();
+backToTop.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: reducedMotion.matches ? 'instant' : 'smooth' });
+});
 
-// ===== 数字递增动画 =====
+const hour = new Date().getHours();
+document.getElementById('greeting').textContent = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好';
+
 function animateCounters() {
-    const counters = document.querySelectorAll('.stat-number');
-    counters.forEach(counter => {
-        const target = parseInt(counter.getAttribute('data-target'));
-        const duration = 2000;
-        const step = target / (duration / 16);
-        let current = 0;
-
-        const timer = setInterval(() => {
-            current += step;
-            if (current >= target) {
-                counter.textContent = target;
-                clearInterval(timer);
-            } else {
-                counter.textContent = Math.floor(current);
-            }
-        }, 16);
-    });
+    const counters = [...document.querySelectorAll('.stat-number')];
+    const start = performance.now();
+    function frame(now) {
+        const progress = reducedMotion.matches ? 1 : Math.min((now - start) / 1200, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        counters.forEach(counter => {
+            counter.textContent = Math.round(Number(counter.dataset.target) * eased);
+        });
+        if (progress < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
 }
 
-// 使用 IntersectionObserver 触发计数器动画
-const heroObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            animateCounters();
-            heroObserver.disconnect();
-        }
-    });
-}, { threshold: 0.5 });
-
-const heroStats = document.querySelector('.hero-stats');
-if (heroStats) {
-    heroObserver.observe(heroStats);
-}
-
-// ===== 滚动显示动画 =====
-const revealElements = document.querySelectorAll('.section-header, .book-card, .song-card, .movie-card, .friend-card, .tool-card, .contact-wrapper, .friend-apply');
-
-const revealObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry, index) => {
-        if (entry.isIntersecting) {
-            setTimeout(() => {
+// 默认内容可见；所有 fade-up 元素统一注册，避免父容器永久透明。
+if ('IntersectionObserver' in window) {
+    const revealObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
                 entry.target.classList.add('visible');
-            }, index * 50);
-            revealObserver.unobserve(entry.target);
+                revealObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0, rootMargin: '0px 0px -24px 0px' });
+    if (!reducedMotion.matches) {
+        document.querySelectorAll('.fade-up').forEach(el => {
+            // 动画只作用于最外层，避免父子透明度相乘和重复位移。
+            if (!el.parentElement.closest('.fade-up')) {
+                revealObserver.observe(el);
+                el.classList.add('reveal-pending');
+            }
+        });
+    }
+    reducedMotion.addEventListener('change', event => {
+        if (event.matches) {
+            revealObserver.disconnect();
+            document.querySelectorAll('.reveal-pending').forEach(el => el.classList.add('visible'));
         }
     });
-}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-
-revealElements.forEach(el => {
-    el.classList.add('reveal');
-    revealObserver.observe(el);
-});
+    const statsObserver = new IntersectionObserver(entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+            animateCounters();
+            statsObserver.disconnect();
+        }
+    });
+    statsObserver.observe(document.querySelector('.hero-stats'));
+} else {
+    animateCounters();
+}
 
 // ===== 书单筛选 =====
-const filterBtns = document.querySelectorAll('.filter-btn');
-const bookCards = document.querySelectorAll('.book-card');
-
+const filterBtns = [...document.querySelectorAll('.filter-btn')];
+const bookCards = [...document.querySelectorAll('.book-card')];
 filterBtns.forEach(btn => {
+    btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
     btn.addEventListener('click', () => {
-        filterBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        const filter = btn.getAttribute('data-filter');
-
+        filterBtns.forEach(b => {
+            b.classList.toggle('active', b === btn);
+            b.setAttribute('aria-pressed', String(b === btn));
+        });
         bookCards.forEach(card => {
-            if (filter === 'all' || card.getAttribute('data-category') === filter) {
-                card.classList.remove('hidden');
-                card.style.animation = 'fadeIn 0.4s ease forwards';
-            } else {
-                card.classList.add('hidden');
-            }
+            card.classList.toggle('hidden', btn.dataset.filter !== 'all' && card.dataset.category !== btn.dataset.filter);
         });
     });
 });
 
-// ===== 音乐影视Tab切换 =====
-const mediaTabs = document.querySelectorAll('.media-tab');
-const mediaContents = document.querySelectorAll('.media-content');
-
-mediaTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        mediaTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-
-        const targetId = tab.getAttribute('data-tab');
-        mediaContents.forEach(content => {
-            content.classList.remove('active');
-            if (content.id === targetId) {
-                content.classList.add('active');
-            }
-        });
+// ===== 音乐影视标签：点击、方向键、Home/End =====
+const mediaTabs = [...document.querySelectorAll('.media-tab')];
+const mediaContents = [...document.querySelectorAll('.media-content')];
+function selectMedia(tab) {
+    mediaTabs.forEach(item => {
+        item.classList.toggle('active', item === tab);
+        item.setAttribute('aria-selected', String(item === tab));
+        item.tabIndex = item === tab ? 0 : -1;
+    });
+    mediaContents.forEach(content => content.classList.toggle('active', content.id === tab.dataset.tab));
+}
+mediaTabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectMedia(tab));
+    tab.addEventListener('keydown', event => {
+        let next;
+        if (event.key === 'ArrowRight') next = (index + 1) % mediaTabs.length;
+        else if (event.key === 'ArrowLeft') next = (index - 1 + mediaTabs.length) % mediaTabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = mediaTabs.length - 1;
+        else return;
+        event.preventDefault();
+        selectMedia(mediaTabs[next]);
+        mediaTabs[next].focus();
     });
 });
 
@@ -223,7 +212,7 @@ function showToast(message) {
         bottom: 80px;
         left: 50%;
         transform: translateX(-50%) translateY(20px);
-        background: var(--primary);
+        background: var(--blue);
         color: white;
         padding: 12px 28px;
         border-radius: 100px;
@@ -233,6 +222,7 @@ function showToast(message) {
         opacity: 0;
         transition: all 0.3s ease;
     `;
+    toast.setAttribute('role', 'status');
     toast.textContent = message;
     document.body.appendChild(toast);
 
@@ -247,27 +237,3 @@ function showToast(message) {
         setTimeout(() => toast.remove(), 300);
     }, 2500);
 }
-
-// ===== 回到顶部 =====
-const backToTop = document.getElementById('backToTop');
-
-window.addEventListener('scroll', () => {
-    if (window.scrollY > 400) {
-        backToTop.classList.add('visible');
-    } else {
-        backToTop.classList.remove('visible');
-    }
-});
-
-backToTop.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-});
-
-// ===== 页面加载动画 =====
-document.addEventListener('DOMContentLoaded', () => {
-    document.body.style.opacity = '0';
-    requestAnimationFrame(() => {
-        document.body.style.transition = 'opacity 0.6s ease';
-        document.body.style.opacity = '1';
-    });
-});
