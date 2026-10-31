@@ -8,6 +8,7 @@
     <title>我的备忘录 | 蓝昴空间</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="memo.css">
+    <link rel="stylesheet" href="auth.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
     <link rel="stylesheet" href="motion.css">
 </head>
@@ -21,7 +22,7 @@
         <header class="memo-hero">
             <p class="memo-eyebrow">MEMO · PRIVATE</p>
             <h1>我的备忘录。<br><span class="gradient-text">只属于我自己。</span></h1>
-            <p>登录后解锁，内容在浏览器里加密再同步。<br>不在导航里出现，请用书签打开这个页面。</p>
+            <p>登录后解锁，内容在浏览器里加密再同步。<br>已在导航里出现；访客账号登录后也打不开备忘录，只有店主账号能解锁。</p>
         </header>
 
         <!-- Supabase 未配置时显示 -->
@@ -31,10 +32,10 @@
             <p class="memo-note">如果你是访客：这个页面没有可看的内容，请返回首页。如果你是站主：请按交接文档里的 Supabase 步骤完成配置后再打开。</p>
         </section>
 
-        <!-- 登录：登录密码只证明身份，不是解密口令 -->
+        <!-- 登录：一般从全站登录页过来就不会看到这里；登录过期时在这里重新登录 -->
         <section class="memo-card" id="login-panel" hidden>
             <h2>登录</h2>
-            <p>用你在 Supabase 后台创建的账号登录。这是登录密码，和下面解锁用的备忘录口令不是同一个。</p>
+            <p>请用店主账号登录。这是登录密码，和下面解锁用的备忘录口令不是同一个。访客账号登录后也打不开备忘录。</p>
             <form id="login-form">
                 <div class="form-group">
                     <label for="login-email">邮箱</label>
@@ -46,6 +47,16 @@
                 </div>
                 <button type="submit" class="submit-btn" id="login-button"><span>登录</span></button>
             </form>
+        </section>
+
+        <!-- 访客账号登录后显示：备忘录仅店主可用 -->
+        <section class="memo-card" id="owner-panel" hidden>
+            <h2>备忘录仅店主可用</h2>
+            <p>你登录的账号不是店主账号，不能查看或新建备忘录。请返回首页继续浏览，或退出后用店主账号重新登录。</p>
+            <div class="memo-actions">
+                <a class="memo-btn-secondary" href="index.html">返回首页</a>
+                <button type="button" class="memo-btn-secondary" id="owner-signout-button">退出登录</button>
+            </div>
         </section>
 
         <!-- 解锁：备忘录口令只在内存里派生密钥，从不上传、不存本地 -->
@@ -105,6 +116,7 @@
     </footer>
 
     <script src="memo-config.js"></script>
+    <script type="module" src="auth-guard.js"></script>
     <script type="module" src="memo.js"></script>
     <script src="motion.js"></script>
 </body>

@@ -6,6 +6,7 @@
     <meta name="description" content="蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。">
     <title>Lanmao Space | 蓝昴空间</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="auth.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
 <link rel="stylesheet" href="motion.css"></head>
 <body>
@@ -23,7 +24,9 @@
                 <a href="#music" class="nav-link">音乐影视</a>
                 <a href="#links" class="nav-link">友链</a>
                 <a href="#toolbox" class="nav-link">工具箱</a>
+                <a href="memo.html" class="nav-link">备忘录</a>
                 <a href="#contact" class="nav-link">留言</a>
+                <button type="button" class="nav-link nav-signout" data-signout>退出登录</button>
             </div>
             <button class="nav-toggle" id="nav-toggle" aria-label="打开导航菜单" aria-expanded="false" aria-controls="nav-links">
                 <span></span><span></span><span></span>
@@ -598,6 +601,8 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
     </button>
 
+    <script src="memo-config.js"></script>
+    <script type="module" src="auth-guard.js"></script>
     <script src="script.js"></script>
 <script src="motion.js"></script></body>
 </html>

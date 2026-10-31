@@ -11,6 +11,7 @@ const $ = (id) => document.getElementById(id);
 
 const setupPanel = $("setup-panel");
 const loginPanel = $("login-panel");
+const ownerPanel = $("owner-panel");
 const passphrasePanel = $("passphrase-panel");
 const appPanel = $("app-panel");
 const passphraseTitle = $("passphrase-title");
@@ -36,9 +37,17 @@ let editingId = null;
 let searchQuery = "";
 
 function showOnly(panel) {
-    for (const el of [setupPanel, loginPanel, passphrasePanel, appPanel]) {
+    for (const el of [setupPanel, loginPanel, ownerPanel, passphrasePanel, appPanel]) {
         el.hidden = el !== panel;
     }
+}
+
+// 备忘录只认店主邮箱：访客注册的账号能进网站，但打不开备忘录。
+// ownerEmail 为空时谁也打不开，避免没填好就误放行。
+function isOwner(user) {
+    const config = window.LANMAO_MEMO_CONFIG;
+    const ownerEmail = config && typeof config.ownerEmail === "string" ? config.ownerEmail.trim().toLowerCase() : "";
+    return Boolean(ownerEmail) && Boolean(user && user.email) && user.email.toLowerCase() === ownerEmail;
 }
 
 function setPanelStatus(panel, message) {
@@ -324,6 +333,10 @@ loginForm.addEventListener("submit", async (event) => {
         if (error) throw error;
         currentUser = data.user;
         $("login-password").value = "";
+        if (!isOwner(currentUser)) {
+            showOnly(ownerPanel);
+            return;
+        }
         await showPassphrasePanel();
     } catch (error) {
         console.error(error);
@@ -384,6 +397,11 @@ $("signout-button").addEventListener("click", async () => {
     lock();
     await supabase.auth.signOut();
     showOnly(loginPanel);
+});
+$("owner-signout-button").addEventListener("click", async () => {
+    lock();
+    await supabase.auth.signOut();
+    window.location.replace("login.html");
 });
 searchInput.addEventListener("input", () => {
     searchQuery = searchInput.value;
@@ -463,7 +481,11 @@ async function init() {
             showOnly(loginPanel);
         } else if (event === "SIGNED_IN" && session && session.user && currentUser?.id !== session.user.id) {
             currentUser = session.user;
-            await showPassphrasePanel();
+            if (!isOwner(currentUser)) {
+                showOnly(ownerPanel);
+            } else {
+                await showPassphrasePanel();
+            }
         }
     });
     try {
@@ -477,7 +499,11 @@ async function init() {
         return;
     }
     if (currentUser) {
-        await showPassphrasePanel();
+        if (!isOwner(currentUser)) {
+            showOnly(ownerPanel);
+        } else {
+            await showPassphrasePanel();
+        }
     } else {
         showOnly(loginPanel);
     }

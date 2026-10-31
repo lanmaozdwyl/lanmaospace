@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="登录蓝昴空间：访客用邮箱注册或登录后浏览，备忘录仅店主可用。">
+    <title>登录 | 蓝昴空间</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="memo.css">
+    <link rel="stylesheet" href="auth.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
+    <link rel="stylesheet" href="motion.css">
+</head>
+<body>
+    <main class="memo-shell">
+        <div class="memo-topbar">
+            <span>🐱 Lanmao Space</span>
+            <span>登录后进入</span>
+        </div>
+
+        <header class="memo-hero">
+            <p class="memo-eyebrow">SIGN IN · LANMAO SPACE</p>
+            <h1>登录蓝昴空间。<br><span class="gradient-text">邮箱账号，一处登录。</span></h1>
+            <p>首页、商店和备忘录都需要登录。访客可以用邮箱注册一个账号再登录；<br>备忘录只属于店主，访客账号登录后也打不开备忘录。</p>
+        </header>
+
+        <!-- 登录 -->
+        <section class="memo-card" id="login-panel">
+            <h2>登录</h2>
+            <p>用邮箱和密码登录。登录成功后会回到你刚才想打开的页面。</p>
+            <p class="memo-status auth-status" id="login-status" role="status" aria-live="polite"></p>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-email">邮箱</label>
+                    <input type="email" id="login-email" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">密码</label>
+                    <input type="password" id="login-password" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="submit-btn" id="login-button"><span>登录</span></button>
+            </form>
+            <div class="auth-links">
+                <button type="button" id="go-register">没有账号？去注册</button>
+                <button type="button" id="go-forgot">忘记密码</button>
+            </div>
+        </section>
+
+        <!-- 注册 -->
+        <section class="memo-card" id="register-panel" hidden>
+            <h2>注册</h2>
+            <p>用邮箱注册一个账号。注册后可能需要先点确认邮件里的链接，再回来登录。</p>
+            <p class="memo-status auth-status" id="register-status" role="status" aria-live="polite"></p>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="register-email">邮箱</label>
+                    <input type="email" id="register-email" autocomplete="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">密码（至少 8 位）</label>
+                    <input type="password" id="register-password" autocomplete="new-password" minlength="8" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password-confirm">再输一次密码</label>
+                    <input type="password" id="register-password-confirm" autocomplete="new-password" minlength="8" required>
+                </div>
+                <button type="submit" class="submit-btn" id="register-button"><span>注册</span></button>
+            </form>
+            <div class="auth-links">
+                <button type="button" id="back-to-login">已有账号？去登录</button>
+                <button type="button" id="resend-confirm" hidden>重新发送确认邮件</button>
+            </div>
+        </section>
+
+        <!-- 忘记密码 -->
+        <section class="memo-card" id="forgot-panel" hidden>
+            <h2>忘记密码</h2>
+            <p>输入注册时的邮箱，会收到一封重置密码的邮件，点里面的链接回来设置新密码。</p>
+            <p class="memo-status auth-status" id="forgot-status" role="status" aria-live="polite"></p>
+            <form id="forgot-form">
+                <div class="form-group">
+                    <label for="forgot-email">邮箱</label>
+                    <input type="email" id="forgot-email" autocomplete="email" required>
+                </div>
+                <button type="submit" class="submit-btn" id="forgot-button"><span>发送重置邮件</span></button>
+            </form>
+            <div class="auth-links">
+                <button type="button" id="forgot-back">返回登录</button>
+            </div>
+        </section>
+
+        <!-- 点重置邮件链接回来后设置新密码 -->
+        <section class="memo-card" id="recovery-panel" hidden>
+            <h2>设置新密码</h2>
+            <p>你是通过重置密码邮件进来的，请设置一个新密码（至少 8 位），设置成功后直接进入网站。</p>
+            <p class="memo-status auth-status" id="recovery-status" role="status" aria-live="polite"></p>
+            <form id="recovery-form">
+                <div class="form-group">
+                    <label for="recovery-password">新密码</label>
+                    <input type="password" id="recovery-password" autocomplete="new-password" minlength="8" required>
+                </div>
+                <div class="form-group">
+                    <label for="recovery-password-confirm">再输一次新密码</label>
+                    <input type="password" id="recovery-password-confirm" autocomplete="new-password" minlength="8" required>
+                </div>
+                <button type="submit" class="submit-btn" id="recovery-button"><span>保存新密码</span></button>
+            </form>
+        </section>
+    </main>
+
+    <footer class="memo-footer">
+        <p>登录只证明你是哪一个邮箱账号。备忘录内容另外加密，访客账号打不开。<br>密码不要和别的网站用同一个，收到确认或重置邮件时先确认发件人是 Supabase。</p>
+    </footer>
+
+    <script src="memo-config.js"></script>
+    <script type="module" src="login.js"></script>
+    <script src="motion.js"></script>
+</body>
+</html>

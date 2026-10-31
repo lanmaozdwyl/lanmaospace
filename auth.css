@@ -1,0 +1,59 @@
+/* Lanmao Space 全站登录：只补登录页和导航退出按钮需要的样式，颜色、字体、圆角复用 style.css。 */
+.nav-signout {
+    font: inherit;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.shop-nav-links {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.shop-nav-signout {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.auth-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 16px;
+    font-size: 0.875rem;
+}
+
+.auth-links button {
+    font: inherit;
+    color: var(--blue, #0071e3);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.auth-status {
+    min-height: 1.5em;
+}
+
+@media (max-width: 768px) {
+    .shop-nav-links {
+        gap: 12px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-signout,
+    .shop-nav-signout,
+    .auth-links button {
+        transition: none;
+    }
+}
