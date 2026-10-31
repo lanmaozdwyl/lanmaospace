@@ -1,0 +1,208 @@
+/* Lanmao Space 备忘录：只补本站没有的布局，颜色、字体、圆角都复用 style.css 的变量。 */
+.memo-shell {
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: 96px 22px 80px;
+}
+
+.memo-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 40px;
+    font-size: 0.9375rem;
+}
+
+.memo-topbar a {
+    font-weight: 600;
+}
+
+.memo-hero {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.memo-eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    color: var(--gray-400);
+    margin-bottom: 16px;
+}
+
+.memo-hero h1 {
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    margin-bottom: 12px;
+}
+
+.memo-hero p {
+    color: var(--gray-600);
+    line-height: 1.7;
+}
+
+.memo-card {
+    background: var(--white);
+    border: 0.5px solid rgba(0, 0, 0, 0.06);
+    border-radius: var(--card-radius);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    padding: 28px;
+    margin-bottom: 20px;
+}
+
+.memo-card h2 {
+    font-size: 1.1875rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+}
+
+.memo-card > p {
+    color: var(--gray-600);
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    margin-bottom: 16px;
+}
+
+.memo-note {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    line-height: 1.7;
+}
+
+.memo-status {
+    min-height: 1.5em;
+    color: var(--gray-600);
+    font-size: 0.9375rem;
+    margin-bottom: 16px;
+}
+
+.memo-status:empty {
+    display: none;
+}
+
+.memo-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.memo-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 22px;
+    border: 1px solid var(--gray-200);
+    border-radius: 980px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--dark);
+    background: var(--white);
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.memo-btn-secondary:hover {
+    background: var(--gray-50);
+}
+
+.memo-btn-secondary:active,
+.submit-btn:active {
+    transform: scale(0.97);
+}
+
+.memo-search {
+    margin-bottom: 20px;
+}
+
+.memo-list {
+    display: grid;
+    gap: 14px;
+}
+
+.memo-item {
+    border: 1px solid var(--gray-100);
+    border-radius: 16px;
+    padding: 20px;
+    background: var(--off-white);
+}
+
+.memo-item h3 {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+    overflow-wrap: anywhere;
+}
+
+.memo-item time {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--gray-400);
+    margin-bottom: 10px;
+}
+
+.memo-item p {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--gray-800);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.memo-item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.memo-item-actions button {
+    padding: 8px 16px;
+    border: 1px solid var(--gray-200);
+    border-radius: 980px;
+    font-size: 0.875rem;
+    background: var(--white);
+}
+
+.memo-empty {
+    color: var(--gray-400);
+    text-align: center;
+    padding: 28px 0 8px;
+}
+
+.memo-editor {
+    border-top: 0.5px solid var(--gray-100);
+    padding-top: 24px;
+    margin-top: 4px;
+}
+
+.memo-footer {
+    text-align: center;
+    color: var(--gray-400);
+    font-size: 0.875rem;
+    padding: 24px 22px 48px;
+    line-height: 1.7;
+}
+
+.memo-footer a {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .memo-shell {
+        padding-top: 72px;
+    }
+
+    .memo-card {
+        padding: 22px 20px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .memo-btn-secondary,
+    .submit-btn {
+        transition: none;
+    }
+}

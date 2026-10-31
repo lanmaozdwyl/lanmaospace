@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="蓝昴的私人备忘录：登录后可见，内容加密后同步，仅本人可读。">
+    <title>我的备忘录 | 蓝昴空间</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="memo.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
+    <link rel="stylesheet" href="motion.css">
+</head>
+<body>
+    <main class="memo-shell">
+        <div class="memo-topbar">
+            <a href="index.html">🐱 Lanmao Space</a>
+            <a href="index.html">返回空间 ↗</a>
+        </div>
+
+        <header class="memo-hero">
+            <p class="memo-eyebrow">MEMO · PRIVATE</p>
+            <h1>我的备忘录。<br><span class="gradient-text">只属于我自己。</span></h1>
+            <p>登录后解锁，内容在浏览器里加密再同步。<br>不在导航里出现，请用书签打开这个页面。</p>
+        </header>
+
+        <!-- Supabase 未配置时显示 -->
+        <section class="memo-card" id="setup-panel" hidden>
+            <h2>备忘录还没有接好</h2>
+            <p>这个页面需要先在 Supabase 里建好项目、建好表，再把项目地址和 anon key 填进 <code>memo-config.js</code>。在那之前，这里不会显示任何备忘录内容，也不会把内容发到任何地方。</p>
+            <p class="memo-note">如果你是访客：这个页面没有可看的内容，请返回首页。如果你是站主：请按交接文档里的 Supabase 步骤完成配置后再打开。</p>
+        </section>
+
+        <!-- 登录：登录密码只证明身份，不是解密口令 -->
+        <section class="memo-card" id="login-panel" hidden>
+            <h2>登录</h2>
+            <p>用你在 Supabase 后台创建的账号登录。这是登录密码，和下面解锁用的备忘录口令不是同一个。</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-email">邮箱</label>
+                    <input type="email" id="login-email" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">登录密码</label>
+                    <input type="password" id="login-password" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="submit-btn" id="login-button"><span>登录</span></button>
+            </form>
+        </section>
+
+        <!-- 解锁：备忘录口令只在内存里派生密钥，从不上传、不存本地 -->
+        <section class="memo-card" id="passphrase-panel" hidden>
+            <h2 id="passphrase-title">输入备忘录口令解锁</h2>
+            <p id="passphrase-desc">备忘录口令和登录密码不同。内容用它加密，口令忘了就解不开，没有找回办法，请务必记住。</p>
+            <form id="passphrase-form">
+                <div class="form-group">
+                    <label for="memo-passphrase">备忘录口令</label>
+                    <input type="password" id="memo-passphrase" name="memo-passphrase" autocomplete="off" required>
+                </div>
+                <div class="form-group" id="passphrase-confirm-group" hidden>
+                    <label for="memo-passphrase-confirm">再输一次备忘录口令</label>
+                    <input type="password" id="memo-passphrase-confirm" name="memo-passphrase-confirm" autocomplete="off">
+                </div>
+                <button type="submit" class="submit-btn" id="unlock-button"><span>解锁</span></button>
+            </form>
+        </section>
+
+        <!-- 已解锁的备忘录 -->
+        <section class="memo-card" id="app-panel" hidden>
+            <p class="memo-status" id="memo-status" role="status" aria-live="polite"></p>
+            <div class="memo-actions">
+                <button type="button" class="submit-btn" id="new-note-button"><span>＋ 写一条</span></button>
+                <button type="button" class="memo-btn-secondary" id="lock-button">锁定</button>
+                <button type="button" class="memo-btn-secondary" id="signout-button">退出登录</button>
+            </div>
+
+            <div class="form-group memo-search">
+                <label for="memo-search">搜索备忘录</label>
+                <input type="search" id="memo-search" placeholder="搜索标题或正文…">
+            </div>
+
+            <form class="memo-editor" id="editor-form" hidden>
+                <div class="form-group">
+                    <label for="note-title">标题</label>
+                    <input type="text" id="note-title" maxlength="120">
+                </div>
+                <div class="form-group">
+                    <label for="note-body">内容</label>
+                    <textarea id="note-body" rows="6" required></textarea>
+                </div>
+                <div class="memo-actions">
+                    <button type="submit" class="submit-btn" id="save-note-button"><span>保存并同步</span></button>
+                    <button type="button" class="memo-btn-secondary" id="cancel-edit-button">取消</button>
+                </div>
+            </form>
+
+            <div class="memo-list" id="memo-list"></div>
+            <p class="memo-empty" id="memo-empty" hidden>还没有备忘录，点“写一条”开始记第一条吧。</p>
+        </section>
+    </main>
+
+    <footer class="memo-footer">
+        <p>备忘录内容加密后才同步，服务器上只有密文。<br>备忘录口令忘了无法恢复；免费 Supabase 项目闲置一周可能暂停，需在后台恢复。</p>
+        <p><a href="index.html">回到首页</a></p>
+    </footer>
+
+    <script src="memo-config.js"></script>
+    <script type="module" src="memo.js"></script>
+    <script src="motion.js"></script>
+</body>
+</html>

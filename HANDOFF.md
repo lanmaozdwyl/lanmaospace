@@ -27,6 +27,17 @@
 | store.css | 商店布局与卡片样式 |
 | store.js | catalog 商品数据、价格、分类搜索、详情与 QQ 联系链接 |
 | motion.css / motion.js | 两页共用的动效：入场、进度线、卡片柔光和轻微倾斜、弹窗动画 |
+| memo.html / memo.css / memo.js | 私人备忘录页：Supabase 登录 + 浏览器内加密同步，不在导航里，`noindex` |
+| memo-config.js | 备忘录配置：只放 Supabase Project URL 和 anon / publishable key，绝不放 service_role key |
+| supabase/memos.sql | 备忘录建表与行级权限 SQL，在 Supabase SQL Editor 里运行一次 |
+
+## 备忘录（Supabase + 加密，2026-10-31 已推送到 main，待店主登录验证）
+
+- 方案：用户已选 Supabase + 客户端加密（跨设备同步）。2026-10-31 已收到 Project URL 和 publishable key 并填进 `memo-config.js`（key 只存该文件，不记在交接文档或记忆里），匿名请求检查确认 `memos` / `memo_vault` 两张表已存在且受 RLS 保护（未登录返回空列表）。代码已推送到 main，Netlify 自动部署后由店主亲自登录并设置备忘录口令测试；登录账号能否登录，推送前未用密码验证。
+- 流程：`memo.html` 登录（邮箱 + 登录密码，Supabase Auth）→ 输入备忘录口令 → 浏览器内用 PBKDF2（21 万次，SHA-256）派生 AES-GCM 密钥 → 内容加密成密文后存 Supabase，解密只在内存里进行。登录密码和备忘录口令是两个不同的口令；备忘录口令忘了无法恢复。
+- 表：`memo_vault`（每用户一行：salt、加密校验串）和 `memos`（密文、IV），建表 SQL 见 `supabase/memos.sql`，两表都开 RLS 且只允许本人读写。不要关 RLS，不要加所有人可读/可写的策略。
+- 配置分工：建 Supabase 项目、运行 SQL、关闭公开注册、创建登录账号、复制 Project URL 和 anon / publishable key，必须由店主在 Supabase 后台操作；不要在聊天里要 service_role key、secret key、登录密码或备忘录口令。anon key 会出现在前端代码里，靠 RLS 保护，这是设计如此。
+- 限制：免费 Supabase 项目闲置一周可能暂停，需在后台恢复；备忘录页不进导航、不做搜索引擎收录；不要把账号密码、验证码等极敏感信息当作普通备忘录存放，也不要把备忘录明文写进仓库或前端。
 
 ## 用户已确认的方向
 
