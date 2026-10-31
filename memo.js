@@ -27,12 +27,20 @@ const searchInput = $("memo-search");
 
 const CHECK_VALUE = "lanmao-memo-check-v1";
 const PBKDF2_ITERATIONS = 210000;
+// 附件：单个文件不超过 20 MB（Supabase 免费版全局上限 50 MB，代码再收紧，
+// 避免浏览器里加密/解密大文件太慢）；文件存储总量是免费版的 1 GB。
+const STORAGE_BUCKET = "memo-files";
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const FILE_STORAGE_LIMIT_BYTES = 1024 * 1024 * 1024;
 
 let supabase = null;
 let currentUser = null;
 let vault = null;
 let cryptoKey = null;
 let notes = [];
+let files = [];
+let pendingFiles = [];
+let filesUnavailable = false;
 let editingId = null;
 let searchQuery = "";
 
@@ -129,10 +137,177 @@ async function decryptNote(key, ciphertextBase64, ivBase64) {
     };
 }
 
+function formatFileSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function randomFileId() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    const bytes = randomBytes(16);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function updateUsage() {
+    const usageEl = $("memo-usage");
+    if (!usageEl) return;
+    if (filesUnavailable) {
+        usageEl.textContent = "";
+        return;
+    }
+    const used = files.reduce((sum, file) => sum + (file.size_bytes || 0), 0);
+    usageEl.textContent = `附件已用 ${formatFileSize(used)} · 文件存储免费版 1 GB · 单个文件不超过 20 MB`;
+}
+
+// 附件元数据：文件名加密后才存在表里，解密后只放内存。表或存储桶还没建好
+// 时不要让文字备忘录也打不开：只记 filesUnavailable，照常显示文字内容。
+async function loadFiles() {
+    files = [];
+    filesUnavailable = false;
+    try {
+        const { data, error } = await supabase
+            .from("memo_files")
+            .select("id, note_id, file_path, name_ciphertext, name_iv, file_iv, mime_type, size_bytes, created_at")
+            .eq("user_id", currentUser.id)
+            .order("created_at", { ascending: true });
+        if (error) throw error;
+        for (const row of data) {
+            try {
+                const name = (await decryptNote(cryptoKey, row.name_ciphertext, row.name_iv)).body;
+                files.push({ ...row, name });
+            } catch (decryptError) {
+                console.error(decryptError);
+            }
+        }
+    } catch (error) {
+        console.error(error);
+        filesUnavailable = true;
+    }
+    updateUsage();
+}
+
+function renderPendingFiles() {
+    const listEl = $("selected-files");
+    if (!listEl) return;
+    listEl.replaceChildren();
+    const existing = editingId ? files.filter((file) => file.note_id === editingId) : [];
+    for (const file of existing) {
+        const row = document.createElement("div");
+        row.className = "memo-file-row";
+        const name = document.createElement("span");
+        name.textContent = `${file.name}（${formatFileSize(file.size_bytes)}，已上传）`;
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.textContent = "删除附件";
+        removeButton.addEventListener("click", () => deleteAttachment(file));
+        row.append(name, removeButton);
+        listEl.append(row);
+    }
+    pendingFiles.forEach((file, index) => {
+        const row = document.createElement("div");
+        row.className = "memo-file-row";
+        const name = document.createElement("span");
+        name.textContent = `${file.name}（${formatFileSize(file.size)}，待上传）`;
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.textContent = "移除";
+        removeButton.addEventListener("click", () => {
+            pendingFiles.splice(index, 1);
+            renderPendingFiles();
+        });
+        row.append(name, removeButton);
+        listEl.append(row);
+    });
+}
+
+async function uploadAttachment(noteId, file) {
+    const data = await file.arrayBuffer();
+    const iv = randomBytes(12);
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, cryptoKey, data);
+    const filePath = `${currentUser.id}/${randomFileId()}.bin`;
+    const nameEncrypted = await encryptNote(cryptoKey, { title: "", body: file.name });
+    const { error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(filePath, new Blob([ciphertext], { type: "application/octet-stream" }), {
+            contentType: "application/octet-stream",
+            upsert: false
+        });
+    if (uploadError) throw uploadError;
+    const { error: rowError } = await supabase.from("memo_files").insert({
+        user_id: currentUser.id,
+        note_id: noteId,
+        file_path: filePath,
+        name_ciphertext: nameEncrypted.ciphertext,
+        name_iv: nameEncrypted.iv,
+        file_iv: bytesToBase64(iv),
+        mime_type: file.type || "application/octet-stream",
+        size_bytes: file.size
+    });
+    if (rowError) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([filePath]).catch(() => {});
+        throw rowError;
+    }
+}
+
+async function downloadAttachment(file, button) {
+    if (button) button.disabled = true;
+    try {
+        const { data, error } = await supabase.storage.from(STORAGE_BUCKET).download(file.file_path);
+        if (error) throw error;
+        const ciphertext = new Uint8Array(await data.arrayBuffer());
+        const plaintext = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: base64ToBytes(file.file_iv) },
+            cryptoKey,
+            ciphertext
+        );
+        const blob = new Blob([plaintext], { type: file.mime_type || "application/octet-stream" });
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = file.name || "download";
+        document.body.append(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    } catch (error) {
+        console.error(error);
+        setAppStatus("下载失败：文件可能还没上传成功，或存储桶还没建好。请检查网络，刷新后再试。");
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+async function deleteAttachment(file) {
+    if (!window.confirm(`确定删除附件“${file.name}”吗？删除后无法恢复。`)) return;
+    setAppStatus("正在删除附件…");
+    const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([file.file_path]);
+    if (storageError) console.error(storageError);
+    const { error } = await supabase
+        .from("memo_files")
+        .delete()
+        .eq("id", file.id)
+        .eq("user_id", currentUser.id);
+    if (error) {
+        console.error(error);
+        setAppStatus("删除附件失败，请刷新后重试。");
+        return;
+    }
+    await loadNotes();
+    setAppStatus("附件已删除。");
+}
+
 function lock() {
     cryptoKey = null;
     vault = null;
     notes = [];
+    files = [];
+    pendingFiles = [];
+    filesUnavailable = false;
     editingId = null;
     searchQuery = "";
     searchInput.value = "";
@@ -140,10 +315,13 @@ function lock() {
     $("memo-passphrase-confirm").value = "";
     $("note-title").value = "";
     $("note-body").value = "";
+    $("note-files").value = "";
+    renderPendingFiles();
     editorForm.hidden = true;
     memoList.replaceChildren();
     memoEmpty.hidden = true;
     setAppStatus("");
+    $("memo-usage").textContent = "";
 }
 
 async function fetchVault() {
@@ -233,7 +411,12 @@ async function loadNotes() {
         }
     }
     notes = loaded;
-    if (skipped > 0) {
+    await loadFiles();
+    if (filesUnavailable) {
+        setAppStatus(
+            "文字备忘录已同步，但附件功能还没接好：请在 Supabase SQL Editor 里运行 supabase/memo-files.sql 建表建桶后再刷新。"
+        );
+    } else if (skipped > 0) {
         setAppStatus(`已同步，有 ${skipped} 条内容解不开，已跳过显示。请不要删除 Supabase 里的数据，先检查备忘录口令。`);
     } else {
         setAppStatus("");
@@ -252,7 +435,11 @@ function renderNotes() {
     const query = searchQuery.trim().toLowerCase();
     const visible = notes.filter((note) => {
         if (!query) return true;
-        return (note.title + "\n" + note.body).toLowerCase().includes(query);
+        const fileNames = files
+            .filter((file) => file.note_id === note.id)
+            .map((file) => file.name)
+            .join("\n");
+        return (note.title + "\n" + note.body + "\n" + fileNames).toLowerCase().includes(query);
     });
     memoEmpty.hidden = visible.length > 0;
     if (query && visible.length === 0) {
@@ -283,29 +470,66 @@ function renderNotes() {
         deleteButton.setAttribute("aria-label", "删除备忘录");
         deleteButton.addEventListener("click", () => deleteNote(note));
         actions.append(editButton, deleteButton);
-        article.append(title, time, body, actions);
+        article.append(title, time, body);
+        const noteFiles = files.filter((file) => file.note_id === note.id);
+        if (noteFiles.length > 0) {
+            const attachments = document.createElement("div");
+            attachments.className = "memo-attachments";
+            for (const file of noteFiles) {
+                const row = document.createElement("div");
+                row.className = "memo-file-row";
+                const name = document.createElement("span");
+                name.textContent = `${file.name}（${formatFileSize(file.size_bytes)}）`;
+                const downloadButton = document.createElement("button");
+                downloadButton.type = "button";
+                downloadButton.textContent = "下载";
+                downloadButton.addEventListener("click", () => downloadAttachment(file, downloadButton));
+                const deleteFileButton = document.createElement("button");
+                deleteFileButton.type = "button";
+                deleteFileButton.textContent = "删除附件";
+                deleteFileButton.addEventListener("click", () => deleteAttachment(file));
+                row.append(name, downloadButton, deleteFileButton);
+                attachments.append(row);
+            }
+            article.append(attachments);
+        }
+        article.append(actions);
         memoList.append(article);
     }
 }
 
 function openEditor(note) {
     editingId = note ? note.id : null;
+    pendingFiles = [];
+    $("note-files").value = "";
     $("note-title").value = note ? note.title : "";
     $("note-body").value = note ? note.body : "";
+    renderPendingFiles();
     editorForm.hidden = false;
     $("note-title").focus();
 }
 
 function closeEditor() {
     editingId = null;
+    pendingFiles = [];
+    $("note-files").value = "";
+    renderPendingFiles();
     $("note-title").value = "";
     $("note-body").value = "";
     editorForm.hidden = true;
 }
 
 async function deleteNote(note) {
-    if (!window.confirm("确定删除这条备忘录吗？删除后无法恢复。")) return;
+    if (!window.confirm("确定删除这条备忘录吗？连同它的附件一起删除，删除后无法恢复。")) return;
     setAppStatus("正在删除…");
+    // 先删存储桶里的附件密文，再删备忘录行（附件元数据行随备忘录级联删除）。
+    const noteFiles = files.filter((file) => file.note_id === note.id);
+    if (noteFiles.length > 0) {
+        const { error: storageError } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .remove(noteFiles.map((file) => file.file_path));
+        if (storageError) console.error(storageError);
+    }
     const { error } = await supabase
         .from("memos")
         .delete()
@@ -425,6 +649,7 @@ editorForm.addEventListener("submit", async (event) => {
     setAppStatus("正在加密并同步…");
     try {
         const encrypted = await encryptNote(cryptoKey, { title, body });
+        let noteId = editingId;
         if (editingId) {
             const { error } = await supabase
                 .from("memos")
@@ -433,21 +658,70 @@ editorForm.addEventListener("submit", async (event) => {
                 .eq("user_id", currentUser.id);
             if (error) throw error;
         } else {
-            const { error } = await supabase.from("memos").insert({
-                user_id: currentUser.id,
-                ciphertext: encrypted.ciphertext,
-                iv: encrypted.iv
-            });
+            const { data, error } = await supabase
+                .from("memos")
+                .insert({
+                    user_id: currentUser.id,
+                    ciphertext: encrypted.ciphertext,
+                    iv: encrypted.iv
+                })
+                .select("id")
+                .single();
             if (error) throw error;
+            noteId = data.id;
+        }
+        const toUpload = [...pendingFiles];
+        pendingFiles = [];
+        const failed = [];
+        if (toUpload.length > 0) {
+            setAppStatus(`正在加密并上传 ${toUpload.length} 个附件…`);
+            for (const file of toUpload) {
+                try {
+                    await uploadAttachment(noteId, file);
+                } catch (uploadError) {
+                    console.error(uploadError);
+                    failed.push(file.name);
+                }
+            }
         }
         closeEditor();
         await loadNotes();
-        setAppStatus("已保存并同步。");
+        if (failed.length > 0) {
+            setAppStatus(
+                `备忘录已保存，但 ${failed.length} 个附件上传失败：${failed.join("、")}。请确认已在 Supabase 运行 memo-files.sql 建表建桶，刷新后重新编辑这条备忘录再传。`
+            );
+        } else {
+            setAppStatus("已保存并同步。");
+        }
     } catch (error) {
         console.error(error);
         setAppStatus("保存失败，请检查网络或 Supabase 项目是否暂停，刷新后再试。");
     } finally {
         button.disabled = false;
+    }
+});
+
+$("note-files").addEventListener("change", (event) => {
+    const chosen = [...event.target.files];
+    event.target.value = "";
+    const skipped = [];
+    const usedBytes = files.reduce((sum, file) => sum + (file.size_bytes || 0), 0);
+    let pendingBytes = pendingFiles.reduce((sum, file) => sum + file.size, 0);
+    for (const file of chosen) {
+        if (file.size > MAX_FILE_BYTES) {
+            skipped.push(`${file.name}（超过 20 MB）`);
+            continue;
+        }
+        if (usedBytes + pendingBytes + file.size > FILE_STORAGE_LIMIT_BYTES) {
+            skipped.push(`${file.name}（附件总量会超过 1 GB）`);
+            continue;
+        }
+        pendingFiles.push(file);
+        pendingBytes += file.size;
+    }
+    renderPendingFiles();
+    if (skipped.length > 0) {
+        setAppStatus(`以下文件已跳过：${skipped.join("、")}。`);
     }
 });
 

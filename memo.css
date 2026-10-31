@@ -172,6 +172,47 @@
     padding: 28px 0 8px;
 }
 
+.memo-attachments {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.memo-selected-files {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.memo-selected-files:empty {
+    display: none;
+}
+
+.memo-file-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    border: 1px solid var(--gray-100);
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: var(--white);
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+}
+
+.memo-file-row span {
+    flex: 1 1 180px;
+}
+
+.memo-file-row button {
+    padding: 6px 14px;
+    border: 1px solid var(--gray-200);
+    border-radius: 980px;
+    font-size: 0.8125rem;
+    background: var(--white);
+}
+
 .memo-editor {
     border-top: 0.5px solid var(--gray-100);
     padding-top: 24px;

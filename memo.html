@@ -79,6 +79,7 @@
         <!-- 已解锁的备忘录 -->
         <section class="memo-card" id="app-panel" hidden>
             <p class="memo-status" id="memo-status" role="status" aria-live="polite"></p>
+            <p class="memo-status" id="memo-usage" role="status" aria-live="polite"></p>
             <div class="memo-actions">
                 <button type="button" class="submit-btn" id="new-note-button"><span>＋ 写一条</span></button>
                 <button type="button" class="memo-btn-secondary" id="lock-button">锁定</button>
@@ -99,6 +100,11 @@
                     <label for="note-body">内容</label>
                     <textarea id="note-body" rows="6" required></textarea>
                 </div>
+                <div class="form-group">
+                    <label for="note-files">附件（单个文件不超过 20 MB，什么类型都可以，上传前在浏览器里加密）</label>
+                    <input type="file" id="note-files" multiple>
+                </div>
+                <div class="memo-selected-files" id="selected-files"></div>
                 <div class="memo-actions">
                     <button type="submit" class="submit-btn" id="save-note-button"><span>保存并同步</span></button>
                     <button type="button" class="memo-btn-secondary" id="cancel-edit-button">取消</button>
@@ -111,7 +117,7 @@
     </main>
 
     <footer class="memo-footer">
-        <p>备忘录内容加密后才同步，服务器上只有密文。<br>备忘录口令忘了无法恢复；免费 Supabase 项目闲置一周可能暂停，需在后台恢复。</p>
+        <p>备忘录内容和附件加密后才同步，服务器上只有密文。<br>备忘录口令忘了无法恢复；免费 Supabase 项目闲置一周可能暂停，需在后台恢复。</p>
         <p><a href="index.html">回到首页</a></p>
     </footer>
 

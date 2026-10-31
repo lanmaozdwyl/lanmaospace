@@ -31,6 +31,7 @@
 | memo-config.js | 全站登录配置：只放 Supabase Project URL、anon / publishable key 和店主邮箱，绝不放 service_role key |
 | login.html / login.js / auth-guard.js / auth.css | 全站登录页（登录、注册、忘记/重置密码）和首页、商店、备忘录共用的登录守卫 |
 | supabase/memos.sql | 备忘录建表与行级权限 SQL，在 Supabase SQL Editor 里运行一次 |
+| supabase/memo-files.sql | 附件建表与私有存储桶 SQL，在 Supabase SQL Editor 里运行一次（先运行 memos.sql） |
 
 ## 备忘录（Supabase + 加密，2026-10-31 已推送到 main，待店主登录验证）
 
@@ -46,6 +47,12 @@
 - 登录页：`login.html` / `login.js` 提供登录、注册、忘记密码、重置密码（点邮件链接回来设新密码）。注册成功后若开了邮箱确认，需先点确认邮件再登录，页面上有重新发送确认邮件的按钮。`memo-config.js` 里新增 `ownerEmail`（店主邮箱），备忘录只认这个邮箱，访客账号登录后在备忘录页只会看到“仅店主可用”，不能新建备忘录；`ownerEmail` 为空时谁也打不开。
 - 重要限制：这是静态站的前端守卫，只能拦正常浏览，关掉 JS 或直接请求文件仍能看到页面本身；备忘录内容本身加密，访客拿不到店主的备忘录明文。数据库 RLS 目前仍是“每个已登录用户只能读写自己名下的行”，访客不能读店主的行；如需把备忘录表收紧到只有店主 UID 可读写，需店主在 Supabase 后台提供店主账号的 UID 后再改 SQL，不要只靠前端。
 - 店主已在 Supabase 后台做的事（2026-10-31 店主自报已完成，未独立验证）：在 Authentication → Sign In / Providers 里打开“Allow new users to sign up”；确认 Email 提供商仍启用；把 Site URL 设为 `https://lanmaospace.netlify.app/`，并把 `https://lanmaospace.netlify.app/login.html` 加进 Redirect URLs；提供店主邮箱填进 `ownerEmail`。“Confirm email”的开关状态未单独确认，登录页代码同时兼容开/关两种情况。不要发登录密码、备忘录口令或 service_role key。
+
+## 备忘录附件（2026-11-01 已推送到 main，待店主实测上传下载）
+
+- 决定：2026-10-31 店主选了“什么文件都能传”。附件挂在备忘录条目下面：编辑时选文件，保存时在浏览器里用备忘录口令派生的密钥 AES-GCM 加密后上传到私有存储桶 `memo-files`，原文件名也加密后只存 `memo_files` 表；下载时在内存里解密后用原文件名保存。存储桶路径是 `<用户 id>/<随机 uuid>.bin`，不用原文件名。
+- 限制：单个文件不超过 20 MB（Supabase 免费版全局上限 50 MB，代码再收紧到 20 MB），附件总量是免费版文件存储 1 GB，页面上显示已用量；删备忘录或删附件时同时删存储桶里的密文。`memo_files` 表和存储桶权限都是仅本人（`memo_files_owner` / `memo_files_storage_owner`，按用户 id 文件夹隔离）。SQL 没运行之前文字备忘录照常能用，附件会提示先运行 SQL，不要因此以为附件坏了。
+- 店主已在 Supabase 后台做的事（2026-11-01 店主自报已运行 memo-files.sql）：匿名请求检查确认 `memo_files` 表已存在（未登录返回空列表）；但用 anon key 直接查存储桶返回 Bucket not found——anon key 可能看不到私有存储桶，不能据此断定存储桶没建好，推送后以店主实测上传为准；若上传报存储桶错误，先去后台 Storage 页面确认有没有 `memo-files` 私有存储桶，再重跑 SQL 里建桶和建策略的部分。不要在聊天里发 service_role key。
 
 ## 用户已确认的方向
 
