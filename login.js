@@ -30,7 +30,7 @@ function safeNext() {
         return "index.html";
     }
     if (parsed.origin !== window.location.origin) return "index.html";
-    const allowed = ["/", "/index.html", "/store.html", "/memo.html"];
+    const allowed = ["/", "/index", "/index.html", "/store", "/store.html", "/memo", "/memo.html"];
     if (!allowed.includes(parsed.pathname)) return "index.html";
     return parsed.pathname + parsed.search + parsed.hash;
 }
