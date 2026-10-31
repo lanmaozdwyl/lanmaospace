@@ -30,7 +30,9 @@
 | memo.html / memo.css / memo.js | 私人备忘录页：Supabase 登录 + 浏览器内加密同步，仅店主账号可解锁，在导航里有入口，`noindex` |
 | memo-config.js | 全站登录配置：只放 Supabase Project URL、anon / publishable key 和店主邮箱，绝不放 service_role key |
 | login.html / login.js / auth-guard.js / auth.css | 全站登录页（登录、注册、忘记/重置密码）和首页、商店、备忘录共用的登录守卫 |
+| guestbook.js | 留言板前端：只读审核通过的留言，提交后等店主审核，邮箱不公开显示 |
 | supabase/memos.sql | 备忘录建表与行级权限 SQL，在 Supabase SQL Editor 里运行一次 |
+| supabase/guestbook.sql | 留言板建表与行级权限 SQL，在 Supabase SQL Editor 里运行一次 |
 | supabase/memo-files.sql | 附件建表与私有存储桶 SQL，在 Supabase SQL Editor 里运行一次（先运行 memos.sql） |
 
 ## 备忘录（Supabase + 加密，2026-10-31 已推送到 main，待店主登录验证）
@@ -47,6 +49,14 @@
 - 登录页：`login.html` / `login.js` 提供登录、注册、忘记密码、重置密码（点邮件链接回来设新密码）。注册成功后若开了邮箱确认，需先点确认邮件再登录，页面上有重新发送确认邮件的按钮。`memo-config.js` 里新增 `ownerEmail`（店主邮箱），备忘录只认这个邮箱，访客账号登录后在备忘录页只会看到“仅店主可用”，不能新建备忘录；`ownerEmail` 为空时谁也打不开。
 - 重要限制：这是静态站的前端守卫，只能拦正常浏览，关掉 JS 或直接请求文件仍能看到页面本身；备忘录内容本身加密，访客拿不到店主的备忘录明文。数据库 RLS 目前仍是“每个已登录用户只能读写自己名下的行”，访客不能读店主的行；如需把备忘录表收紧到只有店主 UID 可读写，需店主在 Supabase 后台提供店主账号的 UID 后再改 SQL，不要只靠前端。
 - 店主已在 Supabase 后台做的事（2026-10-31 店主自报已完成，未独立验证）：在 Authentication → Sign In / Providers 里打开“Allow new users to sign up”；确认 Email 提供商仍启用；把 Site URL 设为 `https://lanmaospace.netlify.app/`，并把 `https://lanmaospace.netlify.app/login.html` 加进 Redirect URLs；提供店主邮箱填进 `ownerEmail`。“Confirm email”的开关状态未单独确认，登录页代码同时兼容开/关两种情况。不要发登录密码、备忘录口令或 service_role key。
+
+## 留言板（2026-11-01 已推送到 main，待店主实测提交与审核）
+
+- 决定：2026-11-01 店主选了留言板接 Supabase、留言需审核后才显示，并确认已运行 guestbook.sql（匿名请求检查确认 `guestbook_messages` 表已存在）。
+- 流程：`guestbook.js` 只读 `approved = true` 的留言，提交时写入 `guestbook_messages`（`approved` 默认 false）；店主在 Supabase 后台 Database → Tables → guestbook_messages 里查看全部留言，把要公开的行的 `approved` 改成 true，刷新网站就能看到。访客填的邮箱只存数据库，前端读取时不查 email 字段，页面上不显示。已删掉原来写死的两条示例留言和只插页面的假提交逻辑；GitHub 联系链接已改成店主个人主页 `https://github.com/lanmaozdwyl`（显示 `@lanmaozdwyl`）。
+- 权限：`guestbook_read_approved`（所有人只能读已通过的）、`guestbook_insert_own`（登录用户只能插入自己 user_id 的留言），没有给普通用户改 approved 的策略，不要加。SQL 没运行之前留言列表会提示先运行 SQL，页面其他内容照常浏览。
+- 店主必须在 Supabase 后台做的事：审核留言时在表里改 `approved`，不要在聊天里发 service_role key。2026-11-01 店主指示微信和 B站暂时不显示：联系方式卡里微信链接、B站链接和微信二维码占位框已从首页删掉（Git 历史里还在，以后想恢复时加回来），只留邮箱和 GitHub。
+- 占位内容未动：首页统计数字（42 / 128 / 36）、四张友链卡（链接都是 `#`），仍等店主提供真实资料或指示删除，本次没有编造或改动。
 
 ## 备忘录附件（2026-11-01 已推送到 main，待店主实测上传下载）
 
@@ -68,7 +78,7 @@
 
 - 无在线支付、订单系统、库存同步、自动采购或自动发货；咨询按钮只是打开 QQ 联系链接。
 - 无供应商 API Key。其 API 文档描述激活流程，不代表已具备采购或支付能力。
-- 留言板只把内容插入当前页面，刷新后丢失，没有服务端保存，不能称为真正可收件的留言系统。
+- 留言板已接 Supabase（2026-11-01 本地做好、未推送）：留言存 `guestbook_messages` 表，需店主在后台把 `approved` 改成 true 才会公开显示；此前只插页面、刷新丢失的假提交逻辑和写死的示例留言已删除。
 - 首页部分友链、社交链接、二维码、统计数字仍为原有占位或手填内容，需要店主确认后完善。
 - 不要把密码、API Key、用户订单或登录凭据提交到公开仓库或写进前端。
 

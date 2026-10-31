@@ -915,6 +915,32 @@ button {
     padding-top: 24px;
 }
 
+.guestbook-note,
+.guestbook-status,
+.guestbook-empty {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    line-height: 1.7;
+}
+
+.guestbook-note {
+    margin-bottom: 8px;
+}
+
+.guestbook-status {
+    min-height: 1.5em;
+    margin-bottom: 8px;
+}
+
+.guestbook-status:empty {
+    display: none;
+}
+
+.guestbook-empty {
+    padding: 18px 0;
+    text-align: center;
+}
+
 .message-item {
     display: flex;
     gap: 14px;

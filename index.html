@@ -509,29 +509,11 @@
                         </button>
                     </form>
 
-                    <!-- 留言列表 -->
-                    <div class="messages-list" id="messagesList">
-                        <div class="message-item">
-                            <div class="message-avatar" style="background: linear-gradient(135deg, #667eea, #764ba2);">🐰</div>
-                            <div class="message-content">
-                                <div class="message-header">
-                                    <span class="message-name">小白兔</span>
-                                    <span class="message-time">2026-10-28</span>
-                                </div>
-                                <p>好喜欢你的网站！书单里有好多我也喜欢的书～</p>
-                            </div>
-                        </div>
-                        <div class="message-item">
-                            <div class="message-avatar" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">🐸</div>
-                            <div class="message-content">
-                                <div class="message-header">
-                                    <span class="message-name">青蛙王子</span>
-                                    <span class="message-time">2026-10-25</span>
-                                </div>
-                                <p>工具箱很实用！已收藏～</p>
-                            </div>
-                        </div>
-                    </div>
+                    <p class="guestbook-note">提交后需店主审核通过才会公开显示；邮箱只用来联系你，不会公开显示。</p>
+                    <p class="guestbook-status" id="guestbookStatus" role="status" aria-live="polite"></p>
+
+                    <!-- 留言列表：只显示审核通过的留言，由 guestbook.js 从 Supabase 读取 -->
+                    <div class="messages-list" id="messagesList"></div>
                 </div>
 
                 <!-- 联系方式卡片 -->
@@ -545,33 +527,13 @@
                                 <span class="contact-value">2978427016@qq.com</span>
                             </div>
                         </a>
-                        <a href="https://github.com" class="contact-link" target="_blank" rel="noopener noreferrer">
+                        <a href="https://github.com/lanmaozdwyl" class="contact-link" target="_blank" rel="noopener noreferrer">
                             <span class="contact-icon">🐙</span>
                             <div>
                                 <span class="contact-label">GitHub</span>
-                                <span class="contact-value">@lanmaospace</span>
+                                <span class="contact-value">@lanmaozdwyl</span>
                             </div>
                         </a>
-                        <a href="#" class="contact-link">
-                            <span class="contact-icon">💬</span>
-                            <div>
-                                <span class="contact-label">微信</span>
-                                <span class="contact-value">lanmaospace</span>
-                            </div>
-                        </a>
-                        <a href="https://space.bilibili.com" class="contact-link" target="_blank" rel="noopener noreferrer">
-                            <span class="contact-icon">📺</span>
-                            <div>
-                                <span class="contact-label">B站</span>
-                                <span class="contact-value">蓝昴空间</span>
-                            </div>
-                        </a>
-                    </div>
-                    <div class="contact-qrcode">
-                        <div class="qr-placeholder">
-                            <span>📱</span>
-                            <p>微信二维码</p>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -603,6 +565,7 @@
 
     <script src="memo-config.js"></script>
     <script type="module" src="auth-guard.js"></script>
+    <script type="module" src="guestbook.js"></script>
     <script src="script.js"></script>
 <script src="motion.js"></script></body>
 </html>
