@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="蓝昴的工具站：翻译、学术写作、编程开发、设计与效率类常用工具合集。">
+    <title>工具站 | 蓝昴空间</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../auth.css">
+    <link rel="stylesheet" href="tools.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
+    <link rel="stylesheet" href="../motion.css">
+</head>
+<body class="tools-page">
+    <div class="container tools-shell">
+        <div class="tools-topbar">
+            <a href="../index.html">🐱 Lanmao Space</a>
+            <span class="tools-topbar-links">
+                <a href="../index.html">返回空间 ↗</a>
+                <a href="../store.html">商店</a>
+                <a href="../memo.html">备忘录</a>
+                <button type="button" class="tools-signout" data-signout>退出登录</button>
+            </span>
+        </div>
+
+        <header class="tools-hero">
+            <p class="tools-eyebrow">TOOLS</p>
+            <h1>工具站。<br><span class="gradient-text">常用的，都在这里。</span></h1>
+            <p>翻译、学术写作、编程开发、设计与效率，一共 15 个工具。点卡片在新标签页打开对应网站，账号和价格以各网站为准。</p>
+        </header>
+
+        <div class="tools-controls">
+            <label class="tools-search-label" for="tools-search">搜索工具</label>
+            <input type="search" id="tools-search" class="tools-search" placeholder="输入工具名字或用途，比如 翻译" autocomplete="off">
+            <div class="tools-filters" role="group" aria-label="按分类筛选工具">
+                <button type="button" class="filter-btn active" data-filter="all" aria-pressed="true">全部</button>
+                <button type="button" class="filter-btn" data-filter="translate" aria-pressed="false">🌐 翻译</button>
+                <button type="button" class="filter-btn" data-filter="academic" aria-pressed="false">📝 学术写作</button>
+                <button type="button" class="filter-btn" data-filter="dev" aria-pressed="false">💻 编程开发</button>
+                <button type="button" class="filter-btn" data-filter="design" aria-pressed="false">🎨 设计 &amp; 效率</button>
+            </div>
+        </div>
+
+        <p class="tools-empty" id="tools-empty" hidden>没有匹配的工具，换个关键词或分类试试。</p>
+
+        <div class="tools-category" data-category-group="translate">
+            <h3 class="category-title">🌐 翻译</h3>
+            <div class="tools-grid">
+                <a href="https://www.deepl.com/translator" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="translate" data-name="deepl 翻译 ai 翻译工具">
+                    <div class="tool-icon" style="background: #0f2b46;">🌐</div>
+                    <div class="tool-info">
+                        <h4>DeepL 翻译器</h4>
+                        <p>AI 翻译工具</p>
+                    </div>
+                </a>
+                <a href="https://translate.google.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="translate" data-name="google 翻译 谷歌翻译 在线翻译">
+                    <div class="tool-icon" style="background: #4285f4;">🌍</div>
+                    <div class="tool-info">
+                        <h4>Google 翻译</h4>
+                        <p>多语种在线翻译</p>
+                    </div>
+                </a>
+                <a href="https://www.microsoft.com/en-us/translator" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="translate" data-name="microsoft 微软翻译 在线翻译">
+                    <div class="tool-icon" style="background: #00a4ef;">🔷</div>
+                    <div class="tool-info">
+                        <h4>微软翻译</h4>
+                        <p>微软在线翻译</p>
+                    </div>
+                </a>
+                <a href="https://fanyi.baidu.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="translate" data-name="百度翻译 在线翻译 中文翻译">
+                    <div class="tool-icon" style="background: #306eff;">🔵</div>
+                    <div class="tool-info">
+                        <h4>百度翻译</h4>
+                        <p>百度在线翻译</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="tools-category" data-category-group="academic">
+            <h3 class="category-title">📝 学术写作</h3>
+            <div class="tools-grid">
+                <a href="https://www.overleaf.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="academic" data-name="overleaf latex 在线编辑器 论文写作">
+                    <div class="tool-icon" style="background: #47a141;">📝</div>
+                    <div class="tool-info">
+                        <h4>Overleaf</h4>
+                        <p>在线 LaTeX 编辑器</p>
+                    </div>
+                </a>
+                <a href="https://www.zotero.org" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="academic" data-name="zotero 文献管理 引用">
+                    <div class="tool-icon" style="background: #cc2936;">📎</div>
+                    <div class="tool-info">
+                        <h4>Zotero</h4>
+                        <p>文献管理工具</p>
+                    </div>
+                </a>
+                <a href="https://www.notion.so" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="academic" data-name="notion 笔记 知识库">
+                    <div class="tool-icon" style="background: #000;">📋</div>
+                    <div class="tool-info">
+                        <h4>Notion</h4>
+                        <p>全能笔记 &amp; 知识库</p>
+                    </div>
+                </a>
+                <a href="https://scholar.google.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="academic" data-name="google scholar 学术论文搜索 谷歌学术">
+                    <div class="tool-icon" style="background: #4285f4;">🔍</div>
+                    <div class="tool-info">
+                        <h4>Google Scholar</h4>
+                        <p>学术论文搜索</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="tools-category" data-category-group="dev">
+            <h3 class="category-title">💻 编程开发</h3>
+            <div class="tools-grid">
+                <a href="https://code.visualstudio.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="dev" data-name="vs code 代码编辑器">
+                    <div class="tool-icon" style="background: #007acc;">💎</div>
+                    <div class="tool-info">
+                        <h4>VS Code</h4>
+                        <p>代码编辑器</p>
+                    </div>
+                </a>
+                <a href="https://github.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="dev" data-name="github 代码托管 开源">
+                    <div class="tool-icon" style="background: #24292e;">🐙</div>
+                    <div class="tool-info">
+                        <h4>GitHub</h4>
+                        <p>代码托管平台</p>
+                    </div>
+                </a>
+                <a href="https://colab.research.google.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="dev" data-name="google colab jupyter 在线编程 python">
+                    <div class="tool-icon" style="background: #f9ab00;">🧪</div>
+                    <div class="tool-info">
+                        <h4>Google Colab</h4>
+                        <p>在线 Jupyter 环境</p>
+                    </div>
+                </a>
+                <a href="https://www.anaconda.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="dev" data-name="anaconda python 环境管理">
+                    <div class="tool-icon" style="background: #44a833;">🐍</div>
+                    <div class="tool-info">
+                        <h4>Anaconda</h4>
+                        <p>Python 环境管理</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="tools-category" data-category-group="design">
+            <h3 class="category-title">🎨 设计 &amp; 效率</h3>
+            <div class="tools-grid">
+                <a href="https://www.figma.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="design" data-name="figma 界面设计 设计工具">
+                    <div class="tool-icon" style="background: #f24e1e;">🎨</div>
+                    <div class="tool-info">
+                        <h4>Figma</h4>
+                        <p>界面设计工具</p>
+                    </div>
+                </a>
+                <a href="https://excalidraw.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="design" data-name="excalidraw 白板 手绘 画图">
+                    <div class="tool-icon" style="background: #6965db;">✏️</div>
+                    <div class="tool-info">
+                        <h4>Excalidraw</h4>
+                        <p>手绘风格白板</p>
+                    </div>
+                </a>
+                <a href="https://todoist.com" class="tool-card" target="_blank" rel="noopener noreferrer" data-category="design" data-name="todoist 待办事项 任务管理 效率">
+                    <div class="tool-icon" style="background: #e44332;">✅</div>
+                    <div class="tool-info">
+                        <h4>Todoist</h4>
+                        <p>待办事项管理</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <footer class="tools-footnote">
+            <p>这些都是外部网站，本站不存它们的账号密码。想加新工具，把名字和网址发我，我帮你收进来。</p>
+            <p><a href="../index.html">← 回到首页</a></p>
+        </footer>
+    </div>
+
+    <script src="../memo-config.js"></script>
+    <script type="module" src="../auth-guard.js"></script>
+    <script src="tools.js"></script>
+    <script src="../motion.js"></script>
+</body>
+</html>
