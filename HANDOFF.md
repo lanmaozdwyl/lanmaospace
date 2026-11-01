@@ -144,3 +144,12 @@ GitHub 仓库公开，可直接克隆；推送需要有写权限的 GitHub 账�
 部署阻碍已查明：店主提供 Netlify 横幅，团队只剩 operational credits，已发布站点仍在线，但 production deploys 被暂停。需等待计费周期额度恢复或由店主决定升级后再部署。不能将 GitHub 推送成功当成正式站已更新，也不要擅自购买套餐或改部署项目。
 
 注册排查：2026-11-01 只读 `/auth/v1/settings` 返回 `disable_signup=true`、`mailer_autoconfirm=true`、Email 提供商开启；朋友注册失败与注册关闭相符。已指导店主开启 Allow new users to sign up；此处未记录任何密钥或邮箱。后续应重新读取开关，不能根据旧交接声称已开放。
+
+
+## 后续只读复核（2026-11-01）
+
+注册已由店主开放，随后两次只读 Auth settings 确认 `disable_signup=false`、`mailer_autoconfirm=false`、Email 提供商开启。即允许注册但需要邮箱确认；邮件是否成功送达朋友还未实测。不要关闭邮箱确认来掩盖邮件问题。
+
+截至本轮复核，正式站 memo.html / memo.js 没有升级标记，memo-core.mjs 返回 404。Netlify 额度暂停部署问题仍未解决；升级代码已在 GitHub，不能报成已上线。新增 `node scripts/verify-live.mjs`：只检查公开页面与脚本，逐项报告状态，资源匹配时退出 0，尚未部署或请求失败时退出 2，不输出任何密钥。
+
+同时将基础 `supabase/memo-files.sql` 的桶上限统一为 20971536 字节，防止重跑基础脚本后重新出现“正好 20 MB 原文件加密后超过上限”的问题。店主已执行的 memo-owner-security.sql 已包含相同修复，无需为此再次执行 SQL。

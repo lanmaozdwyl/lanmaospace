@@ -40,11 +40,12 @@ create index if not exists memo_files_user_note_idx
   on public.memo_files (user_id, note_id);
 
 -- 私有存储桶：id 和 name 都叫 memo-files。
+-- 20 MB 原文件加上 AES-GCM 的 16 字节认证标签，重跑建桶脚本也保留正确上限。
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('memo-files', 'memo-files', false, 20971520, null)
+values ('memo-files', 'memo-files', false, 20971536, null)
 on conflict (id) do update
   set public = false,
-      file_size_limit = 20971520,
+      file_size_limit = 20971536,
       allowed_mime_types = null;
 
 -- 存储桶行级权限：只允许本人操作自己文件夹（路径第一段 = 用户 id）下的文件。
