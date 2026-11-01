@@ -5,5 +5,5 @@
 window.LANMAO_MEMO_CONFIG = {
   url: "https://kyhhzaftsyakibdisiqj.supabase.co",
   anonKey: "sb_publishable_yWzUDZejVHSFjogwO-qD0g_grI0eZ4p",
-  ownerUid: "00000000-0000-0000-0000-000000000000", // 店主 Supabase Auth UID：推送前必须替换为真实值。
+  ownerUid: "664f60db-71ad-49b8-9229-744f16b1d19a",
 };
