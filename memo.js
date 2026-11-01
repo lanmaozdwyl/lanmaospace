@@ -10,6 +10,7 @@ let backupFile=null, backupKey=null, backupInfo=null, backupManifest=null;
 const requests=new Set();
 let operationEpoch=0;
 let uploadAttempts=new WeakMap();
+let creationAttempt=null;
 function assertActive() { if(!key || operationEpoch!==generation) throw Error('备忘录已锁定，操作已停止。'); }
 function show(id) { panels.forEach(p=>$(p).hidden=p!==id); }
 function status(text) { if(key) $('memo-status').textContent=text; }
@@ -44,7 +45,7 @@ function clearBackup() {
     $('restore-button').hidden=true;
 }
 function clearEditor() {
-    editing=null; pending=[]; baseline='';
+    editing=null; pending=[]; baseline=''; creationAttempt=null;
     $('editor-form').reset(); $('editor-form').hidden=true; $('selected-files').replaceChildren();
     $('conflict-panel').hidden=true;
 }
@@ -65,7 +66,7 @@ async function lockVault(automatic=false) {
     try {
         // 自动锁定时暂存加密草稿，不把明文放入任何浏览器存储。
         if(automatic&&dirty()) {
-            const draft={note:state(),editing,baseline,files:[]};
+            const draft={note:state(),editing,baseline,creationAttempt,files:[]};
             for(const f of pending) {
                 const a=uploadAttempts.get(f);
                 draft.files.push({name:f.name,type:f.type,data:b64(new Uint8Array(await f.arrayBuffer())),attempt:a?{...a,data:a.data?b64(new Uint8Array(a.data)):null}:null});
@@ -73,7 +74,7 @@ async function lockVault(automatic=false) {
             const encrypted=await seal(key,draft);
             if(epoch!==generation){busy=false;controls(false);return;}
             sealedDraft=encrypted;
-        } else sealedDraft=null;
+        } // 没有新草稿时保留尚未恢复的加密草稿，避免重锁时丢失。
     } catch(e) { busy=false; controls(false); status('草稿加密失败，请先保存再锁定。'); lastActivity=Date.now(); return; }
     wipe(); busy=false; controls(false); show('passphrase-panel');
     await prepareUnlock();
@@ -108,17 +109,27 @@ async function unlock(password) {
         if(check.body!==CHECK) throw Error('备忘录口令不正确。');
         active(); key=newKey;
     }
-    operationEpoch=generation; lastActivity=Date.now(); show('app-panel'); await reload();
+    operationEpoch=generation; lastActivity=Date.now(); show('app-panel');
+    let syncError=null;
+    try { await reload(); } catch(error) { syncError=error; }
+    active();
     if(sealedDraft) {
-        const draft=await open(key,sealedDraft); sealedDraft=null;
-        setEditor(draft.note,draft.editing); baseline=draft.baseline;
-        pending=draft.files.map(f=>{
+        const encryptedDraft=sealedDraft;
+        const draft=await open(key,encryptedDraft);
+        active();
+        const restoredFiles=draft.files.map(f=>{
             const file=new File([unb64(f.data)],f.name,{type:f.type});
             if(f.attempt)uploadAttempts.set(file,{...f.attempt,data:f.attempt.data?unb64(f.attempt.data).buffer:null});
             return file;
         });
-        renderPending(); status('已恢复锁定前未保存的草稿，请保存。');
-    }
+        setEditor(draft.note,draft.editing); baseline=draft.baseline;
+        creationAttempt=draft.creationAttempt||null; pending=restoredFiles;
+        sealedDraft=null;
+        renderPending(); status(syncError
+            ? '已恢复未保存的草稿，但云端列表同步失败。请保留当前页面，网络恢复后再保存。'
+            : '已恢复锁定前未保存的草稿，请保存。');
+    } else if(syncError) throw syncError;
+
 }
 async function allRows(table,fields) {
     const result=[];
@@ -191,7 +202,7 @@ function render() {
     if(busy) controls(true);
 }
 function setEditor(note,row) {
-    editing=row; pending=[];
+    editing=row; pending=[]; creationAttempt=null;
     $('note-title').value=note.title; $('note-body').value=note.body;
     $('note-tags').value=note.tags.join(', '); $('note-pinned').checked=note.pinned;
     $('editor-form').hidden=false; $('conflict-panel').hidden=true;
@@ -216,20 +227,57 @@ function renderPending() {
     if(busy) controls(true);
 }
 async function writeNote(row,note) {
+    assertActive();
+    if(!row) return createNote(note);
     const encrypted=await seal(key,normalizeNote(note));
     assertActive();
-    const timestamp=new Date().toISOString();
-    let query;
-    if(row) query=client.from('memos').update({...encrypted,updated_at:timestamp}).eq('user_id',user.id).eq('id',row.id).eq('ciphertext',row.ciphertext).eq('iv',row.iv);
-    else query=client.from('memos').insert({id:crypto.randomUUID(),user_id:user.id,...encrypted,updated_at:timestamp});
-    const {data,error}=await query.select('id,ciphertext,iv,created_at,updated_at');
+    const {data,error}=await client.from('memos')
+        .update({...encrypted,updated_at:new Date().toISOString()})
+        .eq('user_id',user.id).eq('id',row.id).eq('ciphertext',row.ciphertext).eq('iv',row.iv)
+        .select('id,ciphertext,iv,created_at,updated_at');
     if(error) throw error;
     assertActive();
     if(isConflict(data)) { const e=Error('另一台设备已修改或删除此条，当前草稿未覆盖远程内容。'); e.conflict=true; throw e; }
     return {...data[0],note:normalizeNote(note)};
 }
+async function createNote(note) {
+    // 固定 ID / 密文直到创建结果得到确认。丢失响应时重试不能生成新行。
+    if(!creationAttempt) {
+        const value=normalizeNote(note),encrypted=await seal(key,value);
+        assertActive();
+        creationAttempt={id:crypto.randomUUID(),userId:user.id,...encrypted,note:value};
+    }
+    const attempt=creationAttempt;
+    if(attempt.userId!==user.id) throw Error('登录账号已改变，请重新打开编辑器。');
+    async function lookup() {
+        const result=await client.from('memos').select('id,ciphertext,iv,created_at,updated_at')
+            .eq('id',attempt.id).eq('user_id',user.id).maybeSingle();
+        assertActive(); if(result.error) throw result.error; return result.data;
+    }
+    let stored=await lookup();
+    if(!stored) {
+        const {data,error}=await client.from('memos').insert({id:attempt.id,user_id:user.id,
+            ciphertext:attempt.ciphertext,iv:attempt.iv,updated_at:new Date().toISOString()})
+            .select('id,ciphertext,iv,created_at,updated_at');
+        assertActive();
+        if(error||isConflict(data)) {
+            try { stored=await lookup(); } catch { throw Error('新建结果暂未确认，草稿已保留；网络恢复后直接重试保存。'); }
+            if(!stored) throw error||Error('新建结果未确认，请重试保存。');
+        } else stored=data[0];
+    }
+    if(stored.ciphertext!==attempt.ciphertext||stored.iv!==attempt.iv) {
+        const error=Error('之前的新建记录已被其他设备修改。草稿已保留，请刷新检查。');error.conflict=true;throw error;
+    }
+    const recovered={...stored,note:attempt.note};
+    // 如果失败后用户又编辑了内容，以确认的新行版本进行条件更新。
+    const result=noteSnapshot(note)===noteSnapshot(attempt.note)?recovered:await writeNote(recovered,note);
+    creationAttempt=null;
+    return result;
+}
+
 async function save(asCopy=false) {
     await task(async()=>{
+        if(asCopy)creationAttempt=null;
         const note=state(); if(!note.title.trim()&&!note.body.trim()) throw Error('请填写标题或内容。');
         status('正在加密并同步…');
         try { editing=await writeNote(asCopy?null:editing,note); }

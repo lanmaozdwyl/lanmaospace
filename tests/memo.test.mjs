@@ -170,3 +170,31 @@ test('实际导出与恢复流程：附件字节完整且可换口令恢复到�
     assert.equal((await core.open(targetKey,target.tables.memos[0])).body,sample.body);
     target.ctx.restoredMeta=target.tables.memo_files[0];assert.deepEqual([...await target.run('fileBytes(restoredMeta)')],[...plain]);
 });
+
+test('新建已落库但响应丢失时先核对固定 ID，不重复创建',async()=>{
+    const h=context();h.run("const originalFrom=client.from.bind(client);client.from=table=>{const q=originalFrom(table),insert=q.insert;q.insert=value=>{const query=insert(value);return{select(){return{then(resolve){return Promise.resolve(query).then(()=>resolve({data:null,error:Error('lost response')}));}}}};};return q;};");
+    h.ctx.value=sample;const result=await h.run('writeNote(null,value)');
+    assert.equal(h.tables.memos.length,1);assert.equal(result.id,h.tables.memos[0].id);assert.equal(h.run('creationAttempt'),null);
+});
+test('落库后核对也断网，恢复网络重试仍只保留一条且保存最新草稿',async()=>{
+    const h=context();h.ctx.networkDown=false;
+    h.run("const originalFrom=client.from.bind(client);client.from=table=>{if(networkDown)return{select(){return this;},eq(){return this;},maybeSingle(){return this;},then(resolve){return Promise.resolve({data:null,error:Error('offline')}).then(resolve)}};const q=originalFrom(table),insert=q.insert;q.insert=value=>{const query=insert(value);return{select(){return{then(resolve){return Promise.resolve(query).then(()=>{networkDown=true;return resolve({data:null,error:Error('lost response')});});}}}};};return q;};");
+    h.ctx.value=sample;await assert.rejects(h.run('writeNote(null,value)'),/结果暂未确认/);
+    assert.equal(h.tables.memos.length,1);h.ctx.networkDown=false;h.ctx.value={...sample,body:'retry edits'};
+    await h.run('writeNote(null,value)');assert.equal(h.tables.memos.length,1);
+    assert.equal((await core.open(testKey,h.tables.memos[0])).body,'retry edits');
+});
+test('云端列表同步失败仍能解密恢复草稿及其未确认的新建编号',async()=>{
+    const h=context(),check=await core.seal(testKey,{body:'lanmao-memo-check-v1'});
+    h.ctx.fixtureVault={salt:core.b64(salt),check_ciphertext:check.ciphertext,check_iv:check.iv};
+    h.ctx.fixtureDraft=await core.seal(testKey,{note:sample,editing:null,baseline:core.noteSnapshot({}),files:[],creationAttempt:{id:'keep-this-id',userId:'owner'}});
+    h.run("key=null;vault=fixtureVault;sealedDraft=fixtureDraft;reload=async()=>{throw Error('offline')};");
+    await h.run("unlock('local-fixture-only')");assert.equal(h.get('note-body').value,sample.body);
+    assert.equal(h.run('creationAttempt.id'),'keep-this-id');assert.equal(h.run('sealedDraft'),null);
+    assert.match(h.get('memo-status').textContent,/列表同步失败/);
+});
+test('没有新编辑时再次自动锁定不会清除尚未恢复的加密草稿',async()=>{
+    const h=context();h.ctx.savedDraft=await core.seal(testKey,{note:sample,files:[]});
+    h.run("sealedDraft=savedDraft;prepareUnlock=async()=>{};");await h.run('lockVault(true)');
+    assert.equal(h.run('sealedDraft'),h.ctx.savedDraft);assert.equal(h.run('key'),null);
+});

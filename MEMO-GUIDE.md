@@ -26,7 +26,7 @@ Edge / Chrome 支持直接写盘时按附件逐段处理；其他浏览器使用
 
 ## 验证
 
-从仓库目录运行 `node --test tests/memo.test.mjs`：18 项加密、备份、恢复、草稿、冲突和上传故障测试。只使用虚构数据，不连接真实后台。
+从仓库目录运行 `node --test tests/memo.test.mjs`：22 项加密、备份、恢复、草稿、冲突和上传故障测试。只使用虚构数据，不连接真实后台。
 
 数据库隔离测试：在临时测试目录安装 `@electric-sql/pglite`，把 `PGLITE_MODULE` 环境变量设成其 `dist/index.js` 的绝对 file URL，再运行 `node tests/permissions.test.mjs`。不需要给网站添加 npm 构建或运行依赖。测试在内存数据库中执行，24 项权限与条件更新检查，不访问生产数据。
 
