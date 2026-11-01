@@ -5,5 +5,5 @@
 window.LANMAO_MEMO_CONFIG = {
   url: "https://kyhhzaftsyakibdisiqj.supabase.co",
   anonKey: "sb_publishable_yWzUDZejVHSFjogwO-qD0g_grI0eZ4p",
-  ownerEmail: "2978427016@qq.com", // 店主邮箱：备忘录只认这个账号，访客账号打不开。推送前必须填好。
+  ownerUid: "00000000-0000-0000-0000-000000000000", // 店主 Supabase Auth UID：推送前必须替换为真实值。
 };

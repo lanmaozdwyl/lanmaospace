@@ -5,6 +5,8 @@
 // 所有用户输入都用 textContent 渲染，不用 innerHTML 拼用户内容。
 // 表还没建好时不让页面崩掉：显示提示，文字内容照常浏览。
 
+import { getSupabase, isConfigured } from './lib/supabase-client.js';
+
 const AVATAR_COLORS = [
     "linear-gradient(135deg, #667eea, #764ba2)",
     "linear-gradient(135deg, #f093fb, #f5576c)",
@@ -101,27 +103,17 @@ async function loadMessages() {
 async function init() {
     const form = document.getElementById("messageForm");
     if (!form) return;
-    const config = window.LANMAO_MEMO_CONFIG;
-    const url = config && typeof config.url === "string" ? config.url : "";
-    const anonKey = config && typeof config.anonKey === "string" ? config.anonKey : "";
-    const configured =
-        url.startsWith("https://") &&
-        url.includes(".supabase.co") &&
-        anonKey.length >= 20 &&
-        !anonKey.startsWith("YOUR-");
-    if (!configured) {
+    if (!isConfigured()) {
         setStatus("留言功能还没接好，请稍后再试。");
         return;
     }
-    let createClient;
     try {
-        ({ createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"));
+        supabase = await getSupabase();
     } catch (error) {
         console.error(error);
         setStatus("留言功能暂时加载失败，请检查网络，刷新后再试。");
         return;
     }
-    supabase = createClient(url, anonKey);
     await loadMessages();
 
     form.addEventListener("submit", async (event) => {

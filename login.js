@@ -2,6 +2,8 @@
 // 访客可以自己注册邮箱账号；备忘录只认店主账号，那层检查在 memo.js 里。
 // 密码只交给 Supabase Auth，从不在本站保存或写进仓库。
 
+import { getSupabase, isConfigured, getConfigError } from './lib/supabase-client.js';
+
 const $ = (id) => document.getElementById(id);
 
 const panels = {
@@ -118,7 +120,7 @@ $("register-form").addEventListener("submit", async (event) => {
         pendingConfirmEmail = email;
         $("resend-confirm").hidden = false;
         $("register-status").textContent =
-            "注册成功。请去邮箱里点确认链接，再回来登录。如果没收到，可以点下面的“重新发送确认邮件”。";
+            "注册成功。请去邮箱里点确认链接，再回来登录。如果没收到，可以点下面的"重新发送确认邮件"。";
     } catch (error) {
         console.error(error);
         $("register-status").textContent =
@@ -194,31 +196,20 @@ $("recovery-form").addEventListener("submit", async (event) => {
 });
 
 async function init() {
-    const config = window.LANMAO_MEMO_CONFIG;
-    const url = config && typeof config.url === "string" ? config.url : "";
-    const anonKey = config && typeof config.anonKey === "string" ? config.anonKey : "";
-    const configured =
-        url.startsWith("https://") &&
-        url.includes(".supabase.co") &&
-        anonKey.length >= 20 &&
-        !anonKey.startsWith("YOUR-");
     const isRecovery = /(^|[#&])type=recovery([&]|$)/.test(window.location.hash);
-    if (!configured) {
-        $("login-status").textContent =
-            "登录还没有接好：请店主先在 Supabase 后台完成配置，再打开这个页面。";
+    if (!isConfigured()) {
+        $("login-status").textContent = getConfigError();
         showOnly("login");
         return;
     }
-    let createClient;
     try {
-        ({ createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"));
+        supabase = await getSupabase();
     } catch (error) {
         console.error(error);
         $("login-status").textContent = "无法加载 Supabase 的 JS 库，请检查网络或 CDN 是否可用，刷新后再试。";
         showOnly("login");
         return;
     }
-    supabase = createClient(url, anonKey);
     try {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;

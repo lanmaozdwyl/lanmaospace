@@ -4,17 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。">
+    <meta property="og:title" content="Lanmao Space | 蓝昴空间">
+    <meta property="og:description" content="蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="zh_CN">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Lanmao Space | 蓝昴空间">
+    <meta name="twitter:description" content="蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。">
     <title>Lanmao Space | 蓝昴空间</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="auth.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
 <link rel="stylesheet" href="motion.css"></head>
 <body>
-    <!-- 顶部导航 -->
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
     <nav class="navbar" id="navbar">
         <div class="nav-container">
             <a href="#home" class="nav-logo">
-                <span class="logo-icon">🐱</span>
+                <span class="logo-icon" aria-hidden="true">🐱</span>
                 <span class="logo-text">Lanmao Space</span>
             </a>
             <div class="nav-links" id="nav-links">
@@ -36,7 +43,9 @@
     </nav>
 
     <!-- ========== 首页 Hero ========== -->
+    <main>
     <section class="hero" id="home">
+        <div id="main-content" tabindex="-1"></div>
         <div class="hero-bg">
             <div class="hero-orb orb-1"></div>
             <div class="hero-orb orb-2"></div>
@@ -78,7 +87,7 @@
     <section class="section section-light" id="books">
         <div class="container">
             <div class="section-header fade-up">
-                <h2 class="section-title">📚 阅读书单</h2>
+                <h2 class="section-title"><span aria-hidden="true">📚</span> 阅读书单</h2>
                 <p class="section-desc">阅读是与伟大灵魂的对话</p>
             </div>
 
@@ -188,7 +197,7 @@
     <section class="section section-dark" id="music">
         <div class="container">
             <div class="section-header fade-up">
-                <h2 class="section-title">🎵 音乐 &amp; 影视</h2>
+                <h2 class="section-title"><span aria-hidden="true">🎵</span> 音乐 &amp; 影视</h2>
                 <p class="section-desc">用音乐治愈时光，用影像记录感动</p>
             </div>
 
@@ -327,7 +336,7 @@
     <section class="section section-light" id="links">
         <div class="container">
             <div class="section-header fade-up">
-                <h2 class="section-title">🔗 友情链接</h2>
+                <h2 class="section-title"><span aria-hidden="true">🔗</span> 友情链接</h2>
                 <p class="section-desc">志同道合的伙伴们</p>
             </div>
             <div class="friends-grid">
@@ -370,7 +379,7 @@
     <section class="section section-dark" id="toolbox">
         <div class="container">
             <div class="section-header fade-up">
-                <h2 class="section-title">🛠️ 工具箱</h2>
+                <h2 class="section-title"><span aria-hidden="true">🛠️</span> 工具箱</h2>
                 <p class="section-desc">我常用的学习 &amp; 生产力工具。<a href="tools/">打开工具站 →</a></p>
             </div>
 
@@ -482,7 +491,7 @@
     <section class="section section-light" id="contact">
         <div class="container">
             <div class="section-header fade-up">
-                <h2 class="section-title">📮 留言板</h2>
+                <h2 class="section-title"><span aria-hidden="true">📮</span> 留言板</h2>
                 <p class="section-desc">来都来了，说点什么吧 💬</p>
             </div>
 
@@ -540,6 +549,7 @@
             </div>
         </div>
     </section>
+    </main>
 
     <!-- ========== 页脚 ========== -->
     <footer class="footer">

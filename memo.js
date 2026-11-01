@@ -1,5 +1,6 @@
 import {ITERATIONS, MAX_FILE, b64, unb64, deriveKey, seal, open, normalizeNote, noteSnapshot, isConflict,
     restoreId, backupWriter, backupHeader, backupRecords, inspectBackup} from './memo-core.mjs';
+import { getSupabase, isConfigured } from './lib/supabase-client.js';
 
 const $=id=>document.getElementById(id);
 const panels=['setup-panel','login-panel','owner-panel','passphrase-panel','app-panel'];
@@ -15,7 +16,7 @@ function assertActive() { if(!key || operationEpoch!==generation) throw Error('�
 function show(id) { panels.forEach(p=>$(p).hidden=p!==id); }
 function status(text) { if(key) $('memo-status').textContent=text; }
 function message(id,text) { $(id).textContent=text; }
-function owner(u) { const e=window.LANMAO_MEMO_CONFIG?.ownerEmail?.trim().toLowerCase(); return !!e&&u?.email?.toLowerCase()===e; }
+function owner(u) { const uid=window.LANMAO_MEMO_CONFIG?.ownerUid; return !!uid&&u?.id===uid; }
 function fail(error) { console.error(error); return error?.message||'操作失败，请检查网络后重试。'; }
 function size(n) { return n<1048576?`${(n/1024).toFixed(1)} KB`:`${(n/1048576).toFixed(1)} MB`; }
 function state() { return normalizeNote({title:$('note-title').value,body:$('note-body').value,tags:$('note-tags').value.split(/[,，]/),pinned:$('note-pinned').checked,trashedAt:editing?.note.trashedAt}); }
@@ -495,7 +496,8 @@ $('editor-form').onsubmit=e=>{e.preventDefault();save();};
 $('save-copy-button').onclick=()=>save(true);
 $('refresh-button').onclick=()=>{if(canLeave())task(async()=>{clearEditor();await reload();status('已刷新。');});};
 $('trash-button').onclick=()=>{if(canLeave()){clearEditor();viewTrash=!viewTrash;render();}};
-$('memo-search').oninput=render;
+let searchTimer;
+$('memo-search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(render,200);};
 $('lock-button').onclick=()=>lockVault(false).catch(e=>status(fail(e)));
 $('note-files').onchange=e=>{
     const rejected=[];
@@ -527,11 +529,9 @@ $('passphrase-form').onsubmit=async e=>{
     finally{$('memo-passphrase').value='';$('memo-passphrase-confirm').value='';$('unlock-button').disabled=false;}
 };
 async function init() {
-    const cfg=window.LANMAO_MEMO_CONFIG;
-    if(!cfg?.url?.startsWith('https://')||!cfg.anonKey){show('setup-panel');return;}
+    if(!isConfigured()){show('setup-panel');return;}
     try {
-        const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-        client=createClient(cfg.url,cfg.anonKey);
+        client=await getSupabase();
         client.auth.onAuthStateChange((event,session)=>{
             if(event==='SIGNED_OUT'||(user&&session?.user?.id&&user.id!==session.user.id)) {
                 sealedDraft=null;wipe();user=null;show('login-panel');

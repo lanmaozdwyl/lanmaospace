@@ -6,14 +6,7 @@
 // 后才同步的，解密还要备忘录口令。CDN 加载失败时不锁死页面，只记日志。
 // 登录页本身不加载这个文件，避免跳转死循环。
 
-const config = window.LANMAO_MEMO_CONFIG;
-const url = config && typeof config.url === "string" ? config.url : "";
-const anonKey = config && typeof config.anonKey === "string" ? config.anonKey : "";
-const configured =
-    url.startsWith("https://") &&
-    url.includes(".supabase.co") &&
-    anonKey.length >= 20 &&
-    !anonKey.startsWith("YOUR-");
+import { getSupabase, isConfigured } from './lib/supabase-client.js';
 
 function loginUrl() {
     const next = encodeURIComponent(
@@ -23,15 +16,14 @@ function loginUrl() {
 }
 
 async function guard() {
-    if (!configured) return;
-    let createClient;
+    if (!isConfigured()) return;
+    let supabase;
     try {
-        ({ createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"));
+        supabase = await getSupabase();
     } catch (error) {
         console.error(error);
         return;
     }
-    const supabase = createClient(url, anonKey);
     try {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;

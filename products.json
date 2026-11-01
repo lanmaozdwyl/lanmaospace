@@ -1,0 +1,72 @@
+[
+  {
+    "name": "ChatGPT Plus",
+    "category": "ChatGPT",
+    "period": "1 个月",
+    "note": "需先核对账号现有订阅状态。",
+    "price": 124
+  },
+  {
+    "name": "ChatGPT Pro 5x",
+    "category": "ChatGPT",
+    "period": "1 个月",
+    "note": "需先核对账号订阅状态及升级资格。",
+    "price": 680
+  },
+  {
+    "name": "ChatGPT Pro 20x",
+    "category": "ChatGPT",
+    "period": "1 个月",
+    "note": "需先核对账号订阅状态及升级资格。",
+    "price": 1075
+  },
+  {
+    "name": "ChatGPT Pro 500",
+    "category": "ChatGPT",
+    "period": "1 个月",
+    "note": "需人工确认供货和账号资格。",
+    "price": 3205
+  },
+  {
+    "name": "Claude Pro",
+    "category": "Claude",
+    "period": "1 个月",
+    "note": "供应商要求购买后 6 小时内激活，请先确认使用时间。",
+    "price": 165
+  },
+  {
+    "name": "Grok Plus",
+    "category": "Grok",
+    "period": "1 个月",
+    "note": "需核对账号是否已有 Grok 订阅。",
+    "price": 70
+  },
+  {
+    "name": "Grok Premium",
+    "category": "Grok",
+    "period": "首月",
+    "note": "需核对账号是否具备官方首月优惠资格。",
+    "price": 120
+  },
+  {
+    "name": "Grok Super",
+    "category": "Grok",
+    "period": "首月",
+    "note": "需核对账号是否具备官方首月优惠资格。",
+    "price": 365
+  },
+  {
+    "name": "Grok Ultra",
+    "category": "Grok",
+    "period": "首月",
+    "note": "需核对账号是否具备官方首月优惠资格。",
+    "price": 705
+  },
+  {
+    "name": "Super Duolingo",
+    "category": "学习",
+    "period": "激活链接",
+    "note": "供应商不保证实际使用时长，掉订阅不补发、不退款；咨询时请先确认是否接受。",
+    "price": 12
+  }
+]

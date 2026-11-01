@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /memo.html
+Disallow: /login.html
+
+Sitemap: https://lanmaospace.netlify.app/sitemap.xml

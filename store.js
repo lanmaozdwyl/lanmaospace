@@ -1,5 +1,104 @@
-const catalog = [{"name": "ChatGPT Plus", "category": "ChatGPT", "period": "1 个月", "note": "需先核对账号现有订阅状态。", "price": 124}, {"name": "ChatGPT Pro 5x", "category": "ChatGPT", "period": "1 个月", "note": "需先核对账号订阅状态及升级资格。", "price": 680}, {"name": "ChatGPT Pro 20x", "category": "ChatGPT", "period": "1 个月", "note": "需先核对账号订阅状态及升级资格。", "price": 1075}, {"name": "ChatGPT Pro 500", "category": "ChatGPT", "period": "1 个月", "note": "需人工确认供货和账号资格。", "price": 3205}, {"name": "Claude Pro", "category": "Claude", "period": "1 个月", "note": "供应商要求购买后 6 小时内激活，请先确认使用时间。", "price": 165}, {"name": "Grok Plus", "category": "Grok", "period": "1 个月", "note": "需核对账号是否已有 Grok 订阅。", "price": 70}, {"name": "Grok Premium", "category": "Grok", "period": "首月", "note": "需核对账号是否具备官方首月优惠资格。", "price": 120}, {"name": "Grok Super", "category": "Grok", "period": "首月", "note": "需核对账号是否具备官方首月优惠资格。", "price": 365}, {"name": "Grok Ultra", "category": "Grok", "period": "首月", "note": "需核对账号是否具备官方首月优惠资格。", "price": 705}, {"name": "Super Duolingo", "category": "学习", "period": "激活链接", "note": "供应商不保证实际使用时长，掉订阅不补发、不退款；咨询时请先确认是否接受。", "price": 12}];
-const grid=document.getElementById('products'),search=document.getElementById('search'),filters=document.querySelector('.shop-filters'),detail=document.getElementById('detail');let category='全部';let opener;
-for(const name of ['全部',...new Set(catalog.map(p=>p.category))]){const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-pressed',String(name===category));b.onclick=()=>{category=name;for(const el of filters.children)el.setAttribute('aria-pressed',String(el===b));render()};filters.append(b)}
-function render(){grid.replaceChildren();const visible=catalog.filter(p=>(category==='全部'||p.category===category)&&(p.name+' '+p.category).toLowerCase().includes(search.value.trim().toLowerCase()));document.getElementById('result-count').textContent=`${visible.length} 款可咨询商品`;document.getElementById('empty').hidden=visible.length>0;for(const p of visible){const card=document.createElement('article');card.className='product';const mark=document.createElement('div');mark.className='mark';mark.textContent=p.category==='学习'?'D':p.category.slice(0,1);const h=document.createElement('h3');h.textContent=p.name;const info=document.createElement('p');info.textContent=p.period+' · ¥'+p.price;const b=document.createElement('button');b.textContent='了解与咨询 ↗';b.setAttribute('aria-label','了解与咨询 '+p.name);b.onclick=()=>{opener=b;document.getElementById('detail-title').textContent=p.name;document.getElementById('detail-category').textContent=p.category;document.getElementById('detail-period').textContent=p.period+' · ¥'+p.price;document.getElementById('detail-note').textContent=p.note;document.getElementById('inquiry').href='https://wpa.qq.com/msgrd?v=3&uin=3126477562&site=qq&menu=yes';detail.showModal()};card.append(mark,h,info,b);grid.append(card)}}
-search.addEventListener('input',render);document.getElementById('close').onclick=()=>detail.close();detail.addEventListener('close',()=>opener?.focus());render();
+// Lanmao Space 商店页：从 products.json 加载商品数据，支持分类筛选和搜索。
+// 商品数据与代码分离，修改价格只需编辑 JSON 文件，无需改动 JS。
+
+let catalog = [];
+let category = "全部";
+let opener = null;
+
+const grid = document.getElementById("products");
+const search = document.getElementById("search");
+const filters = document.querySelector(".shop-filters");
+const detail = document.getElementById("detail");
+
+async function loadProducts() {
+    try {
+        const response = await fetch("products.json");
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        catalog = await response.json();
+    } catch (error) {
+        console.error("商品数据加载失败：", error);
+        catalog = [];
+    }
+}
+
+function buildCategoryFilters() {
+    const categories = ["全部", ...new Set(catalog.map(p => p.category))];
+    for (const name of categories) {
+        const button = document.createElement("button");
+        button.textContent = name;
+        button.setAttribute("aria-pressed", String(name === category));
+        button.onclick = () => {
+            category = name;
+            for (const el of filters.children) {
+                el.setAttribute("aria-pressed", String(el === button));
+            }
+            render();
+        };
+        filters.append(button);
+    }
+}
+
+function getFilteredProducts() {
+    const query = search.value.trim().toLowerCase();
+    return catalog.filter(p => {
+        const matchesCategory = category === "全部" || p.category === category;
+        const matchesSearch = !query || (p.name + " " + p.category).toLowerCase().includes(query);
+        return matchesCategory && matchesSearch;
+    });
+}
+
+function getProductMark(product) {
+    if (product.category === "学习") return "D";
+    return product.category.slice(0, 1);
+}
+
+function createProductCard(product) {
+    const card = document.createElement("article");
+    card.className = "product";
+
+    const mark = document.createElement("div");
+    mark.className = "mark";
+    mark.textContent = getProductMark(product);
+
+    const title = document.createElement("h3");
+    title.textContent = product.name;
+
+    const info = document.createElement("p");
+    info.textContent = `${product.period} · ¥${product.price}`;
+
+    const button = document.createElement("button");
+    button.textContent = "了解与咨询 ↗";
+    button.setAttribute("aria-label", `了解与咨询 ${product.name}`);
+    button.onclick = () => openDetail(product, button);
+
+    card.append(mark, title, info, button);
+    return card;
+}
+
+function openDetail(product, button) {
+    opener = button;
+    document.getElementById("detail-title").textContent = product.name;
+    document.getElementById("detail-category").textContent = product.category;
+    document.getElementById("detail-period").textContent = `${product.period} · ¥${product.price}`;
+    document.getElementById("detail-note").textContent = product.note;
+    document.getElementById("inquiry").href = "https://wpa.qq.com/msgrd?v=3&uin=3126477562&site=qq&menu=yes";
+    detail.showModal();
+}
+
+function render() {
+    const visible = getFilteredProducts();
+    grid.replaceChildren(...visible.map(createProductCard));
+    document.getElementById("result-count").textContent = `${visible.length} 款可咨询商品`;
+    document.getElementById("empty").hidden = visible.length > 0;
+}
+
+async function init() {
+    await loadProducts();
+    buildCategoryFilters();
+    render();
+    search.addEventListener("input", render);
+    document.getElementById("close").onclick = () => detail.close();
+    detail.addEventListener("close", () => opener?.focus());
+}
+
+init();

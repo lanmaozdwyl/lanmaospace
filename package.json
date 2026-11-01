@@ -1,0 +1,13 @@
+{
+  "name": "lanmaospace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "蓝昴的个人学术空间",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:memo": "node --test tests/memo*.test.mjs",
+    "test:db": "node --test tests/pglite*.test.mjs"
+  },
+  "keywords": ["personal-website", "supabase", "encryption"],
+  "license": "UNLICENSED"
+}
