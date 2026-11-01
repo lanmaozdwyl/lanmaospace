@@ -78,9 +78,9 @@ function context(options={}) {
         };return q;
     },storage:{from(){return{remove:async()=>({error:null})};}}};
     const ctx=vm.createContext({...core,crypto,TextEncoder,TextDecoder,Uint8Array,Blob,File,URL,Map,Set,WeakMap,Date,Error,Number,JSON,Math,console:{error(){}},document,
-        window:{LANMAO_MEMO_CONFIG:{ownerEmail:'fixture@example.invalid'},confirm:()=>options.confirm!==false,addEventListener:(e,fn)=>events[e]=fn},
+        window:{LANMAO_MEMO_CONFIG:{ownerUid:'owner'},confirm:()=>options.confirm!==false,addEventListener:(e,fn)=>events[e]=fn},
         setTimeout:()=>0,setInterval:()=>0,XMLHttpRequest:class{},fixtureKey:testKey,fixtureClient:client,fixtureSalt:core.b64(salt)});
-    let source=readFileSync(root+'/memo.js','utf8').replace(/^import[\s\S]*?from '\.\/memo-core.mjs';/,'').replace(/\ninit\(\);\s*$/,'');
+    let source=readFileSync(root+'/memo.js','utf8').replace(/^import[\s\S]*?from '\.\/memo-core.mjs';/,'').replace(/^import .*from '\.\/lib\/supabase-client\.js';\r?\n/m,'').replace(/\ninit\(\);\s*$/,'');
     vm.runInContext(source,ctx);vm.runInContext("client=fixtureClient;user={id:'owner'};key=fixtureKey;vault={salt:fixtureSalt};operationEpoch=generation;show('app-panel');clearEditor();",ctx);
     return {ctx,get,calls,events,tables,run:code=>vm.runInContext(code,ctx)};
 }

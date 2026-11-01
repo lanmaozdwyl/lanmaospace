@@ -120,7 +120,7 @@ $("register-form").addEventListener("submit", async (event) => {
         pendingConfirmEmail = email;
         $("resend-confirm").hidden = false;
         $("register-status").textContent =
-            "注册成功。请去邮箱里点确认链接，再回来登录。如果没收到，可以点下面的"重新发送确认邮件"。";
+            "注册成功。请去邮箱里点确认链接，再回来登录。如果没收到，可以点下面的「重新发送确认邮件」。";
     } catch (error) {
         console.error(error);
         $("register-status").textContent =
