@@ -35,6 +35,7 @@
         <!-- 登录：一般从全站登录页过来就不会看到这里；登录过期时在这里重新登录 -->
         <section class="memo-card" id="login-panel" hidden>
             <h2>登录</h2>
+            <p id="login-status" role="status"></p>
             <p>请用店主账号登录。这是登录密码，和下面解锁用的备忘录口令不是同一个。访客账号登录后也打不开备忘录。</p>
             <form id="login-form">
                 <div class="form-group">
@@ -63,6 +64,7 @@
         <section class="memo-card" id="passphrase-panel" hidden>
             <h2 id="passphrase-title">输入备忘录口令解锁</h2>
             <p id="passphrase-desc">备忘录口令和登录密码不同。内容用它加密，口令忘了就解不开，没有找回办法，请务必记住。</p>
+            <p id="unlock-status" role="status"></p>
             <form id="passphrase-form">
                 <div class="form-group">
                     <label for="memo-passphrase">备忘录口令</label>
@@ -82,13 +84,16 @@
             <p class="memo-status" id="memo-usage" role="status" aria-live="polite"></p>
             <div class="memo-actions">
                 <button type="button" class="submit-btn" id="new-note-button"><span>＋ 写一条</span></button>
+                <button type="button" class="memo-btn-secondary" id="refresh-button">刷新</button>
+                <button type="button" class="memo-btn-secondary" id="trash-button">回收站</button>
+                <button type="button" class="memo-btn-secondary" id="backup-button">备份与恢复</button>
                 <button type="button" class="memo-btn-secondary" id="lock-button">锁定</button>
                 <button type="button" class="memo-btn-secondary" id="signout-button">退出登录</button>
             </div>
 
             <div class="form-group memo-search">
                 <label for="memo-search">搜索备忘录</label>
-                <input type="search" id="memo-search" placeholder="搜索标题或正文…">
+                <input type="search" id="memo-search" placeholder="搜索标题、正文、标签或附件名…">
             </div>
 
             <form class="memo-editor" id="editor-form" hidden>
@@ -98,8 +103,13 @@
                 </div>
                 <div class="form-group">
                     <label for="note-body">内容</label>
-                    <textarea id="note-body" rows="6" required></textarea>
+                    <textarea id="note-body" rows="6"></textarea>
                 </div>
+                <div class="form-group">
+                    <label for="note-tags">标签（用逗号分隔，最多 20 个）</label>
+                    <input type="text" id="note-tags" maxlength="500" placeholder="学习, 灵感, 待办">
+                </div>
+                <label class="memo-check"><input type="checkbox" id="note-pinned"> 置顶这条备忘录</label>
                 <div class="form-group">
                     <label for="note-files">附件（单个文件不超过 20 MB，什么类型都可以，上传前在浏览器里加密）</label>
                     <input type="file" id="note-files" multiple>
@@ -111,6 +121,27 @@
                 </div>
             </form>
 
+            <div id="conflict-panel" class="memo-notice" hidden role="alert">
+                <p>其他设备已修改或删除此条。草稿仍在编辑框中，你可以另存副本；也可以复制草稿后点击刷新读取最新版本。</p>
+                <button type="button" id="save-copy-button" class="memo-btn-secondary">将草稿另存为副本</button>
+            </div>
+            <div id="transfer-panel" class="memo-transfer" hidden>
+                <label id="transfer-label" for="transfer-progress">传输进度</label>
+                <progress id="transfer-progress" max="100" value="0"></progress>
+            </div>
+            <section id="backup-panel" class="memo-backup" hidden aria-labelledby="backup-heading">
+                <h2 id="backup-heading">加密备份与恢复</h2>
+                <p>备份包含正文、标签、回收站和附件。请保留备份时的口令；恢复会创建副本，不覆盖现有内容。</p>
+                <button type="button" id="export-button" class="memo-btn-secondary">导出完整加密备份</button>
+                <div class="form-group"><label for="backup-file">选择备份文件</label><input id="backup-file" type="file" accept=".lmb"></div>
+                <div class="form-group"><label for="backup-password">备份时使用的备忘录口令</label><input id="backup-password" type="password" autocomplete="off"></div>
+                <div class="memo-actions">
+                    <button type="button" id="check-backup-button" class="memo-btn-secondary">先校验备份</button>
+                    <button type="button" id="restore-button" class="submit-btn" hidden>恢复为副本</button>
+                </div>
+                <p id="backup-summary" role="status"></p>
+                <p class="memo-note">校验只在浏览器内完成。若恢复中断，重新校验同一文件后可继续，不会重复创建。大备份请使用支持直接写盘的 Edge / Chrome。</p>
+            </section>
             <div class="memo-list" id="memo-list"></div>
             <p class="memo-empty" id="memo-empty" hidden>还没有备忘录，点“写一条”开始记第一条吧。</p>
         </section>
@@ -121,6 +152,10 @@
         <p><a href="index.html">回到首页</a></p>
     </footer>
 
+    <dialog id="preview-dialog" class="memo-preview" aria-labelledby="preview-title">
+        <div class="memo-actions"><h2 id="preview-title">图片预览</h2><button id="preview-close" type="button" class="memo-btn-secondary">关闭预览</button></div>
+        <img id="image-preview" alt="">
+    </dialog>
     <script src="memo-config.js"></script>
     <script type="module" src="auth-guard.js"></script>
     <script type="module" src="memo.js"></script>

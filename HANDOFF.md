@@ -133,3 +133,14 @@ GitHub 仓库公开，可直接克隆；推送需要有写权限的 GitHub 账�
 
 用户授权：每次更新前核验通过即可直接上线，不再逐次请求确认。仍须先 fetch、核对远程 HEAD 与本地差异，完成相应测试；只提交相关文件，不 force-push、不覆盖他人改动。推送后必须核验正式站。价格、接单方式、部署设置与预览权限的修改仍需用户明确要求。
 当前环境没有原 snapshot-push 命令时，可用 GitHub 连接器创建基于已核对 HEAD 的单个提交，再通过 expected_sha 检查快进更新 main；不得省略远程确认。
+
+
+## 备忘录完整升级（2026-11-01）
+
+本次升级包含未保存提醒、基于密文版本的条件更新、完整加密备份/校验/副本恢复、10 分钟空闲锁定及加密草稿暂存、附件进度/重试/图片预览、加密标签/置顶/回收站。新增 `memo-core.mjs`、`MEMO-GUIDE.md`、`tests/memo.test.mjs` 和 `tests/permissions.test.mjs`；没有新增网站运行依赖或修改部署设置。旧加密条目兼容；上线后刷新旧标签页。限制与验证见 MEMO-GUIDE.md。
+
+店主 2026-11-01 已反馈执行 `supabase/memo-owner-security.sql`。本地 18 项功能测试、24 项 PostgreSQL 权限测试通过；线上真实账号尚待验证。
+
+部署阻碍已查明：店主提供 Netlify 横幅，团队只剩 operational credits，已发布站点仍在线，但 production deploys 被暂停。需等待计费周期额度恢复或由店主决定升级后再部署。不能将 GitHub 推送成功当成正式站已更新，也不要擅自购买套餐或改部署项目。
+
+注册排查：2026-11-01 只读 `/auth/v1/settings` 返回 `disable_signup=true`、`mailer_autoconfirm=true`、Email 提供商开启；朋友注册失败与注册关闭相符。已指导店主开启 Allow new users to sign up；此处未记录任何密钥或邮箱。后续应重新读取开关，不能根据旧交接声称已开放。

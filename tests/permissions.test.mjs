@@ -1,0 +1,55 @@
+import {fileURLToPath} from 'node:url';
+const {PGlite}=await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const db=new PGlite();
+const root=fileURLToPath(new URL('../',import.meta.url));
+const owner='664f60db-71ad-49b8-9229-744f16b1d19a',guest='00000000-0000-4000-8000-000000000002';
+let checks=0;
+async function allowed(sql,params=[]){const result=await db.query(sql,params);checks++;return result;}
+async function denied(sql,params=[]){await assert.rejects(db.query(sql,params));checks++;}
+async function as(role,uid){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid]);await db.exec(`set role ${role}`);}
+try {
+ await db.exec(`create role anon;create role authenticated;create schema auth;create schema storage;
+ create table auth.users(id uuid primary key);
+ create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+ create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+ create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text);
+ create function storage.foldername(text) returns text[] language sql immutable as $$ select (string_to_array($1,'/'))[1:array_length(string_to_array($1,'/'),1)-1] $$;
+ alter table storage.objects enable row level security;
+ grant usage on schema public,auth,storage to anon,authenticated;
+ grant all on storage.objects to anon,authenticated;
+ create policy other_bucket on storage.objects for all to authenticated using(bucket_id='other') with check(bucket_id='other');`);
+ await db.query('insert into auth.users values ($1),($2)',[owner,guest]);
+ for(const f of ['memos.sql','memo-files.sql','guestbook.sql'])await db.exec(readFileSync(root+'/supabase/'+f,'utf8'));
+ await db.exec('grant all on public.memo_vault,public.memos,public.memo_files to anon,authenticated;');
+ const migration=readFileSync(root+'/supabase/memo-owner-security.sql','utf8');
+ await db.exec(migration);await db.exec(migration);checks++;
+ await as('authenticated',owner);
+ await allowed('insert into public.memo_vault(user_id,salt,check_ciphertext,check_iv) values($1,$2,$3,$4)',[owner,'salt','encrypted','iv']);
+ const note=(await allowed('insert into public.memos(user_id,ciphertext,iv) values($1,$2,$3) returning id',[owner,'old','iv'])).rows[0].id;
+ await allowed('insert into storage.objects(bucket_id,name) values($1,$2)',['memo-files',owner+'/fixture.bin']);
+ await allowed('insert into public.memo_files(user_id,note_id,file_path,name_ciphertext,name_iv,file_iv,size_bytes) values($1,$2,$3,$4,$5,$6,1)',[owner,note,owner+'/fixture.bin','name','iv','iv']);
+ const updated=await allowed('update public.memos set ciphertext=$1 where id=$2 and ciphertext=$3 returning id',['new',note,'old']);assert.equal(updated.rows.length,1);
+ const stale=await allowed('update public.memos set ciphertext=$1 where id=$2 and ciphertext=$3 returning id',['overwrite',note,'old']);assert.equal(stale.rows.length,0);
+ await as('authenticated',guest);
+ for(const table of ['memo_vault','memos','memo_files'])assert.equal((await allowed(`select * from public.${table}`)).rows.length,0);
+ await denied('insert into public.memos(user_id,ciphertext,iv) values($1,$2,$3)',[guest,'x','iv']);
+ await denied('insert into public.memo_vault(user_id,salt,check_ciphertext,check_iv) values($1,$2,$3,$4)',[guest,'s','c','iv']);
+ await denied('insert into public.memo_files(user_id,note_id,file_path,name_ciphertext,name_iv,file_iv,size_bytes) values($1,$2,$3,$4,$5,$6,1)',[guest,note,guest+'/file.bin','x','iv','iv']);
+ await denied('insert into storage.objects(bucket_id,name) values($1,$2)',['memo-files',guest+'/file.bin']);
+ assert.equal((await allowed("select * from storage.objects where bucket_id='memo-files'")).rows.length,0);
+ await allowed('insert into storage.objects(bucket_id,name) values($1,$2)',['other','unchanged']);
+ await allowed('insert into public.guestbook_messages(user_id,name,email,message) values($1,$2,$3,$4)',[guest,'fixture','test@example.invalid','test']);
+ await denied('insert into public.guestbook_messages(user_id,name,message,approved) values($1,$2,$3,true)',[guest,'fixture','bypass']);
+ await denied('select email from public.guestbook_messages');
+ assert.equal((await allowed('select id,name,message,created_at from public.guestbook_messages where approved=true')).rows.length,0);
+ await db.exec('reset role;update public.guestbook_messages set approved=true;');
+ await as('authenticated',guest);
+ assert.equal((await allowed('select id,name,message,created_at from public.guestbook_messages where approved=true')).rows.length,1);
+ await denied('select email from public.guestbook_messages where approved=true');
+ await as('anon','');await denied('select * from public.memos');
+ await db.exec('reset role');
+ assert.equal((await db.query("select file_size_limit from storage.buckets where id='memo-files'")).rows[0].file_size_limit,20971536);checks++;
+ console.log(`PASS ${checks} PostgreSQL checks: owner CRUD, visitor isolation, storage isolation, CAS conflict, guestbook moderation/privacy, idempotent migration`);
+} finally {await db.close();}
