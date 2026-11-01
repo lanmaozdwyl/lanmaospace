@@ -282,23 +282,60 @@ async function downloadAttachment(file, button) {
     }
 }
 
-async function deleteAttachment(file) {
-    if (!window.confirm(`确定删除附件“${file.name}”吗？删除后无法恢复。`)) return;
-    setAppStatus("正在删除附件…");
-    const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([file.file_path]);
-    if (storageError) console.error(storageError);
-    const { error } = await supabase
-        .from("memo_files")
-        .delete()
-        .eq("id", file.id)
-        .eq("user_id", currentUser.id);
-    if (error) {
+let deletionInProgress = false;
+
+// Storage 与数据库不能在浏览器中组成事务：分阶段处理并保留失败时的记录。
+async function deleteMemoItem(table, id, label) {
+    if (deletionInProgress) return;
+    deletionInProgress = true;
+    const userId = currentUser.id;
+    let stage = "list";
+    let removedFiles = false;
+    setAppStatus(`正在删除${label}…`);
+    try {
+        // 查询原始元数据，避免依赖未加载完整或文件名解密失败的界面列表。
+        const { data, error: listError } = await supabase.from("memo_files")
+            .select("id, file_path")
+            .eq("user_id", userId)
+            .eq(table === "memos" ? "note_id" : "id", id);
+        if (listError) throw listError;
+        stage = "storage";
+        if (data.length > 0) {
+            const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET)
+                .remove(data.map((file) => file.file_path));
+            if (storageError) throw storageError;
+            removedFiles = true;
+        }
+        stage = "record";
+        const { data: deleted, error } = await supabase.from(table).delete()
+            .eq("id", id).eq("user_id", userId).select("id");
+        if (error) throw error;
+        if (!deleted || deleted.length !== 1) throw new Error("删除记录未确认，请刷新后检查。");
+        stage = "refresh";
+        await loadNotes();
+        setAppStatus(`${label}已删除。`);
+    } catch (error) {
         console.error(error);
-        setAppStatus("删除附件失败，请刷新后重试。");
-        return;
+        if (stage === "list") {
+            setAppStatus("无法确认完整附件列表，已停止删除。请检查网络后重试。");
+        } else if (stage === "storage") {
+            setAppStatus("附件文件删除失败，未继续删除记录。部分文件可能已处理，请检查网络后重试。");
+        } else if (stage === "record") {
+            setAppStatus(removedFiles
+                ? "附件文件已移除，但记录删除未确认。请刷新检查；若记录仍在，可重试删除。"
+                : "记录删除未确认，请刷新检查；若记录仍在，可重试删除。");
+        } else {
+            setAppStatus(`${label}已删除，但列表刷新失败。请刷新页面查看。`);
+        }
+    } finally {
+        deletionInProgress = false;
     }
-    await loadNotes();
-    setAppStatus("附件已删除。");
+}
+
+async function deleteAttachment(file) {
+    if (deletionInProgress) return;
+    if (!window.confirm(`确定删除附件“${file.name}”吗？删除后无法恢复。`)) return;
+    await deleteMemoItem("memo_files", file.id, "附件");
 }
 
 function lock() {
@@ -520,28 +557,9 @@ function closeEditor() {
 }
 
 async function deleteNote(note) {
+    if (deletionInProgress) return;
     if (!window.confirm("确定删除这条备忘录吗？连同它的附件一起删除，删除后无法恢复。")) return;
-    setAppStatus("正在删除…");
-    // 先删存储桶里的附件密文，再删备忘录行（附件元数据行随备忘录级联删除）。
-    const noteFiles = files.filter((file) => file.note_id === note.id);
-    if (noteFiles.length > 0) {
-        const { error: storageError } = await supabase.storage
-            .from(STORAGE_BUCKET)
-            .remove(noteFiles.map((file) => file.file_path));
-        if (storageError) console.error(storageError);
-    }
-    const { error } = await supabase
-        .from("memos")
-        .delete()
-        .eq("id", note.id)
-        .eq("user_id", currentUser.id);
-    if (error) {
-        console.error(error);
-        setAppStatus("删除失败，请刷新后重试。");
-        return;
-    }
-    await loadNotes();
-    setAppStatus("已删除。");
+    await deleteMemoItem("memos", note.id, "备忘录");
 }
 
 loginForm.addEventListener("submit", async (event) => {
