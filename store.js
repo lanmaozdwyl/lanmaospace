@@ -56,9 +56,21 @@ function createProductCard(product) {
     const card = document.createElement("article");
     card.className = "product";
 
-    const mark = document.createElement("div");
-    mark.className = "mark";
-    mark.textContent = getProductMark(product);
+    if (product.image) {
+        const imageWrapper = document.createElement("div");
+        imageWrapper.className = "product-image";
+        const img = document.createElement("img");
+        img.src = product.image;
+        img.alt = product.name;
+        img.loading = "lazy";
+        imageWrapper.append(img);
+        card.append(imageWrapper);
+    } else {
+        const mark = document.createElement("div");
+        mark.className = "mark";
+        mark.textContent = getProductMark(product);
+        card.append(mark);
+    }
 
     const title = document.createElement("h3");
     title.textContent = product.name;
@@ -71,7 +83,7 @@ function createProductCard(product) {
     button.setAttribute("aria-label", `了解与咨询 ${product.name}`);
     button.onclick = () => openDetail(product, button);
 
-    card.append(mark, title, info, button);
+    card.append(title, info, button);
     return card;
 }
 
