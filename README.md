@@ -2,8 +2,8 @@
 
 蓝昴的个人学术空间与人工接单商店。
 
-- **网站**：https://lanmaospace.netlify.app/
-- **商店**：https://lanmaospace.netlify.app/store.html
+- **网站**：https://lanmaospace.pages.dev/
+- **商店**：https://lanmaospace.pages.dev/store.html
 - **开发交接**：[HANDOFF.md](HANDOFF.md)（换电脑或交给其他 agent 前先读）
 
 ## 功能
@@ -24,7 +24,7 @@ python -m http.server 8766 --bind 127.0.0.1
 
 ## 部署
 
-Netlify 项目 `lanmaospace` 关联 GitHub `main` 分支，发布目录为 `.`，推送后自动部署。需等待部署完成并检查正式网站。
+Cloudflare Pages 免费项目 `lanmaospace` 关联 GitHub `main` 分支，Framework 为 None，发布目录为仓库根目录，推送后自动部署。运行 `node scripts/verify-live.mjs` 核验新站资源。
 
 ## 当前边界
 

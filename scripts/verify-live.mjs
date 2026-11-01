@@ -1,12 +1,12 @@
 // 只读上线验收：不登录、不访问私人内容、不读取配置密钥。
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-const site='https://lanmaospace.netlify.app';
+const site=process.argv[2] || 'https://lanmaospace.pages.dev';
 const root=new URL('../',import.meta.url);
 const digest=text=>createHash('sha256').update(text.replaceAll('\r\n','\n')).digest('hex');
 const checks=[
     ['memo.html',['backup-panel','conflict-panel','preview-dialog']],
-    ['memo.js',null],['memo-core.mjs',null],['memo.css',null]
+    ['memo.js',null],['memo-core.mjs',null],['memo.css',null],['login.js',null],['lib/supabase-client.js',null]
 ];
 let ready=true;
 for(const [path,markers] of checks) {

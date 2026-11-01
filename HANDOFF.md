@@ -164,3 +164,9 @@ GitHub 仓库公开，可直接克隆；推送需要有写权限的 GitHub 账�
 用户授权部署到 Cloudflare Pages 免费版，GitHub main 自动部署，项目名 lanmaospace。原 Netlify 项目保留，不更改其权限或套餐。Cloudflare 首次部署由店主在后台发起；正式新网址与验证结果待完成后补记。迁移需要在 Supabase Auth URL Configuration 添加新站点的登录回跳地址，保留旧站点地址，不能仅以首页 200 判断登录流程可用。
 
 同步远程 44fe6bb 后修复 login.js 注册提示中的字符串引号语法错误，并适配备忘录测试的共享模块导入与 ownerUid 配置；22 项备忘录测试及 JavaScript 语法检查通过。
+
+### Cloudflare 发布验证
+
+新正式地址：https://lanmaospace.pages.dev/ 。Cloudflare production 已自动发布 2063389（登录引号修复），未登录访问首页已验证跳转 /login?next=%2F，登录页正常渲染。README、sitemap、robots 和 verify-live 默认目标同步到新地址。旧 Netlify 地址保留，但旧版本因额度暂停不更新。
+
+Supabase 新域名 Site URL / Redirect URLs 已通知店主配置，店主回复“好的”，尚不能认定已执行；必须等明确完成反馈，并实测邮件确认/密码重置回跳。未代用户输入密码、解锁真实备忘录或发送测试邮件。历史章节中的 Netlify 信息仅供追溯，以本节为准。

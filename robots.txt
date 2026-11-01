@@ -3,4 +3,4 @@ Allow: /
 Disallow: /memo.html
 Disallow: /login.html
 
-Sitemap: https://lanmaospace.netlify.app/sitemap.xml
+Sitemap: https://lanmaospace.pages.dev/sitemap.xml
