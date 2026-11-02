@@ -96,7 +96,18 @@ function createProductCard(product) {
     const state = document.createElement("span");
     state.className = "product-availability";
     state.textContent = availabilityLabels[product.availability] || "供货请咨询";
-    card.append(title, info, state, button);
+
+    const badges = document.createElement("div");
+    badges.className = "product-badges";
+    badges.append(state);
+    if (product.warranty) {
+        const warranty = document.createElement("span");
+        warranty.className = "product-warranty" + (product.warranty === "无质保" ? " no-warranty" : "");
+        warranty.textContent = product.warranty;
+        badges.append(warranty);
+    }
+
+    card.append(title, info, badges, button);
     return card;
 }
 
