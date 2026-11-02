@@ -137,3 +137,13 @@
         transition: none;
     }
 }
+
+/* 小屏幕下头像页的返回、导航与退出操作可换行。 */
+.memo-topbar-links { flex-wrap: wrap; min-width: 0; }
+.memo-topbar-links a, .memo-topbar-links button { min-height: 44px; display: inline-flex; align-items: center; }
+.profile-save, .profile-reset { min-height: 44px; }
+@media (max-width: 600px) {
+ .memo-topbar { align-items: flex-start; }
+ .memo-topbar-links { gap: 8px 14px; }
+ .profile-card input { max-width: 100%; min-width: 0; font-size: 16px; }
+}

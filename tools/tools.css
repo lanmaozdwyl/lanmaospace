@@ -142,3 +142,9 @@
     font-size: 0.875rem;
     line-height: 1.8;
 }
+
+.tools-topbar-links a, .tools-signout, .tools-filters .filter-btn { min-height: 44px; display: inline-flex; align-items: center; }
+@media (max-width: 600px) {
+ .tools-search { font-size: 16px; }
+ .tools-topbar-links { gap: 8px 14px; }
+}

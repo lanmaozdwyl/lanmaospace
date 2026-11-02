@@ -14,3 +14,8 @@ dialog { max-height: 85dvh; overflow-y: auto; }
 .product-metadata dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 #catalog-error { padding: 20px; border-radius: 16px; background: #f5f5f7; }
 #catalog-retry { padding: 12px 18px; min-height: 44px; color: #0071e3; }
+
+@media (max-width: 600px) {
+ .shop-nav-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-width: 0; }
+ .shop-nav-links a, .shop-nav-signout { display: inline-flex; align-items: center; min-height: 44px; }
+}
