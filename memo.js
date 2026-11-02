@@ -434,8 +434,11 @@ async function exportBackup() {
             if(JSON.stringify(original)!==JSON.stringify(latest)) throw Error('备份期间其他设备修改了内容，请重新导出。');
             await writer.record({kind:'end',notes:original.rawNotes.length,files:original.rawFiles.length});
             assertActive();
-            if(writable) await writable.close(); else downloadBlob(new Blob(chunks,{type:'application/octet-stream'}),`lanmao-${new Date().toISOString().slice(0,10)}.lmb`);
-            completed=true; status('加密备份已导出，包含正文、标签、回收站和全部附件。请保留备份时使用的备忘录口令。');
+            // 直接写盘路径在 close() 后才报已导出；普通下载路径只是发起了下载，
+            // 文件是否落盘取决于浏览器保存动作，措辞不能先报成功，须提示校验。
+            if (writable) { await writable.close(); status('加密备份已导出，包含正文、标签、回收站和全部附件。请保留备份时使用的备忘录口令。'); }
+            else { downloadBlob(new Blob(chunks, {type: 'application/octet-stream'}), `lanmao-${new Date().toISOString().slice(0, 10)}.lmb`); status('备份文件下载已发起，请确认浏览器已保存 .lmb 文件，并用“先校验备份”确认完整性。请保留备份时使用的备忘录口令。'); }
+            completed = true;
         } finally { if(writable&&!completed)await writable.abort().catch(()=>{}); progress(null); }
     });
 }
