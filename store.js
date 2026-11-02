@@ -117,6 +117,15 @@ function openDetail(product, button) {
     document.getElementById("detail-category").textContent = product.category;
     document.getElementById("detail-period").textContent = `${product.period} · ¥${product.price}`;
     document.getElementById("detail-note").textContent = product.note;
+    document.getElementById("detail-requirements").textContent = product.requirements || "请联系店主确认账号条件。";
+    const warrantyText = document.getElementById("detail-warranty-text");
+    if (product.warranty === "无质保") {
+        warrantyText.textContent = "此商品不提供质保与售后，购买前请确认是否接受。";
+        warrantyText.className = "warranty-none";
+    } else {
+        warrantyText.textContent = `${product.warranty}。订阅类商品掉订阅按剩余天数退差价；任何形式的封号不在质保范围内。`;
+        warrantyText.className = "";
+    }
     const metadata = document.getElementById("detail-metadata");
     metadata.replaceChildren();
     for (const [label, value] of productDetails(product)) {
