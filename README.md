@@ -8,7 +8,7 @@
 
 ## 功能
 
-个人首页、书单筛选、音乐影视、友链、工具箱、工具站（`tools/`）、留言板（Supabase，需店主审核后显示）；商店包含商品分类、搜索、详情与 QQ 人工咨询。网站支持响应式布局和减少动态效果。私人备忘录包含加密备份与恢复、冲突保护、闲置锁定、附件预览、标签、置顶和回收站；详见 [MEMO-GUIDE.md](MEMO-GUIDE.md)。
+个人首页、书单筛选、音乐影视、友链、工具箱、工具站（`tools/`）、留言板（Supabase，支持店主站内审核后显示）；商店包含商品分类、搜索、详情与 QQ 人工咨询。网站支持响应式布局和减少动态效果。私人备忘录包含加密备份与恢复、冲突保护、闲置锁定、附件预览、标签、置顶和回收站；详见 [MEMO-GUIDE.md](MEMO-GUIDE.md)。
 
 ## 本地运行
 
@@ -24,7 +24,7 @@ python -m http.server 8766 --bind 127.0.0.1
 
 ## 部署
 
-Cloudflare Pages 免费项目 `lanmaospace` 关联 GitHub `main` 分支，Framework 为 None，发布目录为仓库根目录，推送后自动部署。运行 `node scripts/verify-live.mjs` 核验新站资源。
+Cloudflare Pages 免费项目 `lanmaospace` 关联 GitHub `main` 分支，Framework 为 None，构建命令为 `node scripts/build.mjs`，发布目录为 `dist`，推送后自动部署。运行 `node scripts/verify-live.mjs` 核验新站资源。
 
 ## 当前边界
 

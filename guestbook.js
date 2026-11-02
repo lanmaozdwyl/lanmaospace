@@ -169,3 +169,5 @@ async function init() {
 }
 
 init();
+
+document.addEventListener('guestbook-reviewed', () => { if (supabase) loadMessages(); });

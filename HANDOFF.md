@@ -170,3 +170,12 @@ GitHub 仓库公开，可直接克隆；推送需要有写权限的 GitHub 账�
 新正式地址：https://lanmaospace.pages.dev/ 。Cloudflare production 已自动发布 2063389（登录引号修复），未登录访问首页已验证跳转 /login?next=%2F，登录页正常渲染。README、sitemap、robots 和 verify-live 默认目标同步到新地址。旧 Netlify 地址保留，但旧版本因额度暂停不更新。
 
 Supabase 新域名 Site URL / Redirect URLs 已通知店主配置，店主回复“好的”，尚不能认定已执行；必须等明确完成反馈，并实测邮件确认/密码重置回跳。未代用户输入密码、解锁真实备忘录或发送测试邮件。历史章节中的 Netlify 信息仅供追溯，以本节为准。
+
+## 发布检查与站内审核（2026-11-01）
+
+- 店主已明确反馈完成 Supabase 新域名 Site URL / Redirect URLs 配置；邮件确认和重置密码尚未实测。
+- Cloudflare 构建命令改为 `node scripts/build.mjs`，产物目录 `dist`。先扫描 JS 语法、商品 JSON 并运行 22 项备忘录和 3 项审核界面回归测试，失败则停止，不替换旧生产版本。build 只打包运行文件，不发布 SQL、测试和交接文档；本地已有 dist 时先移走旧产物后重建。
+- `guestbook-admin.js` 在首页为店主显示待审核/已公开列表、分页、审核通过及撤回公开按钮；访客不显示入口。数据库通过 `supabase/guestbook-owner-review.sql` 的两个 RPC 独立校验店主 UID，普通用户不能调用，不开放邮箱列或直接 UPDATE。审核使用预期状态防止过期操作；撤回不是永久删除。
+- 店主已反馈执行 guestbook-owner-review.sql，线上实际审核待店主登录验证。SQL 在本地 PGlite 测试通过，权限测试由 24 项扩展为 38 项；没有操作真实留言。
+- `npm test` 修复为可独立运行的备忘录测试；`npm run test:db` 为需安装 PGlite 或设置 PGLITE_MODULE 的数据库测试，不在无依赖的云端构建中运行。
+- 后续：真实邮件流程和私人备份需店主实测；占位数字/友链、商品库存/交付时效等无真实资料不能编造。自动检查与留言审核先优先发布，其他项目逐步完善。

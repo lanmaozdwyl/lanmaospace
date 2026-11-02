@@ -4,10 +4,16 @@
   "private": true,
   "description": "蓝昴的个人学术空间",
   "scripts": {
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/memo.test.mjs tests/guestbook-admin.test.mjs",
     "test:memo": "node --test tests/memo*.test.mjs",
-    "test:db": "node --test tests/pglite*.test.mjs"
+    "test:db": "node tests/permissions.test.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs"
   },
-  "keywords": ["personal-website", "supabase", "encryption"],
+  "keywords": [
+    "personal-website",
+    "supabase",
+    "encryption"
+  ],
   "license": "UNLICENSED"
 }

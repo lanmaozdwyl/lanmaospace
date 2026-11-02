@@ -6,7 +6,7 @@ const root=new URL('../',import.meta.url);
 const digest=text=>createHash('sha256').update(text.replaceAll('\r\n','\n')).digest('hex');
 const checks=[
     ['memo.html',['backup-panel','conflict-panel','preview-dialog']],
-    ['memo.js',null],['memo-core.mjs',null],['memo.css',null],['login.js',null],['lib/supabase-client.js',null]
+    ['memo.js',null],['memo-core.mjs',null],['memo.css',null],['login.js',null],['guestbook-admin.js',null],['lib/supabase-client.js',null]
 ];
 let ready=true;
 for(const [path,markers] of checks) {

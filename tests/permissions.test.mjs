@@ -51,5 +51,27 @@ try {
  await as('anon','');await denied('select * from public.memos');
  await db.exec('reset role');
  assert.equal((await db.query("select file_size_limit from storage.buckets where id='memo-files'")).rows[0].file_size_limit,20971536);checks++;
+ const reviewSQL=readFileSync(root+'/supabase/guestbook-owner-review.sql','utf8');
+ await db.exec(reviewSQL);await db.exec(reviewSQL);checks++;
+ await as('authenticated',guest);
+ await denied('select * from public.owner_guestbook_list(false,0)');
+ const fakeId='00000000-0000-4000-8000-000000000003';
+ await denied('select public.owner_guestbook_review($1,true,false)',[fakeId]);
+ await denied('update public.guestbook_messages set approved=true');
+ await as('anon','');await denied('select * from public.owner_guestbook_list(false,0)');
+ await denied('select public.owner_guestbook_review($1,true,false)',[fakeId]);
+ await as('authenticated',owner);
+ const listed=(await allowed('select * from public.owner_guestbook_list(true,0)')).rows;
+ assert.equal(listed.length,1);assert(!Object.hasOwn(listed[0],'email'));
+ const messageId=listed[0].id;
+ assert.equal((await allowed('select public.owner_guestbook_review($1,false,true) as changed',[messageId])).rows[0].changed,true);
+ assert.equal((await allowed('select public.owner_guestbook_review($1,true,true) as changed',[messageId])).rows[0].changed,false);
+ assert.equal((await allowed('select * from public.owner_guestbook_list(false,0)')).rows.length,1);
+ await as('authenticated',guest);
+ assert.equal((await allowed('select id from public.guestbook_messages')).rows.length,0);
+ await denied('select email from public.guestbook_messages');
+ await as('authenticated',owner);
+ await allowed('select public.owner_guestbook_review($1,true,false)',[messageId]);
+ await as('anon','');assert.equal((await allowed('select id from public.guestbook_messages')).rows.length,1);
  console.log(`PASS ${checks} PostgreSQL checks: owner CRUD, visitor isolation, storage isolation, CAS conflict, guestbook moderation/privacy, idempotent migration`);
 } finally {await db.close();}
