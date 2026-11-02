@@ -1,3 +1,12 @@
+# 当前权威状态（2026-11-02）
+
+本节优先于下方历史记录。正式站已迁移到 https://lanmaospace.pages.dev/；Cloudflare main 自动部署，构建 node scripts/build.mjs，输出 dist。Netlify 仅保留旧站，不再是正式站。
+
+最新功能基线 2515b416a7428680c2220bd2d2eb9d74485b8927（交接文档提交会更晚）；每次动手仍须 fetch 核对。29 项功能测试通过，38 项数据库测试本地通过。商店数据在 products.json，不再是 store.js。店主反馈已执行审核 SQL 并配置新域名邮件回跳，但真实流程仍待实测。备份提醒不是自动备份。
+
+后续任务见 TASKS.md；可复制交接文本见 NEXT-AGENT-PROMPT.md。下方保留历史过程用于追溯，旧的“Netlify 暂停所以新功能未上线”等描述不代表现在状态。
+
+---
 # Lanmao Space：开发交接
 
 最后整理：2026-10-31。以下是该日期的已验证状态，修改前请重新检查 Git 与部署状态。
