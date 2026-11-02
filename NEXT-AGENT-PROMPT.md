@@ -13,7 +13,7 @@
 - Supabase 登录与数据库继续保留。备忘录浏览器内加密，支持附件、备份与副本恢复、10 分钟空闲锁定/加密草稿、标签置顶回收站和并发冲突保护。
 - guestbook-admin.js 为店主提供首页审核/撤回公开。数据库 RPC 在 supabase/guestbook-owner-review.sql。店主已反馈执行此 SQL 和 memo-owner-security.sql，新域名 Auth Site URL/Redirect URLs 也反馈配置完成；真实邮件、审核、附件及备份流程仍未完整实测，不能写成已验证。
 - 2026-11-02 晚：线上验收脚本已扩展覆盖商店/工具站，商店加载失败状态已修复（提交 79a8c06，已上线核验 PASS）；功能测试 34 项，真实浏览器回归仍未做。
-- 2026-11-02 晚：新增用户头像功能（预设 + 上传，页头与留言旁显示；profiles 表 + avatars 存储桶 + guestbook_public_list 函数，见 supabase/avatars.sql），代码已推，功能测试 41 项；店主运行 avatars.sql 后才能保存头像，未运行前留言回退默认头像。
+- 2026-11-02 晚：新增用户头像功能（预设 + 上传，页头与留言旁显示；profiles 表 + avatars 存储桶 + guestbook_public_list 函数，见 supabase/avatars.sql），代码已推，功能测试 41 项；店主已运行 avatars.sql（匿名核查确认函数可用），预设/上传保存实测待反馈。
 
 三、铁律
 - 常规更新已获授权：检查通过可直接推 main 并上线，不要每次再问确认。价格、接单方式、付费购买、访问范围扩大、删除真实数据等仍需具体授权。
