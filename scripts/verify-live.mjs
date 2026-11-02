@@ -1,23 +1,102 @@
 // 只读上线验收：不登录、不访问私人内容、不读取配置密钥。
+// HTML 用关键标记核验（托管平台可能改写 HTML 或做干净地址跳转，不只比原始哈希）；
+// JS/CSS/目录数据用换行规范化后的哈希或结构比对；商品图片只核验状态、类型与大小，不比对字节。
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-const site=process.argv[2] || 'https://lanmaospace.pages.dev';
-const root=new URL('../',import.meta.url);
-const digest=text=>createHash('sha256').update(text.replaceAll('\r\n','\n')).digest('hex');
-const checks=[
-    ['memo.html',['backup-panel','conflict-panel','preview-dialog']],
-    ['memo.js',null],['memo-core.mjs',null],['memo.css',null],['login.js',null],['guestbook-admin.js',null],['lib/supabase-client.js',null]
-];
-let ready=true;
-for(const [path,markers] of checks) {
-    try {
-        const response=await fetch(`${site}/${path}?verify=${Date.now()}`,{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
-        if(!response.ok) {console.log(`${path}: HTTP ${response.status}`);ready=false;continue;}
-        const remote=await response.text();
-        const matches=markers?markers.every(marker=>remote.includes(marker)):digest(remote)===digest(await readFile(new URL(path,root),'utf8'));
-        console.log(`${path}: HTTP ${response.status}, ${matches?'MATCH':'OLD_OR_DIFFERENT'}`);
-        ready &&= matches;
-    } catch(error) {ready=false;console.log(`${path}: REQUEST_FAILED (${error.name})`);}
+const site = (process.argv[2] || 'https://lanmaospace.pages.dev').replace(/\/$/, '');
+const root = new URL('../', import.meta.url);
+const digest = text => createHash('sha256').update(text.replaceAll('\r\n', '\n')).digest('hex');
+const localText = path => readFile(new URL(path, root), 'utf8');
+let ready = true;
+
+async function fetchText(path) {
+    const response = await fetch(`${site}/${path}?verify=${Date.now()}`, {
+        headers: {'Cache-Control': 'no-cache'},
+        signal: AbortSignal.timeout(15000),
+    });
+    return response;
 }
-console.log(ready?'PASS: 正式站已加载本地版本的备忘录资源。':'NOT_READY: 正式站尚未匹配本地版本，请检查部署状态；不要仅凭推送成功声称已上线。');
-process.exitCode=ready?0:2;
+
+function noteRedirect(path, response) {
+    try {
+        const finalPath = new URL(response.url).pathname.replace(/\/$/, '') || '/';
+        const requested = `/${path}`.replace(/\/$/, '') || '/';
+        return finalPath !== requested ? ` (redirected to ${finalPath})` : '';
+    } catch {
+        return '';
+    }
+}
+
+async function checkMarkers(path, markers) {
+    try {
+        const response = await fetchText(path);
+        if (!response.ok) { console.log(`${path}: HTTP ${response.status}`); ready = false; return; }
+        const remote = await response.text();
+        const missing = markers.filter(marker => !remote.includes(marker));
+        const matches = missing.length === 0;
+        console.log(`${path}: HTTP ${response.status}, ${matches ? 'MATCH' : 'OLD_OR_DIFFERENT missing=' + missing.join(',')}${noteRedirect(path, response)}`);
+        ready &&= matches;
+    } catch (error) { ready = false; console.log(`${path}: REQUEST_FAILED (${error.name})`); }
+}
+
+async function checkHash(path) {
+    try {
+        const response = await fetchText(path);
+        if (!response.ok) { console.log(`${path}: HTTP ${response.status}`); ready = false; return; }
+        const remote = await response.text();
+        const matches = digest(remote) === digest(await localText(path));
+        console.log(`${path}: HTTP ${response.status}, ${matches ? 'MATCH' : 'OLD_OR_DIFFERENT'}${noteRedirect(path, response)}`);
+        ready &&= matches;
+    } catch (error) { ready = false; console.log(`${path}: REQUEST_FAILED (${error.name})`); }
+}
+
+for (const [path, markers] of [
+    ['memo.html', ['backup-panel', 'conflict-panel', 'preview-dialog']],
+    ['store.html', ['catalog-error', 'catalog-retry', 'detail-metadata', 'id="search"', 'id="products"']],
+    ['index.html', ['guestbookStatus', 'id="toolbox"', 'tools/']],
+    ['login.html', ['login-form', 'login-panel', 'recovery-form']],
+    ['tools/', ['tools-search', 'data-filter="translate"', 'deepl.com/translator']],
+]) await checkMarkers(path, markers);
+
+for (const path of [
+    'memo.js', 'memo-core.mjs', 'memo.css', 'login.js', 'guestbook-admin.js',
+    'lib/supabase-client.js', 'store.js', 'lib/catalog.mjs', 'tools/tools.js', 'tools/tools.css',
+]) await checkHash(path);
+
+// 商品目录：结构比对（名称、分类、价格顺序一致），不把字节差异当成内容不一致。
+try {
+    const local = JSON.parse(await localText('products.json'));
+    const response = await fetchText('products.json');
+    if (!response.ok) { console.log(`products.json: HTTP ${response.status}`); ready = false; }
+    else {
+        const remote = await response.json();
+        const same = Array.isArray(remote) && remote.length === local.length &&
+            remote.every((item, i) => item.name === local[i].name && item.category === local[i].category && item.price === local[i].price);
+        console.log(`products.json: HTTP ${response.status}, ${same ? `MATCH (${local.length} items)` : 'OLD_OR_DIFFERENT'}${noteRedirect('products.json', response)}`);
+        ready &&= same;
+    }
+} catch (error) { ready = false; console.log(`products.json: REQUEST_FAILED (${error.name})`); }
+
+// 商品图片：只核验可访问、类型为图片、有内容，并记录大小供性能核对；不转换、不重绘。
+try {
+    const local = JSON.parse(await localText('products.json'));
+    const images = [...new Set(local.filter(item => item.image).map(item => item.image))];
+    for (const image of images) {
+        try {
+            const response = await fetch(`${site}/${image}?verify=${Date.now()}`, {
+                headers: {'Cache-Control': 'no-cache'},
+                signal: AbortSignal.timeout(15000),
+            });
+            const buffer = response.ok ? await response.arrayBuffer() : null;
+            const type = response.headers.get('content-type') || '';
+            const ok = response.ok && type.startsWith('image/') && buffer && buffer.byteLength > 0;
+            console.log(`${image}: HTTP ${response.status}, ${type || 'no-type'}, ${buffer ? (buffer.byteLength / 1024).toFixed(0) + ' KB' : 'no-body'}, ${ok ? 'OK' : 'CHECK'}`);
+            ready &&= ok;
+        } catch (error) { ready = false; console.log(`${image}: REQUEST_FAILED (${error.name})`); }
+    }
+} catch (error) { ready = false; console.log(`product images: REQUEST_FAILED (${error.name})`); }
+
+console.log(ready
+    ? 'PASS: 正式站已加载本地版本的备忘录、商店与工具站资源。'
+    : 'NOT_READY: 正式站尚未匹配本地版本，请检查部署状态；不要仅凭推送成功声称已上线。');
+process.exitCode = ready ? 0 : 2;

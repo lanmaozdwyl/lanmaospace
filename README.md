@@ -32,4 +32,4 @@ Cloudflare Pages 免费项目 `lanmaospace` 关联 GitHub `main` 分支，Framew
 
 ## 最近部署状态
 
-2026-11-01 Netlify 提示 production deploys 因额度暂停，旧网站仍在线。GitHub 新提交可能尚未部署；恢复额度后核对正式站资源，不能仅以仓库版本判断线上版本。
+正式站为 Cloudflare Pages（https://lanmaospace.pages.dev/），推送 main 后自动构建部署；用 `node scripts/verify-live.mjs` 核验（2026-11-02 已扩展覆盖商店/工具站/首页/登录页与商品图片）。Netlify 旧站不再更新。

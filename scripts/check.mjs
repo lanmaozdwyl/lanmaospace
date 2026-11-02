@@ -18,5 +18,5 @@ function scan(dir) {
   }
 }
 scan(root);
-run(['--test','tests/memo.test.mjs','tests/guestbook-admin.test.mjs','tests/catalog.test.mjs']);
+run(['--test','tests/memo.test.mjs','tests/guestbook-admin.test.mjs','tests/catalog.test.mjs','tests/store.test.mjs']);
 console.log('PASS: JavaScript syntax, product JSON and memo regression tests');

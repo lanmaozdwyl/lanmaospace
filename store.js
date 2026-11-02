@@ -5,6 +5,7 @@ import {validateCatalog, productDetails, availabilityLabels} from './lib/catalog
 let catalog = [];
 let category = "全部";
 let opener = null;
+let loadFailed = false;
 
 const grid = document.getElementById("products");
 const search = document.getElementById("search");
@@ -17,10 +18,12 @@ async function loadProducts() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         catalog = validateCatalog(await response.json());
         document.getElementById("catalog-error").hidden = true;
+        loadFailed = false;
         return true;
     } catch (error) {
         console.error("商品数据加载失败：", error);
         catalog = [];
+        loadFailed = true;
         document.getElementById("catalog-error").hidden = false;
         return false;
     }
@@ -114,8 +117,11 @@ function openDetail(product, button) {
 }
 
 function render() {
-    const visible = getFilteredProducts();
+    // 加载失败时保持失败提示：后续搜索/分类操作不再把空列表说成“0 款商品”，
+    // 也不把“没有找到符合条件的商品”与错误提示同时显示。
+    const visible = loadFailed ? [] : getFilteredProducts();
     grid.replaceChildren(...visible.map(createProductCard));
+    if (loadFailed) return;
     document.getElementById("result-count").textContent = `${visible.length} 款可咨询商品`;
     document.getElementById("empty").hidden = visible.length > 0;
 }
