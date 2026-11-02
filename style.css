@@ -1403,3 +1403,18 @@ button {
 .owner-review button:disabled { opacity: .5; cursor: default; }
 .owner-review p { overflow-wrap: anywhere; }
 .owner-review :focus-visible { outline: 3px solid #0071e3; outline-offset: 3px; }
+
+/* 首页按任务导航，完整工具卡片只在工具站维护。 */
+.tool-entry-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.tool-entry { display: flex; flex-direction: column; padding: 28px 24px; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.025)); transition: background-color .3s ease, border-color .3s ease; }
+.tool-entry-icon { font-size: 28px; margin-bottom: 24px; }
+.tool-entry h3 { color: #f5f5f7; font-size: 19px; line-height: 1.5; }
+.tool-entry p { color: #a1a1a6; font-size: 14px; line-height: 1.8; margin: 12px 0 26px; }
+.tool-entry-action { margin-top: auto; color: #b9b2ff; font-size: 14px; }
+.tool-entry:hover { border-color: rgba(185,178,255,.5); background-color: rgba(255,255,255,.04); }
+.tool-entry:focus-visible, .tool-entry-all:focus-visible { outline: 3px solid #b9b2ff; outline-offset: 5px; }
+.tool-entry-footer { margin-top: 32px; text-align: center; }
+.tool-entry-all { display: inline-block; color: #f5f5f7; padding: 12px 22px; border: 1px solid rgba(255,255,255,.2); border-radius: 24px; }
+@media (max-width: 1000px) { .tool-entry-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 520px) { .tool-entry-grid { grid-template-columns: 1fr; } .tool-entry { padding: 24px; } }
+@media (prefers-reduced-motion: reduce) { .tool-entry { transition: none; } }

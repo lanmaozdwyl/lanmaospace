@@ -6,7 +6,8 @@
     var groups = Array.prototype.slice.call(document.querySelectorAll(".tools-category"));
     var search = document.getElementById("tools-search");
     var empty = document.getElementById("tools-empty");
-    var activeFilter = "all";
+    var requestedFilter = new URLSearchParams(window.location.search).get("category");
+    var activeFilter = filterBtns.some(function (btn) { return btn.dataset.filter === requestedFilter; }) ? requestedFilter : "all";
 
     function applyFilter() {
         var query = search.value.trim().toLowerCase();
@@ -38,5 +39,11 @@
         });
     });
 
+    filterBtns.forEach(function (btn) {
+        var active = btn.dataset.filter === activeFilter;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-pressed", String(active));
+    });
+    applyFilter();
     search.addEventListener("input", applyFilter);
 })();
