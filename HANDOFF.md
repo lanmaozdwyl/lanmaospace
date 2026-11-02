@@ -204,3 +204,9 @@ Supabase 新域名 Site URL / Redirect URLs 已通知店主配置，店主回复
 ## 头像页登录回跳和移动操作（2026-11-02）
 
 修复 login.js safeNext 白名单缺少 /profile、/profile.html 的问题，避免未登录访问头像页后丢失原目标。新增 4 项回跳测试，覆盖头像页、工具分类参数保留、跨站地址拒绝、未知路径回退，总计 48 项功能测试。头像页和商店导航增加小屏换行，头像页操作、工具分类及导航补 44px 点击高度；工具搜索和首页留言表单手机字号 16px。此为代码与本地模拟/HTTP验证，完整真实手机矩阵与真实登录仍待实测。
+
+## 隔离自动检查（2026-11-02）
+
+新增 .github/workflows/checks.yml：main 推送和 PR 自动运行 48 项功能测试及 56 项 PostgreSQL 权限检查，随后验证 dist 打包。固定官方 checkout/setup-node 提交，只有 contents:read，不保存 Git 凭据，不使用任何 Supabase 密钥或连接生产库。PGlite 0.5.14 只装到 runner 临时目录，不增加网站运行依赖，也不进入 dist。
+
+新增头像数据库测试验证 profiles 自己可读写、跨用户修改拒绝、avatars 存储路径写权限、公开留言函数仅返回已通过留言且无邮箱/user_id 列、头像桶限额/类型配置和 SQL 可重复执行。注意：内存 SQL 测试不模拟 Storage HTTP 文件大小/MIME 网关校验，也不能代替真实用户上传测试。GitHub 检查与 Cloudflare 自动部署并行；数据库检查失败会报告，但当前不会单独阻止 Cloudflare 发布，生产构建继续依赖功能测试门槛。

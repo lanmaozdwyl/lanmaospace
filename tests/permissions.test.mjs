@@ -73,5 +73,36 @@ try {
  await as('authenticated',owner);
  await allowed('select public.owner_guestbook_review($1,true,false)',[messageId]);
  await as('anon','');assert.equal((await allowed('select id from public.guestbook_messages')).rows.length,1);
- console.log(`PASS ${checks} PostgreSQL checks: owner CRUD, visitor isolation, storage isolation, CAS conflict, guestbook moderation/privacy, idempotent migration`);
+
+ // 模拟 Supabase public schema 对 authenticated 的默认表授权；RLS 仍须隔离行。
+ await db.exec('reset role;alter default privileges in schema public grant all on tables to authenticated;');
+ const avatarsSQL=readFileSync(root+'/supabase/avatars.sql','utf8');
+ await db.exec(avatarsSQL);await db.exec(avatarsSQL);checks++;
+ await as('authenticated',owner);
+ await allowed('insert into public.profiles(user_id,avatar_kind,avatar_emoji,avatar_color) values($1,$2,$3,$4)',[owner,'emoji','🐱','purple']);
+ await as('authenticated',guest);
+ await allowed('insert into public.profiles(user_id,avatar_kind,avatar_path) values($1,$2,$3)',[guest,'upload',guest+'/avatar']);
+ const ownProfiles=(await allowed('select user_id from public.profiles')).rows;
+ assert.deepEqual(ownProfiles.map(p=>p.user_id),[guest]);
+ await denied('insert into public.profiles(user_id,avatar_kind) values($1,$2)',[owner,'emoji']);
+ assert.equal((await allowed('update public.profiles set avatar_emoji=$1 where user_id=$2 returning user_id',['x',owner])).rows.length,0);
+ assert.equal((await allowed('delete from public.profiles where user_id=$1 returning user_id',[owner])).rows.length,0);
+ await allowed('insert into storage.objects(bucket_id,name) values($1,$2)',['avatars',guest+'/avatar']);
+ await denied('insert into storage.objects(bucket_id,name) values($1,$2)',['avatars',owner+'/intruder']);
+ await denied('update storage.objects set name=$1 where bucket_id=$2 and name=$3',[owner+'/avatar','avatars',guest+'/avatar']);
+ await allowed('insert into public.guestbook_messages(user_id,name,message) values($1,$2,$3)',[guest,'pending fixture','unapproved']);
+ await as('authenticated',owner);
+ assert.deepEqual((await allowed('select user_id from public.profiles')).rows.map(p=>p.user_id),[owner]);
+ assert.equal((await allowed("delete from storage.objects where bucket_id='avatars' returning name")).rows.length,0);
+ await as('anon','');
+ await denied('select * from public.profiles');
+ await denied('insert into storage.objects(bucket_id,name) values($1,$2)',['avatars','anon/avatar']);
+ assert.equal((await allowed("select name from storage.objects where bucket_id='avatars'")).rows.length,1);
+ const publicRows=(await allowed('select * from public.guestbook_public_list()')).rows;
+ assert.equal(publicRows.length,1);assert.equal(publicRows[0].avatar_kind,'upload');
+ assert(!Object.hasOwn(publicRows[0],'user_id'));assert(!Object.hasOwn(publicRows[0],'email'));
+ await db.exec('reset role');
+ const avatarBucket=(await db.query("select public,file_size_limit,allowed_mime_types from storage.buckets where id='avatars'")).rows[0];
+ assert.equal(avatarBucket.public,true);assert.equal(avatarBucket.file_size_limit,2097152);assert(!avatarBucket.allowed_mime_types.includes('text/html'));checks++;
+ console.log(`PASS ${checks} PostgreSQL checks: owner CRUD, visitor isolation, storage isolation, CAS conflict, guestbook moderation/privacy, avatar row/storage isolation, idempotent migration`);
 } finally {await db.close();}
