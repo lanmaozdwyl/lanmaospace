@@ -7,3 +7,10 @@ dialog { max-height: 85dvh; overflow-y: auto; }
  .shop-shell input { font-size: 16px; }
  .product button { min-height: 44px; }
 }
+
+.product-availability { font-size: 12px; padding: 6px 10px; border-radius: 12px; background: #f3f0fa; color: #51496a; margin-bottom: 12px; }
+.product-metadata { margin: 20px 0; font-size: 14px; line-height: 1.7; }
+.product-metadata dt { color: #6e6e73; margin-top: 10px; }
+.product-metadata dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+#catalog-error { padding: 20px; border-radius: 16px; background: #f5f5f7; }
+#catalog-retry { padding: 12px 18px; min-height: 44px; color: #0071e3; }

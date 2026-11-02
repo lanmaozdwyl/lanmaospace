@@ -1,3 +1,4 @@
+import {validateCatalog, productDetails, availabilityLabels} from './lib/catalog.mjs';
 // Lanmao Space 商店页：从 products.json 加载商品数据，支持分类筛选和搜索。
 // 商品数据与代码分离，修改价格只需编辑 JSON 文件，无需改动 JS。
 
@@ -12,16 +13,21 @@ const detail = document.getElementById("detail");
 
 async function loadProducts() {
     try {
-        const response = await fetch("products.json");
+        const response = await fetch("products.json", {signal: AbortSignal.timeout(15000)});
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        catalog = await response.json();
+        catalog = validateCatalog(await response.json());
+        document.getElementById("catalog-error").hidden = true;
+        return true;
     } catch (error) {
         console.error("商品数据加载失败：", error);
         catalog = [];
+        document.getElementById("catalog-error").hidden = false;
+        return false;
     }
 }
 
 function buildCategoryFilters() {
+    filters.replaceChildren();
     const categories = ["全部", ...new Set(catalog.map(p => p.category))];
     for (const name of categories) {
         const button = document.createElement("button");
@@ -84,7 +90,10 @@ function createProductCard(product) {
     button.setAttribute("aria-label", `了解与咨询 ${product.name}`);
     button.onclick = () => openDetail(product, button);
 
-    card.append(title, info, button);
+    const state = document.createElement("span");
+    state.className = "product-availability";
+    state.textContent = availabilityLabels[product.availability] || "供货请咨询";
+    card.append(title, info, state, button);
     return card;
 }
 
@@ -94,6 +103,12 @@ function openDetail(product, button) {
     document.getElementById("detail-category").textContent = product.category;
     document.getElementById("detail-period").textContent = `${product.period} · ¥${product.price}`;
     document.getElementById("detail-note").textContent = product.note;
+    const metadata = document.getElementById("detail-metadata");
+    metadata.replaceChildren();
+    for (const [label, value] of productDetails(product)) {
+        const term = document.createElement("dt"), description = document.createElement("dd");
+        term.textContent = label; description.textContent = value; metadata.append(term, description);
+    }
     document.getElementById("inquiry").href = "https://wpa.qq.com/msgrd?v=3&uin=3126477562&site=qq&menu=yes";
     detail.showModal();
 }
@@ -105,10 +120,18 @@ function render() {
     document.getElementById("empty").hidden = visible.length > 0;
 }
 
+async function refreshCatalog() {
+    const retry = document.getElementById("catalog-retry");
+    retry.disabled = true;
+    document.getElementById("result-count").textContent = "正在读取商品…";
+    const ok = await loadProducts();
+    category = "全部"; buildCategoryFilters(); render();
+    if (!ok) { document.getElementById("empty").hidden = true; document.getElementById("result-count").textContent = "商品加载失败，请重试。"; }
+    retry.disabled = false;
+}
 async function init() {
-    await loadProducts();
-    buildCategoryFilters();
-    render();
+    document.getElementById("catalog-retry").onclick = refreshCatalog;
+    await refreshCatalog();
     search.addEventListener("input", render);
     document.getElementById("close").onclick = () => detail.close();
     detail.addEventListener("close", () => opener?.focus());
