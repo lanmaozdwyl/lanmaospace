@@ -63,6 +63,7 @@ function createProductCard(product) {
         img.src = product.image;
         img.alt = product.name;
         img.loading = "lazy";
+        img.decoding = "async";
         imageWrapper.append(img);
         card.append(imageWrapper);
     } else {

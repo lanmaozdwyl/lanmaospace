@@ -82,6 +82,7 @@
         <section class="memo-card" id="app-panel" hidden>
             <p class="memo-status" id="memo-status" role="status" aria-live="polite"></p>
             <p class="memo-status" id="memo-usage" role="status" aria-live="polite"></p>
+            <p class="memo-backup-reminder">备份提醒：建议每周及重要修改后，点击“备份与恢复”导出一份加密备份，并另存到自己的其他设备。本站不会自动替你保存备份文件。</p>
             <div class="memo-actions">
                 <button type="button" class="submit-btn" id="new-note-button"><span>＋ 写一条</span></button>
                 <button type="button" class="memo-btn-secondary" id="refresh-button">刷新</button>
@@ -131,6 +132,7 @@
             </div>
             <section id="backup-panel" class="memo-backup" hidden aria-labelledby="backup-heading">
                 <h2 id="backup-heading">加密备份与恢复</h2>
+                <p>导出后，请重新选择下载的 .lmb 文件并点击“先校验备份”，确认完整性。校验不会写入或覆盖云端数据；口令请单独保管。</p>
                 <p>备份包含正文、标签、回收站和附件。请保留备份时的口令；恢复会创建副本，不覆盖现有内容。</p>
                 <button type="button" id="export-button" class="memo-btn-secondary">导出完整加密备份</button>
                 <div class="form-group"><label for="backup-file">选择备份文件</label><input id="backup-file" type="file" accept=".lmb"></div>
