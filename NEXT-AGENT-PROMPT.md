@@ -12,6 +12,7 @@
 - 商店由 products.json 提供数据，接单 QQ 3126477562，人工接单/发货，无在线支付。可选字段 availability、priceUpdatedAt、deliveryNote 已实现但缺真实资料不填。
 - Supabase 登录与数据库继续保留。备忘录浏览器内加密，支持附件、备份与副本恢复、10 分钟空闲锁定/加密草稿、标签置顶回收站和并发冲突保护。
 - guestbook-admin.js 为店主提供首页审核/撤回公开。数据库 RPC 在 supabase/guestbook-owner-review.sql。店主已反馈执行此 SQL 和 memo-owner-security.sql，新域名 Auth Site URL/Redirect URLs 也反馈配置完成；真实邮件、审核、附件及备份流程仍未完整实测，不能写成已验证。
+- 2026-11-02 晚：线上验收脚本已扩展覆盖商店/工具站，商店加载失败状态已修复（提交 79a8c06，已上线核验 PASS）；功能测试 34 项，真实浏览器回归仍未做。
 
 三、铁律
 - 常规更新已获授权：检查通过可直接推 main 并上线，不要每次再问确认。价格、接单方式、付费购买、访问范围扩大、删除真实数据等仍需具体授权。
@@ -23,12 +24,12 @@
 
 四、同步与发布流程
 1. fetch → 审查远程变化及本地修改 → 仅改相关文件。
-2. node scripts/check.mjs / npm test 当前 29 项（22 备忘录、3 审核界面、4 商品校验）。SQL 改动另跑 node tests/permissions.test.mjs 当前 38 项，需 PGlite 或 PGLITE_MODULE，不在无依赖云端构建里运行。
+2. node scripts/check.mjs / npm test 当前 34 项（22 备忘录、3 审核界面、4 商品校验、5 商店加载失败/搜索/重试/详情，Node 模拟环境）。SQL 改动另跑 node tests/permissions.test.mjs 当前 38 项，需 PGlite 或 PGLITE_MODULE，不在无依赖云端构建里运行。
 3. 本地 HTTP 服务验证返回 200、关键标记，并做改动相应的真实浏览器测试。新增模块、图片等核对 dist 打包。适当添加故障路径测试，不把模拟测试称为线上实测。
 4. 推送只包含核实的变化。优先使用可用 GitHub 连接器；当前环境可 create_tree(base_tree)、create_commit(parent)、update_ref(expected_sha, force=false) 原子更新。失败先查远程再决定，不盲目重试。只有 provider 确认成功才记录提交。
 5. 同步日志是辅助工作区 website-update/release-sync.jsonl，只追加。旧跨主机同步文件本机不存在，不伪造历史。
-6. 推送后等待 Cloudflare 构建并核验 https://lanmaospace.pages.dev/，运行 node scripts/verify-live.mjs；该脚本目前未涵盖商店全部资源，商店改动须另查。HTML 可能被平台改写，应结合关键标记，脚本可以规范换行后比哈希。不能将推送成功当作已上线。
+6. 推送后等待 Cloudflare 构建并核验 https://lanmaospace.pages.dev/，运行 node scripts/verify-live.mjs；该脚本覆盖备忘录、商店、工具站、首页与登录页标记、商品目录结构与商品图片。HTML 可能被平台改写，应结合关键标记，脚本可以规范换行后比哈希。不能将推送成功当作已上线。
 7. 更新 HANDOFF.md 当前状态和 TASKS.md。总结已完成、测试证据、尚待真实验证项。
 
 五、接下来怎么做
-先按 TASKS.md 的 P0–P3 执行。P0 涉及用户邮件/密码/私人数据时说明所需用户操作，同时继续独立工作；不要无限等待。下一项可独立推进的是 P1：扩展线上验收脚本以覆盖商店/工具站，并补商品加载失败、重试、搜索和真实浏览器回归。然后检查手机/键盘与图片加载性能。缺资料的 P2 保留待办，不凭猜测填内容。不要另建账号、购买套餐或迁移平台。
+先按 TASKS.md 的 P0–P3 执行。P0 涉及用户邮件/密码/私人数据时说明所需用户操作，同时继续独立工作；不要无限等待。线上验收脚本扩展与商品加载失败、重试、搜索的 Node 模拟测试已完成（提交 79a8c06）；下一项可独立推进的是 P1 真实浏览器回归，然后检查手机/键盘与图片加载性能。缺资料的 P2 保留待办，不凭猜测填内容。不要另建账号、购买套餐或迁移平台。
