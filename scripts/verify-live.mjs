@@ -55,12 +55,14 @@ for (const [path, markers] of [
     ['store.html', ['catalog-error', 'catalog-retry', 'detail-metadata', 'id="search"', 'id="products"']],
     ['index.html', ['guestbookStatus', 'id="toolbox"', 'tools/']],
     ['login.html', ['login-form', 'login-panel', 'recovery-form']],
+    ['profile.html', ['avatar-presets', 'avatar-upload', 'avatar-preview', 'data-header-avatar']],
     ['tools/', ['tools-search', 'data-filter="translate"', 'deepl.com/translator']],
 ]) await checkMarkers(path, markers);
 
 for (const path of [
     'memo.js', 'memo-core.mjs', 'memo.css', 'login.js', 'guestbook-admin.js',
     'lib/supabase-client.js', 'store.js', 'lib/catalog.mjs', 'tools/tools.js', 'tools/tools.css',
+    'guestbook.js', 'auth-guard.js', 'profile.js', 'profile.css', 'lib/avatar.mjs',
 ]) await checkHash(path);
 
 // 商品目录：结构比对（名称、分类、价格顺序一致），不把字节差异当成内容不一致。

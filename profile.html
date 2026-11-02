@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="设置蓝昴空间的头像：选预设图案，或上传一张自己的图片，显示在页头和留言旁。">
+    <title>我的头像 | 蓝昴空间</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="memo.css">
+    <link rel="stylesheet" href="auth.css">
+    <link rel="stylesheet" href="profile.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
+    <link rel="stylesheet" href="motion.css">
+</head>
+<body>
+    <main class="memo-shell">
+        <div class="memo-topbar">
+            <a href="index.html">🐱 Lanmao Space</a>
+            <span class="memo-topbar-links">
+                <a href="index.html">返回空间 ↗</a>
+                <a href="profile.html" class="header-avatar-link" data-header-avatar title="我的头像" aria-label="我的头像"><span aria-hidden="true">👤</span></a>
+                <button type="button" data-signout>退出登录</button>
+            </span>
+        </div>
+
+        <header class="memo-hero">
+            <p class="memo-eyebrow">AVATAR</p>
+            <h1>我的头像。<br><span class="gradient-text">选一个你喜欢的样子。</span></h1>
+            <p>预设图案或自己上传的图片，会显示在页头和通过审核的留言旁。上传的图片请勿包含不适宜公开的内容，店主可在后台删除。</p>
+        </header>
+
+        <section class="memo-card" id="setup-panel" hidden>
+            <h2>头像功能还没有接好</h2>
+            <p>这个页面需要先在 Supabase 里运行 <code>supabase/avatars.sql</code> 建好头像表和存储桶。在那之前，头像设置无法保存，已选的头像也不会显示。</p>
+        </section>
+
+        <section class="memo-card profile-card" id="profile-card">
+            <h2>现在长这样</h2>
+            <div class="avatar-preview" id="avatar-preview" aria-label="头像预览"></div>
+            <p class="profile-note">没设置过头像时，留言旁显示按昵称算出的默认图案，页头显示 👤。</p>
+
+            <h3>选个预设图案</h3>
+            <div class="avatar-presets" id="avatar-presets" role="group" aria-label="预设头像图案"></div>
+
+            <h3>换个背景色</h3>
+            <div class="avatar-colors" id="avatar-colors" role="group" aria-label="预设头像背景色"></div>
+
+            <h3>或者上传一张图</h3>
+            <p class="profile-note">只收 JPG、PNG、WebP、GIF，单张不超过 2 MB；浏览器里会先缩到 256px 再上传。动图只取第一帧。</p>
+            <input type="file" id="avatar-upload" accept="image/jpeg,image/png,image/webp,image/gif">
+            <p class="profile-note" id="avatar-file-note" hidden></p>
+
+            <p class="profile-status" id="avatar-status" role="status"></p>
+            <div class="profile-actions">
+                <button type="button" id="save-avatar" class="profile-save">保存头像</button>
+                <button type="button" id="reset-avatar" class="profile-reset">恢复默认头像</button>
+            </div>
+        </section>
+    </main>
+
+    <script src="memo-config.js"></script>
+    <script type="module" src="auth-guard.js"></script>
+    <script type="module" src="profile.js"></script>
+    <script src="motion.js"></script>
+</body>
+</html>

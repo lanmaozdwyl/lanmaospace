@@ -7,6 +7,7 @@
 // 登录页本身不加载这个文件，避免跳转死循环。
 
 import { getSupabase, isConfigured } from './lib/supabase-client.js';
+import { avatarDisplay, avatarPublicUrl, fetchProfile } from './lib/avatar.mjs';
 
 function loginUrl() {
     const next = encodeURIComponent(
@@ -24,6 +25,7 @@ async function guard() {
         console.error(error);
         return;
     }
+    let sessionUserId = null;
     try {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
@@ -31,6 +33,7 @@ async function guard() {
             window.location.replace(loginUrl());
             return;
         }
+        sessionUserId = data.session.user.id;
     } catch (error) {
         console.error(error);
         return;
@@ -40,6 +43,9 @@ async function guard() {
     supabase.auth.onAuthStateChange((event) => {
         if (event === "SIGNED_OUT") window.location.replace("/login.html");
     });
+
+    // 已登录：把本人头像填进导航占位（data-header-avatar）；没头像或表还没建好时保持默认 👤。
+    fillHeaderAvatar(supabase, sessionUserId).catch((error) => console.error(error));
 
     // 导航里的退出登录按钮（首页、商店共用 data-signout）。
     document.addEventListener("click", async (event) => {
@@ -53,6 +59,31 @@ async function guard() {
         }
         window.location.replace("/login.html");
     });
+}
+
+async function fillHeaderAvatar(client, userId) {
+    const slot = document.querySelector("[data-header-avatar]");
+    if (!slot) return;
+    let profile = null;
+    try {
+        profile = await fetchProfile(client, userId);
+    } catch {
+        return;
+    }
+    const display = avatarDisplay(profile);
+    if (!display) return;
+    slot.replaceChildren();
+    if (display.type === "image") {
+        const img = document.createElement("img");
+        img.src = avatarPublicUrl(client, display.path);
+        img.alt = "";
+        slot.append(img);
+        return;
+    }
+    slot.style.background = display.color;
+    const emoji = document.createElement("span");
+    emoji.textContent = display.emoji;
+    slot.append(emoji);
 }
 
 guard();

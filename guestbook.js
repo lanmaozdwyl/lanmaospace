@@ -2,32 +2,16 @@
 // 规则：登录用户才能提交；提交后 approved 默认 false，页面只读 approved
 // 为 true 的留言；店主在 Supabase 后台把 approved 改成 true 才会公开。
 // 访客填的邮箱只写入数据库，前端读取时不查 email 字段，页面上不显示。
+// 头像不直接查 profiles 表：guestbook_public_list 函数只返回已通过审核的
+// 留言 + 头像字段，不暴露 user_id / 邮箱；函数不存在时回退查表 + 默认头像。
 // 所有用户输入都用 textContent 渲染，不用 innerHTML 拼用户内容。
 // 表还没建好时不让页面崩掉：显示提示，文字内容照常浏览。
 
 import { getSupabase, isConfigured } from './lib/supabase-client.js';
-
-const AVATAR_COLORS = [
-    "linear-gradient(135deg, #667eea, #764ba2)",
-    "linear-gradient(135deg, #f093fb, #f5576c)",
-    "linear-gradient(135deg, #4facfe, #00f2fe)",
-    "linear-gradient(135deg, #43e97b, #38f9d7)",
-    "linear-gradient(135deg, #fa709a, #fee140)",
-    "linear-gradient(135deg, #a18cd1, #fbc2eb)",
-    "linear-gradient(135deg, #ffecd2, #fcb69f)"
-];
-const AVATAR_EMOJIS = ["🐱", "🐶", "🐰", "🐼", "🦊", "🐸", "🦉", "🐝", "🦋", "🐳", "🐨", "🐯"];
+import { avatarDisplay, avatarPublicUrl, fallbackAvatarDisplay } from './lib/avatar.mjs';
 
 let supabase = null;
 let lastSubmitAt = 0;
-
-function hashString(text) {
-    let hash = 0;
-    for (let i = 0; i < text.length; i += 1) {
-        hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
-    }
-    return hash;
-}
 
 function formatDate(iso) {
     const date = new Date(iso);
@@ -52,13 +36,21 @@ function renderMessages(messages) {
         return;
     }
     for (const item of messages) {
-        const hash = hashString(item.name || "");
+        const display = avatarDisplay(item) || fallbackAvatarDisplay(item.name || "");
         const row = document.createElement("div");
         row.className = "message-item";
         const avatar = document.createElement("div");
         avatar.className = "message-avatar";
-        avatar.style.background = AVATAR_COLORS[hash % AVATAR_COLORS.length];
-        avatar.textContent = AVATAR_EMOJIS[hash % AVATAR_EMOJIS.length];
+        if (display.type === "image") {
+            const img = document.createElement("img");
+            img.src = avatarPublicUrl(supabase, display.path);
+            img.alt = "";
+            img.loading = "lazy";
+            avatar.append(img);
+        } else {
+            avatar.style.background = display.color;
+            avatar.textContent = display.emoji;
+        }
         const content = document.createElement("div");
         content.className = "message-content";
         const header = document.createElement("div");
@@ -81,6 +73,16 @@ function renderMessages(messages) {
 async function loadMessages() {
     const list = document.getElementById("messagesList");
     if (!list) return;
+    // 首选公开列表函数：只返回已通过审核的留言 + 头像，不暴露 user_id / 邮箱。
+    // 函数还没建好（avatars.sql 未运行）时回退直接查表，头像用默认 emoji。
+    try {
+        const { data, error } = await supabase.rpc("guestbook_public_list");
+        if (error) throw error;
+        renderMessages(data || []);
+        return;
+    } catch (error) {
+        console.error("guestbook_public_list unavailable, falling back to table select", error);
+    }
     try {
         const { data, error } = await supabase
             .from("guestbook_messages")
