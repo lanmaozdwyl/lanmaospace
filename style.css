@@ -738,9 +738,24 @@ button {
     transition: transform 0.45s var(--ease-out), box-shadow 0.45s var(--ease-out), background-color var(--transition-base), opacity var(--transition-base), visibility var(--transition-base);
 }
 
-.friend-card:hover {
+.friend-card:not(.friend-placeholder):hover {
     transform: scale(1.03);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.friend-placeholder {
+    opacity: 0.6;
+    cursor: default;
+}
+.friend-placeholder::after {
+    content: "待开放";
+    font-size: 11px;
+    color: var(--gray-400);
+    margin-left: auto;
+    padding: 4px 10px;
+    background: var(--gray-100);
+    border-radius: 10px;
+    flex-shrink: 0;
 }
 
 .friend-avatar {
@@ -1168,6 +1183,23 @@ button {
     color: var(--gray-400);
 }
 
+.footer-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 24px;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+.footer-nav a {
+    font-size: 0.8125rem;
+    color: var(--gray-500);
+    text-decoration: none;
+    transition: color var(--transition-base);
+}
+.footer-nav a:hover {
+    color: var(--blue);
+}
+
 .footer-quote {
     font-size: 0.8125rem;
     font-style: italic;
@@ -1357,7 +1389,7 @@ button {
 .song-info p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-btn, .media-tab, .nav-toggle { min-height: 44px; min-width: 44px; }
 .nav-toggle { align-items: center; justify-content: center; }
-.book-card:hover, .friend-card:hover, .movie-card:hover, .tool-card:hover,
+.book-card:hover, .friend-card:not(.friend-placeholder):hover, .movie-card:hover, .tool-card:hover,
 .song-card:hover, .submit-btn:hover, .contact-link:hover { transform: none; }
 :where(a, button, input, textarea, [tabindex]):focus-visible {
     outline: 3px solid #2997ff;
@@ -1365,7 +1397,7 @@ button {
 }
 .message-content p { white-space: pre-wrap; }
 @media (hover: hover) and (pointer: fine) {
-    .book-card:hover, .friend-card:hover, .movie-card:hover {
+    .book-card:hover, .friend-card:not(.friend-placeholder):hover, .movie-card:hover {
         transform: translateY(-4px);
         box-shadow: 0 12px 32px rgba(0, 0, 0, 0.085);
     }
