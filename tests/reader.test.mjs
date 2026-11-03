@@ -240,3 +240,13 @@ test('跨平台换行符兼容性（CRLF / LF / CR 混排段落解析）', () =>
     const lines = mixedText.split(/\r?\n|\r/);
     assert(lines.length >= 6, '应支持跨平台回车换行符混合切分');
 });
+
+test('全屏手势引擎支持从右往左与从左往右滑动翻页', () => {
+    assert(jsSource.includes("stage.addEventListener('touchstart'"), '需在舞台全屏层捕获 touchstart 手势');
+    assert(jsSource.includes("stage.addEventListener('touchmove'"), '需在舞台全屏层捕获 touchmove 手势');
+    assert(jsSource.includes("stage.addEventListener('touchend'"), '需在舞台全屏层捕获 touchend 手势');
+    assert(jsSource.includes('deltaX < -threshold'), '必须包含从右往左滑动下一页逻辑');
+    assert(jsSource.includes('deltaX > threshold'), '必须包含从左往右滑动上一页逻辑');
+    assert(jsSource.includes('hasSwiped'), '滑动后必须防误触点击菜单');
+});
+

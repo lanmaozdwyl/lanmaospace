@@ -1472,18 +1472,37 @@
     // ===== 13. 事件监听绑定 =====
     function bindEvents() {
         // 触控热区感应 (左25%上一页 / 中50%菜单 / 右25%下一页)
+        let hasSwiped = false;
+
         const zonePrev = document.getElementById('zone-prev');
         const zoneMenu = document.getElementById('zone-menu');
         const zoneNext = document.getElementById('zone-next');
 
-        if (zonePrev) zonePrev.addEventListener('click', prevPage);
-        if (zoneMenu) zoneMenu.addEventListener('click', toggleMenu);
-        if (zoneNext) zoneNext.addEventListener('click', nextPage);
+        if (zonePrev) {
+            zonePrev.addEventListener('click', (e) => {
+                if (hasSwiped) return;
+                prevPage();
+            });
+        }
+        if (zoneMenu) {
+            zoneMenu.addEventListener('click', (e) => {
+                if (hasSwiped) return;
+                toggleMenu();
+            });
+        }
+        if (zoneNext) {
+            zoneNext.addEventListener('click', (e) => {
+                if (hasSwiped) return;
+                nextPage();
+            });
+        }
 
-        // ===== 实时跟手拖拽与 3D 书卷交互引擎 =====
+        // ===== 微信读书全屏手势引擎：支持从右往左/从左往右滑动翻页与跟手交互 =====
+        const stage = document.getElementById('reader-stage');
         const viewport = document.getElementById('reader-viewport');
         const content = document.getElementById('reader-content');
-        if (viewport && content) {
+
+        if (stage && viewport && content) {
             let isDown = false;
             let startX = 0;
             let startY = 0;
@@ -1491,15 +1510,14 @@
             let deltaY = 0;
             let isHorizontalDrag = false;
             let initialBaseOffset = 0;
-            const curlLayer = document.getElementById('reader-curl-layer');
-            const curlSheet = document.getElementById('curl-sheet');
-            const curlFront = document.getElementById('curl-front');
-            const curlShadow = document.getElementById('curl-shadow');
 
             function onStart(x, y, target) {
                 if (state.settings.mode === 'scroll') return;
                 if (isFlipping) return;
-                if (target && (target.closest('button') || target.closest('a') || target.closest('input'))) return;
+                // 忽略控制栏按钮与输入框
+                if (target && (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('.reader-topbar') || target.closest('.reader-bottombar') || target.closest('.reader-drawer'))) {
+                    return;
+                }
 
                 isDown = true;
                 startX = x;
@@ -1508,7 +1526,7 @@
                 deltaY = 0;
                 isHorizontalDrag = false;
 
-                const colWidth = viewport.clientWidth;
+                const colWidth = viewport.clientWidth || 360;
                 const colGap = window.innerWidth >= 900 ? 60 : 48;
                 const step = colWidth + colGap;
                 initialBaseOffset = (state.currentPage - 1) * step;
@@ -1520,7 +1538,7 @@
                 deltaY = y - startY;
 
                 if (!isHorizontalDrag) {
-                    if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+                    if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
                         isHorizontalDrag = true;
                     } else if (Math.abs(deltaY) > 15) {
                         isDown = false;
@@ -1531,48 +1549,19 @@
                 if (!isHorizontalDrag) return;
                 if (e && e.cancelable) e.preventDefault();
 
-                const colWidth = viewport.clientWidth;
-                const colGap = window.innerWidth >= 900 ? 60 : 48;
-                const step = colWidth + colGap;
-
-                // 边缘阻尼弹性效果
+                const colWidth = viewport.clientWidth || 360;
                 let effectiveDelta = deltaX;
+
+                // 边界阻尼
                 if (state.currentPage === 1 && deltaX > 0 && state.currentChapterIndex === 0) {
-                    effectiveDelta = deltaX * 0.3;
+                    effectiveDelta = deltaX * 0.25;
                 } else if (state.currentPage === state.totalPages && deltaX < 0 && state.currentChapterIndex >= (state.currentBook?.chapters.length || 1) - 1) {
-                    effectiveDelta = deltaX * 0.3;
+                    effectiveDelta = deltaX * 0.25;
                 }
 
-                // 1. 拟真书卷翻页实时跟随角度渲染
-                if (state.settings.animMode === 'curl' && curlLayer && curlSheet && curlFront && curlShadow) {
-                    if (effectiveDelta < 0) {
-                        if (!curlLayer.classList.contains('active')) {
-                            curlFront.innerHTML = content.innerHTML;
-                            curlFront.className = 'curl-front ' + content.className;
-                            curlFront.style.transform = `translateX(-${initialBaseOffset}px)`;
-                            curlSheet.style.transformOrigin = 'left center';
-                            curlLayer.classList.add('active');
-
-                            content.style.transition = 'none';
-                            const nextOffset = Math.min(initialBaseOffset + step, (state.totalPages - 1) * step);
-                            content.style.transform = `translateX(-${nextOffset}px)`;
-                        }
-
-                        const progress = Math.min(1, Math.max(0, -effectiveDelta / colWidth));
-                        const angle = progress * 180;
-                        curlSheet.style.transition = 'none';
-                        curlSheet.style.transform = `perspective(2000px) rotateY(-${angle}deg)`;
-                        curlShadow.style.opacity = String(Math.sin(progress * Math.PI) * 0.7);
-                        return;
-                    }
-                }
-
-                // 2. 平滑滑动与仿真覆盖实时跟手移动
+                // 跟手滑动视觉反馈
                 content.style.transition = 'none';
-                content.style.transform = `translateX(-${initialBaseOffset - effectiveDelta}px)`;
-                if (state.settings.animMode === 'cover') {
-                    content.classList.add('anim-cover');
-                }
+                content.style.transform = `translate3d(-${initialBaseOffset - effectiveDelta}px, 0, 0)`;
             }
 
             function onEnd() {
@@ -1582,75 +1571,42 @@
                 if (!isHorizontalDrag) return;
                 isHorizontalDrag = false;
 
-                const colWidth = viewport.clientWidth;
-                const threshold = colWidth * 0.16;
+                // 标记已滑动，防止触发点击事件误开菜单
+                hasSwiped = true;
+                setTimeout(() => { hasSwiped = false; }, 260);
 
-                // 1. 拟真书卷释放
-                if (state.settings.animMode === 'curl' && curlLayer && curlLayer.classList.contains('active')) {
-                    if (deltaX < -threshold) {
-                        playPaperRustleSound();
-                        curlSheet.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
-                        curlSheet.style.transform = 'perspective(2000px) rotateY(-180deg)';
-                        curlShadow.style.transition = 'opacity 0.2s ease';
-                        curlShadow.style.opacity = '0';
-
-                        setTimeout(() => {
-                            curlLayer.classList.remove('active');
-                            curlSheet.style.transform = 'none';
-                            curlSheet.style.transition = 'none';
-                            if (state.currentPage < state.totalPages) {
-                                state.currentPage++;
-                                updateFooterInfo();
-                                updateSlider();
-                                saveProgress();
-                            } else if (state.currentChapterIndex < (state.currentBook?.chapters.length || 1) - 1) {
-                                goToChapter(state.currentChapterIndex + 1, 1);
-                            }
-                        }, 300);
-                    } else {
-                        curlSheet.style.transition = 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)';
-                        curlSheet.style.transform = 'perspective(2000px) rotateY(0deg)';
-                        curlShadow.style.transition = 'opacity 0.15s ease';
-                        curlShadow.style.opacity = '0';
-
-                        setTimeout(() => {
-                            curlLayer.classList.remove('active');
-                            curlSheet.style.transform = 'none';
-                            curlSheet.style.transition = 'none';
-                            content.style.transform = `translateX(-${initialBaseOffset}px)`;
-                        }, 260);
-                    }
-                    return;
-                }
-
-                // 2. 平滑滑动与覆盖释放
-                content.classList.remove('anim-cover');
-                content.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
+                const colWidth = viewport.clientWidth || 360;
+                const threshold = Math.min(55, Math.max(30, colWidth * 0.12));
 
                 if (deltaX < -threshold) {
+                    // 从右往左滑动 -> 翻入下一页
                     nextPage();
                 } else if (deltaX > threshold) {
+                    // 从左往右滑动 -> 翻入上一页
                     prevPage();
                 } else {
-                    content.style.transform = `translateX(-${initialBaseOffset}px)`;
+                    // 未达到阈值，弹回当前页
+                    content.style.transition = 'transform 0.22s cubic-bezier(0.25, 1, 0.5, 1)';
+                    content.style.transform = `translate3d(-${initialBaseOffset}px, 0, 0)`;
                 }
             }
 
-            viewport.addEventListener('touchstart', (e) => {
+            // 在整个阅读舞台统一捕获触摸事件，保证全屏任意位置滑动皆可翻页
+            stage.addEventListener('touchstart', (e) => {
                 if (e.touches.length !== 1) return;
                 onStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
             }, { passive: true });
 
-            viewport.addEventListener('touchmove', (e) => {
+            stage.addEventListener('touchmove', (e) => {
                 if (e.touches.length !== 1) return;
                 onMove(e.touches[0].clientX, e.touches[0].clientY, e);
             }, { passive: false });
 
-            viewport.addEventListener('touchend', onEnd, { passive: true });
-            viewport.addEventListener('touchcancel', onEnd, { passive: true });
+            stage.addEventListener('touchend', onEnd, { passive: true });
+            stage.addEventListener('touchcancel', onEnd, { passive: true });
 
-            // 电脑端鼠标拖拽支持
-            viewport.addEventListener('mousedown', (e) => {
+            // 电脑端鼠标横向拖拽支持
+            stage.addEventListener('mousedown', (e) => {
                 if (e.button !== 0) return;
                 onStart(e.clientX, e.clientY, e.target);
             });
@@ -1658,12 +1614,6 @@
                 onMove(e.clientX, e.clientY, e);
             });
             window.addEventListener('mouseup', onEnd);
-
-            viewport.addEventListener('scroll', () => {
-                if (state.settings.mode === 'scroll') {
-                    updateFooterInfo();
-                }
-            }, { passive: true });
         }
 
         // 键盘按键翻页支持
