@@ -15,7 +15,14 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="auth.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
-<link rel="stylesheet" href="motion.css"></head>
+<link rel="stylesheet" href="motion.css">    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#16161a" media="(prefers-color-scheme: dark)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="蓝昴空间">
+    <link rel="apple-touch-icon" href="images/icon-192.png">
+</head>
 <body>
     <a href="#main-content" class="skip-link">跳到主要内容</a>
     <nav class="navbar" id="navbar">
@@ -38,6 +45,7 @@
                 <a href="space.html" class="nav-link">成员空间</a>
                 <a href="profile.html" class="nav-link header-avatar-link" data-header-avatar title="我的头像" aria-label="我的头像"><span aria-hidden="true">👤</span></a>
                 <button type="button" class="nav-link nav-signout" data-signout>退出登录</button>
+                <button type="button" class="nav-link theme-toggle-btn" id="theme-toggle" aria-label="切换至暗色模式" title="切换暗色/亮色模式"><span aria-hidden="true">🌙</span></button>
             </div>
             <button class="nav-toggle" id="nav-toggle" aria-label="打开导航菜单" aria-expanded="false" aria-controls="nav-links">
                 <span></span><span></span><span></span>

@@ -1494,3 +1494,267 @@ input:focus, textarea:focus {
 @media (max-width: 600px) {
  .message-form input, .message-form textarea { font-size: 16px; }
 }
+
+/* ===================================================================
+   Apple Dark Mode Experience
+   =================================================================== */
+.theme-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 16px;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 980px;
+    transition: transform var(--transition-fast), background-color var(--transition-fast);
+}
+.theme-toggle-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    transform: scale(1.08);
+}
+.theme-toggle-btn:active {
+    transform: scale(0.92);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --white: #1c1c1e;
+        --off-white: #16161a;
+        --gray-50: #2c2c2e;
+        --gray-100: #3a3a3c;
+        --gray-200: #48484a;
+        --gray-400: #8e8e93;
+        --gray-600: #aeaeb2;
+        --gray-800: #d1d1d6;
+        --dark: #f5f5f7;
+        --pure-black: #000000;
+    }
+
+    body:not([data-theme="light"]) {
+        background: #000000;
+        color: #f5f5f7;
+    }
+
+    body:not([data-theme="light"]) .theme-toggle-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    body:not([data-theme="light"]) .navbar {
+        background: rgba(22, 22, 26, 0.75);
+        border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+    body:not([data-theme="light"]) .navbar.scrolled {
+        background: rgba(22, 22, 26, 0.92);
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+    }
+
+    body:not([data-theme="light"]) .section-light {
+        background: #121214;
+    }
+
+    body:not([data-theme="light"]) .book-card,
+    body:not([data-theme="light"]) .friend-card,
+    body:not([data-theme="light"]) .guestbook,
+    body:not([data-theme="light"]) .contact-card {
+        background: #1c1c1e;
+        border-color: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    body:not([data-theme="light"]) .filter-btn,
+    body:not([data-theme="light"]) .media-tab {
+        background: #2c2c2e;
+        color: #aeaeb2;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    body:not([data-theme="light"]) .filter-btn.active,
+    body:not([data-theme="light"]) .media-tab.active {
+        background: #f5f5f7;
+        color: #1d1d1f;
+    }
+
+    body:not([data-theme="light"]) input,
+    body:not([data-theme="light"]) textarea {
+        background: #2c2c2e;
+        color: #f5f5f7;
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    body:not([data-theme="light"]) .contact-link {
+        background: #2c2c2e;
+        color: #f5f5f7;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    body:not([data-theme="light"]) .product {
+        background: #1c1c1e;
+        border-color: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    body:not([data-theme="light"]) .product-image {
+        background: #2c2c2e;
+    }
+
+    body:not([data-theme="light"]) .shop-nav {
+        background: rgba(22, 22, 26, 0.85);
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+        color: #f5f5f7;
+    }
+
+    body:not([data-theme="light"]) .shop-hero {
+        background: radial-gradient(ellipse at 70% 35%, rgba(120, 100, 200, 0.2), transparent 65%);
+    }
+
+    body:not([data-theme="light"]) .shop-guide {
+        background: #1c1c1e;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    body:not([data-theme="light"]) .shop-warranty {
+        background: #1a1726;
+        border-color: rgba(140, 120, 220, 0.25);
+    }
+
+    body:not([data-theme="light"]) dialog {
+        background: #1c1c1e;
+        color: #f5f5f7;
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    body:not([data-theme="light"]) .detail-section {
+        background: #2c2c2e;
+    }
+
+    body:not([data-theme="light"]) .owner-review {
+        background: #1c1c1e;
+        color: #f5f5f7;
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    body:not([data-theme="light"]) .owner-review button,
+    body:not([data-theme="light"]) .owner-review select {
+        background: #2c2c2e;
+        color: #f5f5f7;
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    body:not([data-theme="light"]) ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    body:not([data-theme="light"]) ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.35);
+    }
+}
+
+[data-theme="dark"] {
+    --white: #1c1c1e;
+    --off-white: #16161a;
+    --gray-50: #2c2c2e;
+    --gray-100: #3a3a3c;
+    --gray-200: #48484a;
+    --gray-400: #8e8e93;
+    --gray-600: #aeaeb2;
+    --gray-800: #d1d1d6;
+    --dark: #f5f5f7;
+    --pure-black: #000000;
+}
+body[data-theme="dark"] {
+    background: #000000;
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .theme-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+body[data-theme="dark"] .navbar {
+    background: rgba(22, 22, 26, 0.75);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+body[data-theme="dark"] .navbar.scrolled {
+    background: rgba(22, 22, 26, 0.92);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+}
+body[data-theme="dark"] .section-light {
+    background: #121214;
+}
+body[data-theme="dark"] .book-card,
+body[data-theme="dark"] .friend-card,
+body[data-theme="dark"] .guestbook,
+body[data-theme="dark"] .contact-card {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+body[data-theme="dark"] .filter-btn,
+body[data-theme="dark"] .media-tab {
+    background: #2c2c2e;
+    color: #aeaeb2;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+body[data-theme="dark"] .filter-btn.active,
+body[data-theme="dark"] .media-tab.active {
+    background: #f5f5f7;
+    color: #1d1d1f;
+}
+body[data-theme="dark"] input,
+body[data-theme="dark"] textarea {
+    background: #2c2c2e;
+    color: #f5f5f7;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+body[data-theme="dark"] .contact-link {
+    background: #2c2c2e;
+    color: #f5f5f7;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+body[data-theme="dark"] .product {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+body[data-theme="dark"] .product-image {
+    background: #2c2c2e;
+}
+body[data-theme="dark"] .shop-nav {
+    background: rgba(22, 22, 26, 0.85);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .shop-hero {
+    background: radial-gradient(ellipse at 70% 35%, rgba(120, 100, 200, 0.2), transparent 65%);
+}
+body[data-theme="dark"] .shop-guide {
+    background: #1c1c1e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+body[data-theme="dark"] .shop-warranty {
+    background: #1a1726;
+    border-color: rgba(140, 120, 220, 0.25);
+}
+body[data-theme="dark"] dialog {
+    background: #1c1c1e;
+    color: #f5f5f7;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+body[data-theme="dark"] .detail-section {
+    background: #2c2c2e;
+}
+body[data-theme="dark"] .owner-review {
+    background: #1c1c1e;
+    color: #f5f5f7;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+body[data-theme="dark"] .owner-review button,
+body[data-theme="dark"] .owner-review select {
+    background: #2c2c2e;
+    color: #f5f5f7;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+body[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+}
+body[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
+}

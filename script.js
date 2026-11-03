@@ -146,3 +146,48 @@ mediaTabs.forEach((tab, index) => {
         mediaTabs[next].focus();
     });
 });
+
+// ===== Apple-Style Dark/Light Mode Switcher =====
+(function initTheme() {
+    const themeToggle = document.getElementById('theme-toggle');
+    function applyTheme(theme) {
+        if (theme === 'dark' || theme === 'light') {
+            document.documentElement.setAttribute('data-theme', theme);
+            document.body.setAttribute('data-theme', theme);
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            document.body.removeAttribute('data-theme');
+        }
+        if (themeToggle) {
+            const isDark = theme === 'dark' || (!theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            themeToggle.setAttribute('aria-label', isDark ? '切换至亮色模式' : '切换至暗色模式');
+            themeToggle.title = isDark ? '切换至亮色模式' : '切换至暗色模式';
+            themeToggle.innerHTML = isDark ? '<span aria-hidden="true">☀️</span>' : '<span aria-hidden="true">🌙</span>';
+        }
+    }
+
+    try {
+        const savedTheme = localStorage.getItem('lanmao_theme');
+        if (savedTheme) applyTheme(savedTheme);
+    } catch (_) {}
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 
+                (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            const next = current === 'dark' ? 'light' : 'dark';
+            try { localStorage.setItem('lanmao_theme', next); } catch (_) {}
+            applyTheme(next);
+        });
+    }
+
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            try {
+                if (!localStorage.getItem('lanmao_theme')) {
+                    applyTheme('');
+                }
+            } catch (_) {}
+        });
+    }
+})();
