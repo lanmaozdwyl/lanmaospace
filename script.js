@@ -357,6 +357,339 @@ mediaTabs.forEach((tab, index) => {
 
 
 
+
+// ===== Ambient Focus Sounds & White Noise Engine (Procedural Web Audio) =====
+(function initAmbientNoiseEngine() {
+    const playBtn = document.getElementById('ambient-master-play');
+    const playIcon = document.getElementById('ambient-play-icon');
+    const playLabel = document.getElementById('ambient-play-label');
+    const volSlider = document.getElementById('ambient-volume');
+    const waveIndicator = document.getElementById('ambient-wave');
+    const titleDisplay = document.getElementById('ambient-current-title');
+    const statusDisplay = document.getElementById('ambient-current-status');
+    const cards = document.querySelectorAll('.ambient-sound-card');
+    const timerPills = document.querySelectorAll('.ambient-timer-pill');
+    const syncCheckbox = document.getElementById('ambient-pomodoro-sync');
+
+    if (!playBtn || !volSlider || cards.length === 0) return;
+
+    let audioCtx = null;
+    let masterGain = null;
+    let activeNodes = [];
+    let isPlaying = false;
+    let currentSound = 'rain';
+    let sleepTimerId = null;
+    let currentVolume = Number(volSlider.value) / 100;
+
+    const SOUND_INFO = {
+        rain: { title: '雨落窗台 · Rainfall', desc: '正在播放：淅沥细雨，遮蔽外界杂音' },
+        brown: { title: '布朗噪声 · Deep Brown Noise', desc: '正在播放：温暖低频轰鸣，深度阅读心流' },
+        breeze: { title: '林间微风 · Forest Breeze', desc: '正在播放：山林微风拂叶，清新自然' },
+        fire: { title: '温暖柴火 · Cozy Campfire', desc: '正在播放：冬夜炉火毕剥，安心踏实' },
+        alpha: { title: '432Hz 脑波 · Alpha Flow Wave', desc: '正在播放：10Hz 双耳阿尔法波和弦，专注冥想' }
+    };
+
+    function ensureAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(currentVolume, audioCtx.currentTime);
+            masterGain.connect(audioCtx.destination);
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
+    }
+
+    function createRainSound() {
+        const bufferSize = audioCtx.sampleRate * 3;
+        const buffer = audioCtx.createBuffer(2, bufferSize, audioCtx.sampleRate);
+        for (let channel = 0; channel < 2; channel++) {
+            const data = buffer.getChannelData(channel);
+            let b0 = 0, b1 = 0, b2 = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                b0 = 0.99765 * b0 + white * 0.0990460;
+                b1 = 0.96300 * b1 + white * 0.2965164;
+                b2 = 0.57000 * b2 + white * 1.0526913;
+                let sample = (b0 + b1 + b2 + white * 0.1848) * 0.12;
+                if (Math.random() < 0.001) sample += (Math.random() - 0.5) * 0.4;
+                data[i] = sample;
+            }
+        }
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+
+        const lpFilter = audioCtx.createBiquadFilter();
+        lpFilter.type = 'lowpass';
+        lpFilter.frequency.value = 1400;
+
+        const hpFilter = audioCtx.createBiquadFilter();
+        hpFilter.type = 'highpass';
+        hpFilter.frequency.value = 280;
+
+        source.connect(lpFilter);
+        lpFilter.connect(hpFilter);
+        hpFilter.connect(masterGain);
+        source.start(0);
+
+        return [source, lpFilter, hpFilter];
+    }
+
+    function createBrownNoiseSound() {
+        const bufferSize = audioCtx.sampleRate * 4;
+        const buffer = audioCtx.createBuffer(2, bufferSize, audioCtx.sampleRate);
+        for (let channel = 0; channel < 2; channel++) {
+            const data = buffer.getChannelData(channel);
+            let lastOut = 0.0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                lastOut = (lastOut + (0.025 * white)) / 1.025;
+                data[i] = lastOut * 3.8;
+            }
+        }
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+
+        const lpFilter = audioCtx.createBiquadFilter();
+        lpFilter.type = 'lowpass';
+        lpFilter.frequency.value = 480;
+
+        source.connect(lpFilter);
+        lpFilter.connect(masterGain);
+        source.start(0);
+
+        return [source, lpFilter];
+    }
+
+    function createBreezeSound() {
+        const bufferSize = audioCtx.sampleRate * 3;
+        const buffer = audioCtx.createBuffer(2, bufferSize, audioCtx.sampleRate);
+        for (let channel = 0; channel < 2; channel++) {
+            const data = buffer.getChannelData(channel);
+            let b0 = 0, b1 = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                b0 = 0.99 * b0 + white * 0.05;
+                b1 = 0.95 * b1 + white * 0.1;
+                data[i] = (b0 + b1) * 0.45;
+            }
+        }
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 460;
+        filter.Q.value = 1.4;
+
+        // LFO for slow breathing wind swell
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        lfo.frequency.value = 0.14; // 7-second wind cycle
+        lfoGain.gain.value = 220;
+        lfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+        lfo.start(0);
+
+        source.connect(filter);
+        filter.connect(masterGain);
+        source.start(0);
+
+        return [source, filter, lfo, lfoGain];
+    }
+
+    function createCampfireSound() {
+        const bufferSize = audioCtx.sampleRate * 3;
+        const buffer = audioCtx.createBuffer(2, bufferSize, audioCtx.sampleRate);
+        for (let channel = 0; channel < 2; channel++) {
+            const data = buffer.getChannelData(channel);
+            let lastOut = 0.0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                lastOut = (lastOut + (0.02 * white)) / 1.02;
+                let sample = lastOut * 1.8;
+                // Crackle impulses
+                if (Math.random() < 0.0012) {
+                    sample += (Math.random() > 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.5);
+                }
+                data[i] = sample;
+            }
+        }
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 1200;
+
+        source.connect(filter);
+        filter.connect(masterGain);
+        source.start(0);
+
+        return [source, filter];
+    }
+
+    function createAlphaWaveSound() {
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        // 216Hz and 226Hz produce a pure 10Hz Alpha brainwave rhythm
+        osc1.type = 'sine';
+        osc1.frequency.value = 216;
+
+        osc2.type = 'sine';
+        osc2.frequency.value = 226;
+
+        gain.gain.value = 0.22;
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(masterGain);
+
+        osc1.start(0);
+        osc2.start(0);
+
+        return [osc1, osc2, gain];
+    }
+
+    function stopAllNodes() {
+        activeNodes.forEach(node => {
+            try {
+                if (node.stop) node.stop();
+                if (node.disconnect) node.disconnect();
+            } catch (_) {}
+        });
+        activeNodes = [];
+    }
+
+    function playSound(type) {
+        ensureAudioContext();
+        stopAllNodes();
+
+        switch (type) {
+            case 'rain': activeNodes = createRainSound(); break;
+            case 'brown': activeNodes = createBrownNoiseSound(); break;
+            case 'breeze': activeNodes = createBreezeSound(); break;
+            case 'fire': activeNodes = createCampfireSound(); break;
+            case 'alpha': activeNodes = createAlphaWaveSound(); break;
+            default: activeNodes = createRainSound(); break;
+        }
+
+        currentSound = type;
+        isPlaying = true;
+        updateUI();
+    }
+
+    function pauseSound() {
+        if (masterGain && audioCtx) {
+            masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
+            masterGain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            setTimeout(() => {
+                stopAllNodes();
+                if (masterGain && audioCtx) {
+                    masterGain.gain.setValueAtTime(currentVolume, audioCtx.currentTime);
+                }
+            }, 300);
+        } else {
+            stopAllNodes();
+        }
+        isPlaying = false;
+        updateUI();
+    }
+
+    function updateUI() {
+        const info = SOUND_INFO[currentSound] || SOUND_INFO.rain;
+        titleDisplay.textContent = info.title;
+
+        if (isPlaying) {
+            statusDisplay.textContent = info.desc;
+            playIcon.textContent = '⏸';
+            playLabel.textContent = '暂停声音';
+            playBtn.classList.add('playing');
+            waveIndicator.classList.add('active');
+        } else {
+            statusDisplay.textContent = '已暂停 · 点击卡片或播放键开启伴读心流';
+            playIcon.textContent = '▶';
+            playLabel.textContent = '开启声音';
+            playBtn.classList.remove('playing');
+            waveIndicator.classList.remove('active');
+        }
+
+        cards.forEach(card => {
+            const isCur = card.dataset.sound === currentSound;
+            card.classList.toggle('active', isCur);
+            card.setAttribute('aria-checked', String(isCur));
+        });
+    }
+
+    playBtn.addEventListener('click', () => {
+        if (isPlaying) pauseSound();
+        else playSound(currentSound);
+    });
+
+    cards.forEach(card => {
+        card.addEventListener('click', () => {
+            const selected = card.dataset.sound;
+            if (currentSound === selected && isPlaying) {
+                pauseSound();
+            } else {
+                playSound(selected);
+            }
+        });
+    });
+
+    volSlider.addEventListener('input', e => {
+        currentVolume = Number(e.target.value) / 100;
+        if (masterGain && audioCtx) {
+            masterGain.gain.setValueAtTime(currentVolume, audioCtx.currentTime);
+        }
+    });
+
+    timerPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            timerPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            const seconds = Number(pill.dataset.timer);
+            if (sleepTimerId) {
+                clearTimeout(sleepTimerId);
+                sleepTimerId = null;
+            }
+            if (seconds > 0) {
+                sleepTimerId = setTimeout(() => {
+                    pauseSound();
+                    timerPills.forEach(p => p.classList.toggle('active', p.dataset.timer === '0'));
+                }, seconds * 1000);
+            }
+        });
+    });
+
+    // Synergize with Pomodoro Focus: when pomodoro starts, auto-play ambient sound if enabled
+    const focusStartBtn = document.getElementById('focus-main-start') || document.getElementById('pomodoro-start');
+    if (focusStartBtn && syncCheckbox) {
+        focusStartBtn.addEventListener('click', () => {
+            setTimeout(() => {
+                const timerText = document.getElementById('focus-start-label')?.textContent || focusStartBtn.textContent;
+                const isPomodoroRunning = timerText.includes('暂停');
+                if (syncCheckbox.checked) {
+                    if (isPomodoroRunning && !isPlaying) {
+                        playSound(currentSound);
+                    } else if (!isPomodoroRunning && isPlaying) {
+                        pauseSound();
+                    }
+                }
+            }, 100);
+        });
+    }
+
+    updateUI();
+})();
+
 // ===== Register PWA Service Worker =====
 if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
     window.addEventListener('load', () => {
