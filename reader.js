@@ -904,6 +904,28 @@
             localStorage.removeItem(STORAGE_KEY_PROGRESS);
         }
 
+        // 4. 若删除的书恰好是当前活跃书籍，重置为默认书《小王子》并清理路由参数
+        if (state.currentBookId === bookId) {
+            state.currentBookId = 'prince';
+            state.currentBook = state.books.prince || BUILTIN_BOOKS.prince;
+            state.currentChapterIndex = 0;
+            state.currentPage = 1;
+
+            try {
+                const url = new URL(window.location.href);
+                if (url.searchParams.get('book') === bookId) {
+                    url.searchParams.delete('book');
+                    url.searchParams.delete('chapter');
+                    url.searchParams.delete('page');
+                    window.history.replaceState({ view: 'bookshelf' }, '', url.toString());
+                }
+            } catch (_) {}
+
+            if (state.currentView === 'reader') {
+                switchView('bookshelf', null, null, null, false);
+            }
+        }
+
         renderBookshelfGrid();
         updateBookshelfHero();
         showToast('已从本机移除该书');
@@ -1424,6 +1446,8 @@
                     curlSheet.style.transition = 'none';
                 }
             }
+            const coverLayer = document.getElementById('reader-cover-layer');
+            if (coverLayer) coverLayer.classList.remove('active');
         }
         updateFooterInfo();
         updateSlider();
@@ -1501,6 +1525,37 @@
                         saveProgress();
                         isFlipping = false;
                     }, 290);
+                });
+                return;
+            }
+        }
+
+        // 仿真纸张覆盖滑页 (Cover 模式) 动效
+        if (state.settings.animMode === 'cover') {
+            const coverLayer = document.getElementById('reader-cover-layer');
+            const coverShadow = document.getElementById('cover-edge-shadow');
+            if (coverLayer && coverShadow) {
+                coverLayer.classList.add('active');
+                const isNext = direction === 'next';
+                coverShadow.style.transition = 'none';
+                coverShadow.style.transform = isNext ? 'translateX(100vw)' : 'translateX(-100%)';
+
+                content.style.transition = 'transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1)';
+                content.style.transform = `translate3d(-${toOffset}px, 0, 0)`;
+
+                requestAnimationFrame(() => {
+                    coverShadow.style.transition = 'transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1)';
+                    coverShadow.style.transform = isNext ? 'translateX(-100%)' : 'translateX(100vw)';
+
+                    flipTimer = setTimeout(() => {
+                        coverLayer.classList.remove('active');
+                        content.style.transition = 'none';
+                        state.currentPage = targetPage;
+                        updateFooterInfo();
+                        updateSlider();
+                        saveProgress();
+                        isFlipping = false;
+                    }, 230);
                 });
                 return;
             }
@@ -1681,24 +1736,30 @@
         slider.value = String(state.currentPage);
     }
 
-    // ===== 9. 本地文件解析引擎 (0 字节上传云端，完全本地解析) =====
+    // ===== 9. 本地文件解析引擎 (高性能流式逐行解析，降低超大文本内存分配) =====
     function parseUploadedFile(fileName, rawText) {
         const cleanName = fileName.replace(/\.[^/.]+$/, '').trim() || '本地导入书籍';
-        const lines = rawText.split(/\r?\n/);
         const chapters = [];
         let currentChapter = null;
 
         // 常见章节标题正则 (支持第X章/节/回/部/卷、Chapter X、Markdown # 标题)
         const chapterRegex = /^\s*(?:第[0-9一二三四五六七八九十百千]+[章回卷节篇部]|Chapter\s+\d+|#{1,3}\s+)(.*)$/i;
 
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
+        let start = 0;
+        const len = rawText.length;
+
+        while (start < len) {
+            let end = rawText.indexOf('\n', start);
+            if (end === -1) end = len;
+            let line = rawText.slice(start, end);
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            start = end + 1;
+
             const trimmed = line.trim();
             if (!trimmed) continue;
 
             const match = trimmed.match(chapterRegex);
             if (match && trimmed.length < 50) {
-                // 开启新章节
                 if (currentChapter && currentChapter.content.length > 0) {
                     chapters.push(currentChapter);
                 }
@@ -1724,8 +1785,8 @@
 
         // 如果未识别出任何章节标记（如纯文本散文），按段落或字数均匀分块
         if (chapters.length === 0 || (chapters.length === 1 && chapters[0].content.length > 80)) {
-            const allParas = chapters.length === 1 ? chapters[0].content : lines.filter(l => l.trim());
-            const CHUNK_SIZE = 40; // 每40段为一个可读单元
+            const allParas = chapters.length === 1 ? chapters[0].content : [];
+            const CHUNK_SIZE = 40;
             const chunkedChapters = [];
             for (let i = 0; i < allParas.length; i += CHUNK_SIZE) {
                 const chunk = allParas.slice(i, i + CHUNK_SIZE);
@@ -1737,9 +1798,9 @@
             return {
                 id: 'custom_' + Date.now(),
                 title: cleanName,
-                author: '本地文档',
+                author: '本地导入',
                 coverEmoji: '📄',
-                description: '纯前端内存解析，0云端消耗',
+                description: `本地离线导入书籍 · 全 ${chunkedChapters.length} 章节 · 本地持久化`,
                 chapters: chunkedChapters.length > 0 ? chunkedChapters : [{ title: '正文', content: ['文件内容为空'] }]
             };
         }
@@ -1747,11 +1808,136 @@
         return {
             id: 'custom_' + Date.now(),
             title: cleanName,
-            author: '本地文档',
+            author: '本地导入',
             coverEmoji: '📄',
-            description: '纯前端内存解析，0云端消耗',
+            description: `本地离线导入书籍 · 全 ${chapters.length} 章节 · 本地持久化`,
             chapters
         };
+    }
+
+
+    // ===== 9.5 书架搜索与过滤引擎 =====
+    function initShelfSearch() {
+        const searchInput = document.getElementById('shelf-search-input');
+        const clearBtn = document.getElementById('shelf-search-clear');
+        const grid = document.getElementById('shelf-books-grid');
+        if (!searchInput || !grid) return;
+
+        const performSearch = () => {
+            const query = searchInput.value.trim().toLowerCase();
+            if (clearBtn) clearBtn.hidden = !query;
+
+            const cards = grid.querySelectorAll('.book-card-item');
+            let matchCount = 0;
+
+            cards.forEach(card => {
+                const title = (card.querySelector('.card-title') ? card.querySelector('.card-title').textContent : '').toLowerCase();
+                const author = (card.querySelector('.card-author') ? card.querySelector('.card-author').textContent : '').toLowerCase();
+                const matches = !query || title.includes(query) || author.includes(query);
+                card.hidden = !matches;
+                if (matches) matchCount++;
+            });
+
+            let emptyTip = document.getElementById('shelf-search-empty');
+            if (!emptyTip) {
+                emptyTip = document.createElement('div');
+                emptyTip.id = 'shelf-search-empty';
+                emptyTip.className = 'shelf-search-empty';
+                emptyTip.innerHTML = '<span>🔍</span><p>没有找到匹配的书籍</p>';
+                grid.appendChild(emptyTip);
+            }
+            emptyTip.hidden = matchCount > 0 || !query;
+        };
+
+        searchInput.addEventListener('input', performSearch);
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                performSearch();
+                searchInput.focus();
+            });
+        }
+    }
+
+    // ===== 9.6 书架数据主权：备份导出与恢复 =====
+    function exportBookshelfBackup() {
+        const customBooksRaw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+        const bookProgRaw = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
+        const settingsRaw = localStorage.getItem(STORAGE_KEY_SETTINGS);
+        const lastProgRaw = localStorage.getItem(STORAGE_KEY_PROGRESS);
+
+        const customBooks = customBooksRaw ? JSON.parse(customBooksRaw) : [];
+        const bookProgress = bookProgRaw ? JSON.parse(bookProgRaw) : {};
+        const settings = settingsRaw ? JSON.parse(settingsRaw) : state.settings;
+        const lastProgress = lastProgRaw ? JSON.parse(lastProgRaw) : null;
+
+        const payload = {
+            app: 'lanmao-reader-backup',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            customBooks: customBooks,
+            bookProgress: bookProgress,
+            lastProgress: lastProgress,
+            settings: settings
+        };
+
+        const jsonStr = JSON.stringify(payload, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dateStr = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `lanmao-bookshelf-backup-${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('📦 书架与阅读进度备份导出完成！');
+    }
+
+    function importBookshelfBackup(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (!data || data.app !== 'lanmao-reader-backup' || !Array.isArray(data.customBooks)) {
+                    showToast('⚠️ 非法备份文件格式，请选择有效的蓝昴书架备份');
+                    return;
+                }
+
+                let restoredCount = 0;
+                data.customBooks.forEach(book => {
+                    if (book && book.id && book.title && Array.isArray(book.chapters)) {
+                        saveCustomBook(book);
+                        restoredCount++;
+                    }
+                });
+
+                if (data.bookProgress && typeof data.bookProgress === 'object') {
+                    let currentProg = {};
+                    try {
+                        const raw = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
+                        if (raw) currentProg = JSON.parse(raw) || {};
+                    } catch (_) {}
+                    const mergedProg = Object.assign({}, currentProg, data.bookProgress);
+                    localStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(mergedProg));
+                }
+
+                if (data.settings && typeof data.settings === 'object') {
+                    state.settings = Object.assign({}, state.settings, data.settings);
+                    saveSettings();
+                    applySettings();
+                }
+
+                renderBookshelfGrid();
+                updateBookshelfHero();
+                showToast(`🎉 成功恢复 ${restoredCount} 本图书及阅读进度！`, 3600);
+            } catch (err) {
+                showToast('解析备份文件失败，请检查文件完整性');
+            }
+        };
+        reader.readAsText(file);
     }
 
     function resetFileInputs() {
@@ -1932,12 +2118,14 @@
             if (req) {
                 try {
                     const res = req.call(docEl);
-                    if (res && res.catch) res.catch(() => showToast('当前环境不支持全屏'));
+                    if (res && res.catch) {
+                        res.catch(() => toggleVisualFullscreen());
+                    }
                 } catch (_) {
-                    showToast('当前环境不支持全屏');
+                    toggleVisualFullscreen();
                 }
             } else {
-                showToast('当前环境不支持全屏');
+                toggleVisualFullscreen();
             }
         } else {
             const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
@@ -1947,7 +2135,17 @@
                     if (res && res.catch) res.catch(() => {});
                 } catch (_) {}
             }
+            if (document.body.classList.contains('reader-visual-fullscreen')) {
+                toggleVisualFullscreen(false);
+            }
         }
+    }
+
+    function toggleVisualFullscreen(force) {
+        const isVisual = typeof force === 'boolean' ? !force : document.body.classList.contains('reader-visual-fullscreen');
+        const active = !isVisual;
+        document.body.classList.toggle('reader-visual-fullscreen', active);
+        showToast(active ? '📱 已进入沉浸全屏模式' : '已退出沉浸全屏模式');
     }
 
     // ===== 13. 事件监听绑定 =====
@@ -2283,6 +2481,23 @@
                         card.click();
                     }
                 }
+            });
+        }
+
+        // 书架即时搜索与过滤
+        initShelfSearch();
+
+        // 书架备份导出与恢复
+        const btnExportBackup = document.getElementById('shelf-btn-export-backup');
+        if (btnExportBackup) {
+            btnExportBackup.addEventListener('click', exportBookshelfBackup);
+        }
+        const inputImportBackup = document.getElementById('shelf-backup-file-input');
+        if (inputImportBackup) {
+            inputImportBackup.addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (file) importBookshelfBackup(file);
+                inputImportBackup.value = '';
             });
         }
 

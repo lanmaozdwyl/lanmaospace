@@ -74,6 +74,11 @@
             <section class="shelf-grid-section">
                 <div class="shelf-section-bar">
                     <h3 class="shelf-grid-heading">精选伴读典藏</h3>
+                    <div class="shelf-search-wrap">
+                        <span class="shelf-search-icon" aria-hidden="true">🔍</span>
+                        <input type="search" id="shelf-search-input" class="shelf-search-input" placeholder="搜索书名或作者…" aria-label="搜索书架书籍">
+                        <button type="button" id="shelf-search-clear" class="shelf-search-clear" aria-label="清空搜索" hidden>✕</button>
+                    </div>
                     <span class="shelf-zero-quota-tip"><span aria-hidden="true">🔒</span> 本地离线解析 · 数据仅存本机</span>
                 </div>
 
@@ -125,10 +130,21 @@
                     <span class="import-big-icon" aria-hidden="true">📥</span>
                     <h4>打开手机 / 电脑中的本地电子书</h4>
                     <p>支持 <b>.txt</b> 与 <b>.md</b> 纯文本格式，智能切分章节目录，数据纯本地保存</p>
-                    <label class="shelf-upload-btn" for="shelf-file-input">
-                        <span>挑选本地文件</span>
-                        <input type="file" id="shelf-file-input" accept=".txt,.md,text/plain,text/markdown" hidden>
-                    </label>
+                    <div class="shelf-action-buttons-wrap">
+                        <label class="shelf-upload-btn" for="shelf-file-input">
+                            <span>挑选本地文件</span>
+                            <input type="file" id="shelf-file-input" accept=".txt,.md,text/plain,text/markdown" hidden>
+                        </label>
+                        <div class="shelf-backup-actions">
+                            <button type="button" class="shelf-backup-btn" id="shelf-btn-export-backup" title="导出书架书籍与阅读记录备份">
+                                <span aria-hidden="true">📤</span> 导出书架备份
+                            </button>
+                            <label class="shelf-backup-btn shelf-backup-import-label" for="shelf-backup-file-input" title="从备份文件恢复书架">
+                                <span aria-hidden="true">📥</span> 恢复书架备份
+                                <input type="file" id="shelf-backup-file-input" accept=".json,application/json" hidden>
+                            </label>
+                        </div>
+                    </div>
                     <div class="shelf-security-badge">
                         <span aria-hidden="true">🛡️</span>
                         <span>所有文本仅保存在您当前浏览器的本地存储中，绝不上传云端，保护您的阅读隐私</span>
@@ -192,6 +208,11 @@
                         <div class="curl-back" id="curl-back"></div>
                         <div class="curl-shadow" id="curl-shadow"></div>
                     </div>
+                </div>
+
+                <!-- 仿真纸张覆盖滑页阴影图层 -->
+                <div class="reader-cover-layer" id="reader-cover-layer" aria-hidden="true">
+                    <div class="cover-edge-shadow" id="cover-edge-shadow"></div>
                 </div>
             </div>
 

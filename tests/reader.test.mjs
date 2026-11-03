@@ -526,3 +526,65 @@ test('第一梯队修复：文件选择器拦截后清空重置机制保障', ()
     const handleFn = jsSource.slice(jsSource.indexOf('function handleLocalFileInput'), jsSource.indexOf('// 伴读声音由 reader-audio.js'));
     assert(handleFn.includes('resetFileInputs()'), 'handleLocalFileInput 必须调用 resetFileInputs');
 });
+
+test('第二梯队修复：删除活跃书籍时自动重置默认状态并清理路由参数', () => {
+    // 1. 活跃书删除检测与重置为 prince
+    assert(jsSource.includes("state.currentBookId = 'prince'"), '删除当前活跃书籍需重置为默认书 prince');
+    // 2. URL 参数清理
+    assert(jsSource.includes("url.searchParams.delete('book')"), '删除当前书籍需清理 URL 中的 book 参数');
+    assert(jsSource.includes("url.searchParams.delete('chapter')"), '删除当前书籍需清理 URL 中的 chapter 参数');
+});
+
+test('第二梯队修复：仿真纸张覆盖滑页 (Cover 模式) 动效独立实现', () => {
+    // 1. 结构与样式
+    assert(htmlSource.includes('id="reader-cover-layer"'), 'HTML 需包含覆盖滑页图层 reader-cover-layer');
+    assert(htmlSource.includes('id="cover-edge-shadow"'), 'HTML 需包含覆盖滑页阴影 cover-edge-shadow');
+    assert(cssSource.includes('.reader-cover-layer'), 'CSS 需包含覆盖滑页图层样式');
+    assert(cssSource.includes('.cover-edge-shadow'), 'CSS 需包含覆盖纸张边缘阴影样式');
+
+    // 2. 动效执行逻辑
+    assert(jsSource.includes("state.settings.animMode === 'cover'"), 'executePageTurn 需包含独立的 cover 模式分支');
+});
+
+test('第二梯队修复：伴读声音弹窗多入口直接绑定与关闭精准归位焦点', () => {
+    const audioSource = readFileSync(new URL('../reader-audio.js', import.meta.url), 'utf8');
+    assert(audioSource.includes('lastActiveTrigger'), 'reader-audio 必须追踪触发按钮');
+    assert(audioSource.includes('shelf-toggle-noise'), '需支持从书架底栏按钮直接打开声音面板');
+    assert(audioSource.includes('fab-toggle-noise'), '需支持从悬浮窗按钮直接打开声音面板');
+    assert(audioSource.includes('lastActiveTrigger.focus()'), '弹窗关闭时需精准把焦点归还给原触发按钮');
+});
+
+test('第三梯队修复：书架本地书库即时检索与关键词过滤引擎', () => {
+    // 1. 结构与样式
+    assert(htmlSource.includes('id="shelf-search-input"'), 'HTML 需包含书架搜索输入框');
+    assert(htmlSource.includes('id="shelf-search-clear"'), 'HTML 需包含清空搜索按钮');
+    assert(cssSource.includes('.shelf-search-wrap'), 'CSS 需包含搜索框容器样式');
+
+    // 2. 检索逻辑
+    assert(jsSource.includes('function initShelfSearch()'), '需包含 initShelfSearch 函数');
+    assert(jsSource.includes('shelf-search-empty'), '无匹配书籍时需展示空状态');
+});
+
+test('第三梯队修复：超大 TXT 文件逐行流式解析避免主线程内存尖峰', () => {
+    // 1. 采用 indexOf 逐行索引扫描而非巨型数组 split
+    assert(jsSource.includes('rawText.indexOf(') && jsSource.includes('start = end + 1'), '大文件解析需采用逐行流式索引扫描');
+    assert(!jsSource.includes('rawText.split(/\\r?\\n/)'), '严禁一次性全量正则切分');
+});
+
+test('第三梯队修复：个人数据主权——书架与阅读进度一键导出与导入备份', () => {
+    // 1. 备份按钮
+    assert(htmlSource.includes('id="shelf-btn-export-backup"'), '需包含导出书架备份按钮');
+    assert(htmlSource.includes('id="shelf-backup-file-input"'), '需包含恢复书架备份选择器');
+
+    // 2. 导出与导入逻辑
+    assert(jsSource.includes('function exportBookshelfBackup('), '需包含 exportBookshelfBackup 函数');
+    assert(jsSource.includes('function importBookshelfBackup('), '需包含 importBookshelfBackup 函数');
+    assert(jsSource.includes("'lanmao-reader-backup'"), '备份必须带有蓝昴空间标准标识校验');
+});
+
+test('第三梯队修复：iOS Safari 无原生全屏 API 时的视觉沉浸全屏保底', () => {
+    // 1. 视觉降级样式
+    assert(cssSource.includes('reader-visual-fullscreen'), 'CSS 需包含视觉沉浸全屏保底样式');
+    // 2. 降级切换函数
+    assert(jsSource.includes('function toggleVisualFullscreen('), '需包含 toggleVisualFullscreen 降级函数');
+});

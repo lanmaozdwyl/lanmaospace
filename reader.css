@@ -1653,3 +1653,138 @@ html, body.reader-body {
     background: #ff3b30;
     transform: scale(1.1);
 }
+
+/* ===== 书架搜索与过滤样式 ===== */
+.shelf-search-wrap {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    background: var(--r-card-bg);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    margin: 0 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.shelf-search-wrap:focus-within {
+    border-color: var(--r-accent);
+    box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.15);
+}
+.shelf-search-icon {
+    font-size: 13px;
+    margin-right: 6px;
+    opacity: 0.6;
+}
+.shelf-search-input {
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    color: var(--r-text);
+    outline: none;
+    width: 140px;
+    transition: width 0.2s;
+}
+.shelf-search-input:focus {
+    width: 180px;
+}
+.shelf-search-clear {
+    border: none;
+    background: transparent;
+    color: var(--r-text-dim);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 4px;
+    margin-left: 4px;
+}
+.shelf-search-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 36px 0;
+    color: var(--r-text-dim);
+    font-size: 14px;
+}
+.shelf-search-empty span {
+    font-size: 28px;
+    display: block;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+/* ===== 书架备份导入/导出按钮 ===== */
+.shelf-action-buttons-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.shelf-backup-actions {
+    display: flex;
+    gap: 8px;
+}
+.shelf-backup-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 980px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--r-card-bg);
+    color: var(--r-text);
+    border: 1px solid var(--r-bar-border);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+.shelf-backup-btn:hover {
+    border-color: var(--r-accent);
+    color: var(--r-accent);
+    transform: translateY(-1px);
+}
+.shelf-backup-import-label {
+    cursor: pointer;
+}
+
+/* ===== 仿真覆盖滑页动效图层 ===== */
+.reader-cover-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 15;
+    opacity: 0;
+    overflow: hidden;
+    transition: opacity 0.15s ease;
+}
+.reader-cover-layer.active {
+    opacity: 1;
+}
+.cover-edge-shadow {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 32px;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.08) 60%, transparent);
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.16);
+    transform: translateX(-100%);
+    will-change: transform;
+}
+
+/* ===== iOS / 移动端视觉沉浸全屏保底 ===== */
+body.reader-visual-fullscreen #reader-stage {
+    padding-top: env(safe-area-inset-top, 16px);
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+body.reader-visual-fullscreen .reader-header {
+    transform: translateY(-110%);
+    opacity: 0;
+    pointer-events: none;
+}
+body.reader-visual-fullscreen .reader-footer {
+    opacity: 0.35;
+    transition: opacity 0.3s;
+}
+body.reader-visual-fullscreen .reader-footer:hover {
+    opacity: 1;
+}
