@@ -191,3 +191,144 @@ mediaTabs.forEach((tab, index) => {
         });
     }
 })();
+
+// ===== Apple-Style Spotlight Search (Cmd/Ctrl + K) =====
+(function initSpotlight() {
+    const dialog = document.getElementById('spotlight-dialog');
+    const input = document.getElementById('spotlight-input');
+    const list = document.getElementById('spotlight-results');
+    const trigger = document.getElementById('spotlight-trigger');
+
+    if (!dialog || !input || !list) return;
+
+    const searchIndex = [
+        { title: '首页 · 概览与精选', category: '页面', url: '#home', icon: '🏠' },
+        { title: '阅读书单 · 学术专著与笔记', category: '页面', url: '#books', icon: '📚' },
+        { title: '音乐与影视 · 治愈旋律与影片', category: '页面', url: '#music', icon: '🎵' },
+        { title: '精选学术与工程导航 · 顶级科研资源', category: '页面', url: '#links', icon: '🔗' },
+        { title: '工具站 · 翻译/写作/编程全能合集', category: '页面', url: 'tools/', icon: '🛠️' },
+        { title: '我的商店 · 生产力与服务咨询', category: '页面', url: 'store.html', icon: '🛒' },
+        { title: '常见问题 · 购物与服务解答', category: '页面', url: 'faq.html', icon: '❓' },
+        { title: '加密备忘录 · 本地安全私密笔记', category: '页面', url: 'memo.html', icon: '📝' },
+        { title: '成员空间 · 个人主页与动态', category: '页面', url: 'space.html', icon: '🪐' },
+        { title: '账号安全中心 · 密码与登录管理', category: '页面', url: 'account.html', icon: '🛡️' },
+
+        { title: 'Overleaf 在线 LaTeX 论文协作与排版', category: '工具', url: 'tools/#writing', icon: '📝' },
+        { title: 'Zotero 强大文献管理与引用导出', category: '工具', url: 'tools/#writing', icon: '📎' },
+        { title: 'DeepL 高精度学术与专业 AI 翻译', category: '工具', url: 'tools/#translation', icon: '🌐' },
+        { title: 'Google Colab 免配置云端 GPU Jupyter 环境', category: '工具', url: 'tools/#dev', icon: '🧪' },
+        { title: 'GitHub 全球开源代码托管与协作', category: '工具', url: 'tools/#dev', icon: '🐙' },
+        { title: 'VS Code 现代化轻量全能代码编辑器', category: '工具', url: 'tools/#dev', icon: '💎' },
+        { title: 'Figma 协同式界面设计与原型工具', category: '工具', url: 'tools/#design', icon: '🎨' },
+        { title: 'Excalidraw 纯粹手绘风格白板与草图', category: '工具', url: 'tools/#design', icon: '✏️' },
+
+        { title: '百年孤独 (马尔克斯)', category: '书单', url: '#books', icon: '📘' },
+        { title: '深度学习 (Deep Learning · Ian Goodfellow)', category: '书单', url: '#books', icon: '📗' },
+        { title: '统计学习方法 (李航)', category: '书单', url: '#books', icon: '📒' },
+        { title: '人类简史 (尤瓦尔·赫拉利)', category: '书单', url: '#books', icon: '📕' },
+        { title: '小王子 (圣埃克苏佩里)', category: '书单', url: '#books', icon: '📙' },
+
+        { title: '网易云音乐专属精选歌单 (ID: 9209159326)', category: '音乐', url: 'https://music.163.com/playlist?id=9209159326', icon: '🎧' },
+        { title: '晴天 · 周杰伦', category: '音乐', url: '#music', icon: '🎸' },
+        { title: 'Nuvole Bianche · Ludovico Einaudi', category: '音乐', url: '#music', icon: '🎹' },
+        { title: '星际穿越 (Interstellar)', category: '影视', url: '#music', icon: '🎬' },
+        { title: '肖申克的救赎', category: '影视', url: '#music', icon: '🎭' }
+    ];
+
+    let selectedIndex = 0;
+    let currentResults = [];
+
+    function renderResults(results) {
+        currentResults = results;
+        list.innerHTML = '';
+        if (results.length === 0) {
+            list.innerHTML = '<div class="spotlight-empty">未找到匹配内容</div>';
+            return;
+        }
+        results.forEach((item, idx) => {
+            const a = document.createElement('a');
+            a.className = 'spotlight-item' + (idx === selectedIndex ? ' active' : '');
+            a.href = item.url;
+            if (item.url.startsWith('http')) {
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+            }
+            a.innerHTML = '<span class="spotlight-item-icon" aria-hidden="true">' + item.icon + '</span>' +
+                '<div class="spotlight-item-text">' +
+                '<span class="spotlight-item-title">' + item.title + '</span>' +
+                '<span class="spotlight-item-cat">' + item.category + '</span>' +
+                '</div>' +
+                '<span class="spotlight-item-enter" aria-hidden="true">↵</span>';
+            a.addEventListener('click', () => closeSpotlight());
+            list.appendChild(a);
+        });
+    }
+
+    function search(kw) {
+        kw = kw.trim().toLowerCase();
+        if (!kw) {
+            renderResults(searchIndex.slice(0, 7));
+            return;
+        }
+        const filtered = searchIndex.filter(item => 
+            item.title.toLowerCase().includes(kw) || item.category.toLowerCase().includes(kw)
+        );
+        selectedIndex = 0;
+        renderResults(filtered);
+    }
+
+    function openSpotlight() {
+        dialog.showModal();
+        input.value = '';
+        search('');
+        input.focus();
+    }
+
+    function closeSpotlight() {
+        dialog.close();
+    }
+
+    if (trigger) {
+        trigger.addEventListener('click', openSpotlight);
+    }
+
+    document.addEventListener('keydown', e => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            if (dialog.open) closeSpotlight();
+            else openSpotlight();
+        } else if (dialog.open) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (currentResults.length > 0) {
+                    selectedIndex = (selectedIndex + 1) % currentResults.length;
+                    renderResults(currentResults);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (currentResults.length > 0) {
+                    selectedIndex = (selectedIndex - 1 + currentResults.length) % currentResults.length;
+                    renderResults(currentResults);
+                }
+            } else if (e.key === 'Enter') {
+                if (currentResults.length > 0 && currentResults[selectedIndex]) {
+                    e.preventDefault();
+                    const target = currentResults[selectedIndex];
+                    closeSpotlight();
+                    if (target.url.startsWith('http')) {
+                        window.open(target.url, '_blank', 'noopener,noreferrer');
+                    } else if (target.url.startsWith('#')) {
+                        location.hash = target.url;
+                    } else {
+                        location.href = target.url;
+                    }
+                }
+            }
+        }
+    });
+
+    input.addEventListener('input', e => search(e.target.value));
+    dialog.addEventListener('click', e => {
+        if (e.target === dialog) closeSpotlight();
+    });
+})();

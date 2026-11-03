@@ -22,6 +22,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="蓝昴空间">
     <link rel="apple-touch-icon" href="images/icon-192.png">
+    <meta property="og:image" content="https://lanmaospace.pages.dev/images/og-cover.png">
+    <meta name="twitter:image" content="https://lanmaospace.pages.dev/images/og-cover.png">
 </head>
 <body>
     <a href="#main-content" class="skip-link">跳到主要内容</a>
@@ -45,6 +47,7 @@
                 <a href="space.html" class="nav-link">成员空间</a>
                 <a href="profile.html" class="nav-link header-avatar-link" data-header-avatar title="我的头像" aria-label="我的头像"><span aria-hidden="true">👤</span></a>
                 <button type="button" class="nav-link nav-signout" data-signout>退出登录</button>
+                <button type="button" class="nav-link spotlight-trigger-btn" id="spotlight-trigger" aria-label="全局搜索 (Ctrl+K)" title="全局搜索 (Ctrl+K)"><span aria-hidden="true">🔍</span><span class="spotlight-kbd">⌘K</span></button>
                 <button type="button" class="nav-link theme-toggle-btn" id="theme-toggle" aria-label="切换至暗色模式" title="切换暗色/亮色模式"><span aria-hidden="true">🌙</span></button>
             </div>
             <button class="nav-toggle" id="nav-toggle" aria-label="打开导航菜单" aria-expanded="false" aria-controls="nav-links">
@@ -364,34 +367,34 @@
                 <p class="section-desc">志同道合的伙伴们</p>
             </div>
             <div class="friends-grid">
-                <div class="friend-card fade-up friend-placeholder">
-                    <div class="friend-avatar" style="background: linear-gradient(135deg, #667eea, #764ba2);">🦊</div>
+                <a href="https://arxiv.org/" class="friend-card fade-up" target="_blank" rel="noopener noreferrer">
+                    <div class="friend-avatar" style="background: linear-gradient(135deg, #b31b1b, #8b0000); color: white;">📜</div>
                     <div class="friend-info">
-                        <h4>小狐狸的博客</h4>
-                        <p>前端开发 · 设计爱好者</p>
+                        <h4>arXiv</h4>
+                        <p>学术预印本 · 计算机与前沿科学</p>
                     </div>
-                </div>
-                <div class="friend-card fade-up friend-placeholder">
-                    <div class="friend-avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">🐼</div>
+                </a>
+                <a href="https://huggingface.co/" class="friend-card fade-up" target="_blank" rel="noopener noreferrer">
+                    <div class="friend-avatar" style="background: linear-gradient(135deg, #ff9d00, #ff5722); color: white;">🤗</div>
                     <div class="friend-info">
-                        <h4>熊猫笔记</h4>
-                        <p>机器学习 · 论文分享</p>
+                        <h4>Hugging Face</h4>
+                        <p>开源模型社区 · AI 与机器学习生态</p>
                     </div>
-                </div>
-                <div class="friend-card fade-up friend-placeholder">
-                    <div class="friend-avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">🐬</div>
+                </a>
+                <a href="https://scholar.google.com/" class="friend-card fade-up" target="_blank" rel="noopener noreferrer">
+                    <div class="friend-avatar" style="background: linear-gradient(135deg, #4285f4, #1a73e8); color: white;">🎓</div>
                     <div class="friend-info">
-                        <h4>海豚日记</h4>
-                        <p>数据科学 · 可视化</p>
+                        <h4>Google Scholar</h4>
+                        <p>学术文献搜索 · 引文与学术追踪</p>
                     </div>
-                </div>
-                <div class="friend-card fade-up friend-placeholder">
-                    <div class="friend-avatar" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">🦉</div>
+                </a>
+                <a href="https://github.com/trending" class="friend-card fade-up" target="_blank" rel="noopener noreferrer">
+                    <div class="friend-avatar" style="background: linear-gradient(135deg, #24292e, #0d1117); color: white;">⚡</div>
                     <div class="friend-info">
-                        <h4>猫头鹰书房</h4>
-                        <p>学术研究 · 书评分享</p>
+                        <h4>GitHub Trending</h4>
+                        <p>全球开源热榜 · 优质代码库与项目</p>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="friend-apply fade-up">
                 <p>🤝 想要交换友链？请在留言板留言或发邮件给我～</p>
@@ -514,5 +517,22 @@
     <script type="module" src="guestbook.js"></script>
     <script type="module" src="guestbook-admin.js"></script>
     <script src="script.js"></script>
-<script src="motion.js"></script></body>
+<script src="motion.js"></script>
+    <!-- Apple Spotlight Search Dialog -->
+    <dialog id="spotlight-dialog" class="spotlight-modal" aria-label="全局快速搜索">
+        <div class="spotlight-shell">
+            <div class="spotlight-searchbox">
+                <span class="spotlight-icon" aria-hidden="true">🔍</span>
+                <input type="text" id="spotlight-input" placeholder="搜索书单、工具、服务或快捷跳转..." autocomplete="off" spellcheck="false">
+                <kbd class="spotlight-esc-tip">ESC</kbd>
+            </div>
+            <div class="spotlight-results" id="spotlight-results" role="listbox"></div>
+            <div class="spotlight-footer">
+                <span><kbd>↑</kbd> <kbd>↓</kbd> 切换</span>
+                <span><kbd>↵</kbd> 跳转</span>
+                <span><kbd>ESC</kbd> 关闭</span>
+            </div>
+        </div>
+    </dialog>
+</body>
 </html>
