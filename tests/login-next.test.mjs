@@ -13,3 +13,5 @@ test('未知站内路径与缺失回跳参数返回首页',()=>{assert.equal(nex
 test('FAQ 页面登录后保留原目标与锚点',()=>{assert.equal(next('/faq'),'/faq');assert.equal(next('/faq.html#faq-warranty'),'/faq.html#faq-warranty');});
 
 test('个人空间链接登录后保留目标成员',()=>{assert.equal(next('/space.html?user=00000000-0000-4000-8000-000000000001'),'/space.html?user=00000000-0000-4000-8000-000000000001');assert.equal(next('/space'),'/space');});
+
+test('账号安全页登录后返回原位置',()=>{assert.equal(next('/account'),'/account');assert.equal(next('/account.html'),'/account.html');});

@@ -58,12 +58,12 @@
                     <input type="email" id="register-email" autocomplete="email" required>
                 </div>
                 <div class="form-group">
-                    <label for="register-password">密码（至少 8 位）</label>
-                    <input type="password" id="register-password" autocomplete="new-password" minlength="8" required>
+                    <label for="register-password">密码（至少 8 位，含英文字母和数字）</label>
+                    <input type="password" id="register-password" autocomplete="new-password" minlength="8" maxlength="128" required>
                 </div>
                 <div class="form-group">
                     <label for="register-password-confirm">再输一次密码</label>
-                    <input type="password" id="register-password-confirm" autocomplete="new-password" minlength="8" required>
+                    <input type="password" id="register-password-confirm" autocomplete="new-password" minlength="8" maxlength="128" required>
                 </div>
                 <button type="submit" class="submit-btn" id="register-button"><span>注册</span></button>
             </form>
@@ -93,16 +93,16 @@
         <!-- 点重置邮件链接回来后设置新密码 -->
         <section class="memo-card" id="recovery-panel" hidden>
             <h2>设置新密码</h2>
-            <p>你是通过重置密码邮件进来的，请设置一个新密码（至少 8 位），设置成功后直接进入网站。</p>
+            <p>你是通过重置密码邮件进来的，请设置一个新密码（至少 8 位，含英文字母和数字），设置成功后直接进入网站。</p>
             <p class="memo-status auth-status" id="recovery-status" role="status" aria-live="polite"></p>
             <form id="recovery-form">
                 <div class="form-group">
                     <label for="recovery-password">新密码</label>
-                    <input type="password" id="recovery-password" autocomplete="new-password" minlength="8" required>
+                    <input type="password" id="recovery-password" autocomplete="new-password" minlength="8" maxlength="128" required>
                 </div>
                 <div class="form-group">
                     <label for="recovery-password-confirm">再输一次新密码</label>
-                    <input type="password" id="recovery-password-confirm" autocomplete="new-password" minlength="8" required>
+                    <input type="password" id="recovery-password-confirm" autocomplete="new-password" minlength="8" maxlength="128" required>
                 </div>
                 <button type="submit" class="submit-btn" id="recovery-button"><span>保存新密码</span></button>
             </form>

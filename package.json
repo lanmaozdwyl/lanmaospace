@@ -4,7 +4,7 @@
   "private": true,
   "description": "蓝昴的个人学术空间",
   "scripts": {
-    "test": "node --test tests/memo.test.mjs tests/guestbook-admin.test.mjs tests/catalog.test.mjs tests/store.test.mjs tests/avatar.test.mjs tests/tools.test.mjs tests/login-next.test.mjs tests/space.test.mjs tests/space-export.test.mjs",
+    "test": "node --test tests/memo.test.mjs tests/guestbook-admin.test.mjs tests/catalog.test.mjs tests/store.test.mjs tests/avatar.test.mjs tests/tools.test.mjs tests/login-next.test.mjs tests/space.test.mjs tests/space-export.test.mjs tests/account-security.test.mjs tests/login-security.test.mjs",
     "test:memo": "node --test tests/memo*.test.mjs",
     "test:db": "node tests/permissions.test.mjs",
     "check": "node scripts/check.mjs",
