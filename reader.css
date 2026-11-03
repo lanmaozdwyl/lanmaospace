@@ -1435,15 +1435,26 @@ html, body.reader-body {
 
 /* 移动端书架自适应 */
 @media (max-width: 640px) {
+    /* 移动端人机工程学：顶栏置底为吸底导航栏，大拇指轻松触达 */
     .shelf-header {
-        padding: 0 12px;
-        height: 50px;
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        border-top: 0.5px solid var(--r-bar-border);
+        border-bottom: none;
+        padding: 0 16px;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.08);
+        z-index: 1000;
     }
     .shelf-brand-title {
         font-size: 16px;
     }
     .shelf-main {
-        padding: 16px 12px 60px;
+        padding: 16px 12px calc(80px + env(safe-area-inset-bottom, 0px));
         gap: 20px;
     }
     .shelf-hero-card {
@@ -1468,4 +1479,139 @@ html, body.reader-body {
     .reader-back-label {
         display: inline;
     }
+}
+
+
+/* ==================== 单手侧边虚拟翻页键 (替代物理音量键) ==================== */
+.reader-edge-rocker {
+    position: fixed;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--r-card-bg);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 20px;
+    padding: 6px 4px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+    z-index: 1020;
+    opacity: 0.88;
+    transition: opacity 0.2s, transform 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.reader-edge-rocker:hover {
+    opacity: 1;
+}
+.reader-edge-rocker.hidden {
+    display: none !important;
+}
+.rocker-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 48px;
+    border: none;
+    background: transparent;
+    color: var(--r-text);
+    cursor: pointer;
+    border-radius: 14px;
+    transition: background 0.15s, transform 0.1s;
+}
+.rocker-btn:active {
+    background: rgba(0, 0, 0, 0.1);
+    transform: scale(0.92);
+}
+[data-reader-theme="dark"] .rocker-btn:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+.rocker-hint {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--r-text-muted);
+    margin-top: 2px;
+}
+.rocker-divider {
+    width: 20px;
+    height: 1px;
+    background: var(--r-bar-border);
+    margin: 4px 0;
+}
+
+/* ==================== 全局自由拖拽伴读专注悬浮窗 ==================== */
+.floating-companion-fab {
+    position: fixed;
+    right: 16px;
+    bottom: 80px;
+    display: inline-flex;
+    align-items: center;
+    background: var(--r-bar-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 999px;
+    padding: 4px 6px;
+    gap: 4px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+    z-index: 1050;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.floating-companion-fab:active {
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.2);
+}
+.fab-drag-handle {
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 4px 4px 6px;
+    color: var(--r-text-muted);
+    font-size: 13px;
+    letter-spacing: -2px;
+}
+.fab-drag-handle:active {
+    cursor: grabbing;
+}
+.fab-buttons-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.fab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: var(--r-text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.fab-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+[data-reader-theme="dark"] .fab-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+.fab-icon {
+    font-size: 15px;
+    line-height: 1;
+}
+.fab-badge {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--r-accent);
 }

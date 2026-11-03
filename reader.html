@@ -207,6 +207,19 @@
                 <div class="touch-zone touch-menu" id="zone-menu" title="点击呼出控制栏"></div>
                 <div class="touch-zone touch-next" id="zone-next" title="点击或右滑下一页"></div>
             </div>
+
+            <!-- 单手侧边虚拟翻页条 (替代手机物理音量键，单手大拇指轻触即翻) -->
+            <aside class="reader-edge-rocker hidden" id="reader-edge-rocker" aria-label="单手侧边翻页键">
+                <button type="button" class="rocker-btn rocker-up" id="rocker-btn-prev" title="上一页 (对应音量+)" aria-label="上一页">
+                    <span aria-hidden="true">▲</span>
+                    <span class="rocker-hint">上页</span>
+                </button>
+                <div class="rocker-divider" aria-hidden="true"></div>
+                <button type="button" class="rocker-btn rocker-down" id="rocker-btn-next" title="下一页 (对应音量-)" aria-label="下一页">
+                    <span aria-hidden="true">▼</span>
+                    <span class="rocker-hint">下页</span>
+                </button>
+            </aside>
         </main>
 
         <!-- 底部控制栏 -->
@@ -348,6 +361,18 @@
                         <span id="volume-flip-status-text">已关闭</span>
                     </button>
                 </div>
+
+                <!-- 单手侧边虚拟翻页键设置 -->
+                <div class="setting-group setting-row-between">
+                    <div>
+                        <span class="setting-title-inline">侧边虚拟翻页键</span>
+                        <span class="setting-desc-inline">单手握持微动条 · 模拟音量键</span>
+                    </div>
+                    <button type="button" class="sound-toggle-btn" id="btn-toggle-edge-rocker" aria-pressed="false" title="开启后在屏幕边缘显示单手翻页微动键">
+                        <span class="sound-status-icon" aria-hidden="true">🔘</span>
+                        <span id="edge-rocker-status-text">已关闭</span>
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -406,6 +431,26 @@
 
     <!-- 抽屉暗色遮罩背景 -->
     <div class="reader-backdrop" id="reader-backdrop" hidden></div>
+
+    <!-- ==================== 全局自由拖拽伴读悬浮窗 (番茄钟 · 白噪音 · 主题) ==================== -->
+    <aside class="floating-companion-fab" id="floating-companion-fab" aria-label="伴读专注悬浮工具">
+        <div class="fab-drag-handle" id="fab-drag-handle" title="按住可随意拖拽">
+            <span class="fab-drag-grip" aria-hidden="true">⋮⋮</span>
+        </div>
+        <div class="fab-buttons-wrap">
+            <button type="button" class="fab-btn" id="fab-toggle-pomodoro" title="学术番茄专注钟 (点击启停)">
+                <span class="fab-icon" aria-hidden="true">🍅</span>
+                <span class="fab-badge" id="fab-pomodoro-badge">25:00</span>
+            </button>
+            <button type="button" class="fab-btn" id="fab-toggle-noise" title="选择伴读声音" aria-haspopup="dialog" aria-expanded="false" aria-controls="reader-audio-panel">
+                <span class="fab-icon" aria-hidden="true">🎧</span>
+                <span class="fab-badge" id="fab-noise-badge">声音</span>
+            </button>
+            <button type="button" class="fab-btn" id="fab-theme-btn" title="快速切换主题">
+                <span class="fab-icon" aria-hidden="true">🎨</span>
+            </button>
+        </div>
+    </aside>
 
     <dialog id="reader-audio-panel" class="reader-audio-panel" aria-labelledby="reader-audio-title">
         <div class="reader-audio-heading"><h2 id="reader-audio-title">伴读声音</h2><button type="button" id="reader-audio-close" aria-label="收起声音面板">✕</button></div>

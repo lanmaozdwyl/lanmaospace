@@ -11,7 +11,12 @@ if (trigger && panel) {
         onState: ({state, message, id}) => {
             const sound = AMBIENT_SOUNDS.find(s => s.id === id);
             const active = ['loading', 'playing'].includes(state);
-            byId('reader-noise-state').textContent = state === 'playing' ? '开' : state === 'loading' ? '载入' : '关';
+            const st = byId('reader-noise-state');
+            if (st) st.textContent = state === 'playing' ? '开' : state === 'loading' ? '载入' : '关';
+            const shelfBadge = byId('shelf-noise-badge');
+            if (shelfBadge) shelfBadge.textContent = state === 'playing' ? '开' : state === 'loading' ? '载入' : '声音';
+            const fabBadge = byId('fab-noise-badge');
+            if (fabBadge) fabBadge.textContent = state === 'playing' ? '开' : state === 'loading' ? '载入' : '声音';
             toggle.textContent = state === 'loading' ? '取消加载' : state === 'playing' ? '暂停声音' : state === 'error' ? '重试播放' : '播放声音';
             toggle.setAttribute('aria-pressed', String(active));
             status.textContent = message || (state === 'playing' ? `${sound.title} · ${sound.desc}` : state === 'loading' ? '正在加载声音…' : '已暂停 · 选择喜欢的声音，低音量开始');

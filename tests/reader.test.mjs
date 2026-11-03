@@ -300,3 +300,38 @@ test('翻页音效全局预渲染与 120 FPS 极速手势渲染引擎验证', ()
     assert(jsSource.includes('cachedColWidth = viewport.clientWidth'), '必须在 touchstart 缓存几何尺寸，严禁在 touchmove 中频繁读取');
     assert(jsSource.includes('requestAnimationFrame'), '跟手滑动必须通过 rAF 进行节流与高刷对齐');
 });
+
+test('我的书架移动端底栏下移与单手拇指热区适配', () => {
+    // 1. CSS 移动端适配
+    assert(cssSource.includes('position: fixed') && cssSource.includes('bottom: 0'), '移动端下必须将 shelf-header 变更为底部固定导航');
+    assert(cssSource.includes('safe-area-inset-bottom'), '必须兼容全面屏底栏安全区');
+    assert(htmlSource.includes('shelf-header-left'), '书架导航包含返回首页与书架标题');
+});
+
+test('全局自由拖拽伴读悬浮窗 (FAB) 与本地位置持久化', () => {
+    // 1. HTML 组件与按钮
+    assert(htmlSource.includes('id="floating-companion-fab"'), 'DOM 中必须挂载全局伴读悬浮窗');
+    assert(htmlSource.includes('id="fab-toggle-pomodoro"'), '悬浮窗中必须包含番茄钟按钮');
+    assert(htmlSource.includes('id="fab-toggle-noise"'), '悬浮窗中必须包含伴读白噪音按钮');
+    assert(htmlSource.includes('id="fab-theme-btn"'), '悬浮窗中必须包含主题切换按钮');
+
+    // 2. 自由拖拽与持久化逻辑
+    assert(jsSource.includes('initFloatingCompanionFAB'), 'JS 必须包含悬浮窗拖拽初始化函数');
+    assert(jsSource.includes('STORAGE_KEY_FAB'), '悬浮窗位置必须持久化存储在 localStorage 中');
+    assert(jsSource.includes("fab.addEventListener('touchstart'"), '需支持触控拖拽');
+    assert(jsSource.includes("fab.addEventListener('mousedown'"), '需支持桌面鼠标拖拽');
+});
+
+test('单手侧边虚拟微动翻页条与无硬件音量键降级支持', () => {
+    // 1. DOM 结构
+    assert(htmlSource.includes('id="reader-edge-rocker"'), '阅读界面必须提供侧边虚拟微动翻页条');
+    assert(htmlSource.includes('id="rocker-btn-prev"'), '微动条包含上一页按键');
+    assert(htmlSource.includes('id="rocker-btn-next"'), '微动条包含下一页按键');
+    assert(htmlSource.includes('id="btn-toggle-edge-rocker"'), '设置抽屉中包含侧边微动条开关');
+
+    // 2. JS 状态管理与设置记忆
+    assert(jsSource.includes('edgeRockerEnabled: false'), '默认侧边微动条提供可控开关');
+    assert(jsSource.includes('parsed.edgeRockerEnabled'), '设置记忆读取需覆盖 edgeRockerEnabled');
+    assert(jsSource.includes("rockerPrev.addEventListener('click'"), '绑定上一页微动触发');
+    assert(jsSource.includes("rockerNext.addEventListener('click'"), '绑定下一页微动触发');
+});

@@ -553,7 +553,8 @@
             mode: 'flip',        // flip | scroll
             animMode: 'slide',    // curl | slide | cover | scroll
             soundEnabled: true,   // 拟真纸张沙沙声
-            volumeKeyEnabled: false // 手机硬件音量键翻页（默认关闭，需用户主动开启）
+            volumeKeyEnabled: false, // 手机硬件音量键翻页（默认关闭，需用户主动开启）
+            edgeRockerEnabled: false // 屏幕侧边单手虚拟翻页微动键
         }
     };
 
@@ -617,6 +618,9 @@
                     }
                     if (typeof parsed.volumeKeyEnabled === 'boolean') {
                         state.settings.volumeKeyEnabled = parsed.volumeKeyEnabled;
+                    }
+                    if (typeof parsed.edgeRockerEnabled === 'boolean') {
+                        state.settings.edgeRockerEnabled = parsed.edgeRockerEnabled;
                     }
                 }
             }
@@ -703,6 +707,24 @@
             const icon = btnVolume.querySelector('.sound-status-icon');
             if (icon) {
                 icon.textContent = isVolActive ? '📱' : '🔘';
+            }
+        }
+
+        // 单手侧边虚拟翻页键状态
+        const rocker = document.getElementById('reader-edge-rocker');
+        if (rocker) {
+            rocker.classList.toggle('hidden', !state.settings.edgeRockerEnabled || state.activeView !== 'reader');
+        }
+        const btnRocker = document.getElementById('btn-toggle-edge-rocker');
+        const rockerText = document.getElementById('edge-rocker-status-text');
+        if (btnRocker && rockerText) {
+            const isRockerActive = !!state.settings.edgeRockerEnabled;
+            btnRocker.classList.toggle('active', isRockerActive);
+            btnRocker.setAttribute('aria-pressed', String(isRockerActive));
+            rockerText.textContent = isRockerActive ? '已开启' : '已关闭';
+            const icon = btnRocker.querySelector('.sound-status-icon');
+            if (icon) {
+                icon.textContent = isRockerActive ? '📱' : '🔘';
             }
         }
 
@@ -802,6 +824,12 @@
                     window.history.replaceState(historyState, '', url.toString());
                 }
             } catch (_) {}
+        }
+
+        // 同步侧边微动翻页条显示状态
+        const edgeRocker = document.getElementById('reader-edge-rocker');
+        if (edgeRocker) {
+            edgeRocker.classList.toggle('hidden', !state.settings.edgeRockerEnabled || state.activeView !== 'reader');
         }
     }
 
@@ -1457,6 +1485,11 @@
             shelfBadge.textContent = `${m}:${s}`;
             shelfBadge.style.color = isPomodoroActive ? '#ff3b30' : '';
         }
+        const fabBadge = document.getElementById('fab-pomodoro-badge');
+        if (fabBadge) {
+            fabBadge.textContent = `${m}:${s}`;
+            fabBadge.style.color = isPomodoroActive ? '#ff3b30' : '';
+        }
     }
 
     function playPomodoroChime() {
@@ -1977,7 +2010,7 @@
             });
         }
 
-        // 手机硬件音量键翻页切换
+        // 手机硬件音量键翻页切换 (增加浏览器拦截说明)
         const btnVolumeFlip = document.getElementById('btn-toggle-volume-flip');
         if (btnVolumeFlip) {
             btnVolumeFlip.addEventListener('click', () => {
@@ -1985,12 +2018,33 @@
                 applySettings();
                 saveSettings();
                 if (state.settings.volumeKeyEnabled) {
-                    showToast('📱 已开启音量键翻页（音量减下一页 / 音量加上一页）');
+                    showToast('📱 已开启音量键翻页（提示：部分手机浏览器会拦截硬件键，若无反应可开启下方的侧边虚拟微动键）', 3800);
                 } else {
                     showToast('已关闭音量键翻页');
                 }
             });
         }
+
+        // 单手侧边虚拟翻页键设置切换
+        const btnRockerToggle = document.getElementById('btn-toggle-edge-rocker');
+        if (btnRockerToggle) {
+            btnRockerToggle.addEventListener('click', () => {
+                state.settings.edgeRockerEnabled = !state.settings.edgeRockerEnabled;
+                applySettings();
+                saveSettings();
+                if (state.settings.edgeRockerEnabled) {
+                    showToast('📱 已开启侧边虚拟微动翻页键，单手拇指轻触即可翻页！');
+                } else {
+                    showToast('已关闭侧边虚拟翻页键');
+                }
+            });
+        }
+
+        // 侧边虚拟按键点击翻页
+        const rockerPrev = document.getElementById('rocker-btn-prev');
+        const rockerNext = document.getElementById('rocker-btn-next');
+        if (rockerPrev) rockerPrev.addEventListener('click', () => prevPage());
+        if (rockerNext) rockerNext.addEventListener('click', () => nextPage());
 
         // 内置书籍选择
         document.querySelectorAll('.shelf-book-item').forEach(item => {
@@ -2079,6 +2133,137 @@
         }
     });
 
+
+    // ===== 11.5 全局自由拖拽伴读悬浮窗 (番茄钟 · 白噪音 · 主题切换) =====
+    function initFloatingCompanionFAB() {
+        const fab = document.getElementById('floating-companion-fab');
+        if (!fab) return;
+
+        const STORAGE_KEY_FAB = 'lanmao_reader_fab_pos_v1';
+        try {
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_FAB));
+            if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+                const maxX = Math.max(0, window.innerWidth - fab.offsetWidth - 8);
+                const maxY = Math.max(0, window.innerHeight - fab.offsetHeight - 8);
+                const x = Math.min(maxX, Math.max(8, saved.x));
+                const y = Math.min(maxY, Math.max(8, saved.y));
+                fab.style.left = x + 'px';
+                fab.style.top = y + 'px';
+                fab.style.right = 'auto';
+                fab.style.bottom = 'auto';
+            }
+        } catch (_) {}
+
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let origX = 0, origY = 0;
+        let hasMoved = false;
+
+        function onDragStart(clientX, clientY) {
+            isDragging = true;
+            hasMoved = false;
+            startX = clientX;
+            startY = clientY;
+            const rect = fab.getBoundingClientRect();
+            origX = rect.left;
+            origY = rect.top;
+            fab.style.left = origX + 'px';
+            fab.style.top = origY + 'px';
+            fab.style.right = 'auto';
+            fab.style.bottom = 'auto';
+            fab.style.transition = 'none';
+        }
+
+        function onDragMove(clientX, clientY, e) {
+            if (!isDragging) return;
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+            if (Math.hypot(dx, dy) > 5) {
+                hasMoved = true;
+                if (e && e.cancelable) e.preventDefault();
+            }
+            if (hasMoved) {
+                const maxX = Math.max(0, window.innerWidth - fab.offsetWidth - 8);
+                const maxY = Math.max(0, window.innerHeight - fab.offsetHeight - 8);
+                const newX = Math.min(maxX, Math.max(8, origX + dx));
+                const newY = Math.min(maxY, Math.max(8, origY + dy));
+                fab.style.left = newX + 'px';
+                fab.style.top = newY + 'px';
+            }
+        }
+
+        function onDragEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+            fab.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
+            if (hasMoved) {
+                try {
+                    const rect = fab.getBoundingClientRect();
+                    localStorage.setItem(STORAGE_KEY_FAB, JSON.stringify({ x: rect.left, y: rect.top }));
+                } catch (_) {}
+            }
+        }
+
+        // 触控拖拽监听
+        fab.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            onDragStart(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length !== 1) return;
+            onDragMove(e.touches[0].clientX, e.touches[0].clientY, e);
+        }, { passive: false });
+
+        window.addEventListener('touchend', onDragEnd, { passive: true });
+        window.addEventListener('touchcancel', onDragEnd, { passive: true });
+
+        // 桌面端鼠标拖拽
+        fab.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            onDragStart(e.clientX, e.clientY);
+            const onMouseMove = (ev) => onDragMove(ev.clientX, ev.clientY, ev);
+            const onMouseUp = () => {
+                onDragEnd();
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+            };
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        });
+
+        // 悬浮窗内部按钮
+        const fabPomo = document.getElementById('fab-toggle-pomodoro');
+        if (fabPomo) {
+            fabPomo.addEventListener('click', () => {
+                if (hasMoved) return;
+                togglePomodoro();
+            });
+        }
+
+        const fabNoise = document.getElementById('fab-toggle-noise');
+        if (fabNoise) {
+            fabNoise.addEventListener('click', () => {
+                if (hasMoved) return;
+                const readerToggleNoise = document.getElementById('reader-toggle-noise');
+                if (readerToggleNoise) readerToggleNoise.click();
+            });
+        }
+
+        const fabTheme = document.getElementById('fab-theme-btn');
+        if (fabTheme) {
+            fabTheme.addEventListener('click', () => {
+                if (hasMoved) return;
+                const themes = ['parchment', 'green', 'white', 'dark'];
+                const currentIdx = themes.indexOf(state.settings.theme);
+                const nextIdx = (currentIdx + 1) % themes.length;
+                setTheme(themes[nextIdx]);
+                const nameMap = { parchment: '羊皮纸', green: '护眼绿', white: '雅致白', dark: '暗夜黑' };
+                showToast(`🎨 已切换主题：${nameMap[themes[nextIdx]] || themes[nextIdx]}`);
+            });
+        }
+    }
+
     // ===== 14. 初始化流程 =====
     function init() {
         loadSavedSettings();
@@ -2086,6 +2271,7 @@
         bindEvents();
         updateBookshelfHero();
         renderBookshelfGrid();
+        initFloatingCompanionFAB();
 
         // 检查 URL 参数是否有直接打开的书籍
         const params = new URLSearchParams(window.location.search);
