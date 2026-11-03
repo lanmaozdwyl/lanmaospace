@@ -1,7 +1,7 @@
 import {getSupabase} from './lib/supabase-client.js';
 import {MODES,freshFocus,readFocus,reconcileFocus,changeFocus} from './lib/focus.mjs';
 const $=id=>document.getElementById(id);
-let state=freshFocus(Date.now()),key=null,ended=false,working=false,audio=null,timer=null;
+let state=freshFocus(Date.now()),key=null,ended=false,working=false,audio=null,timer=null,lastSignal=null;
 const status=$('focus-storage-status');
 function notify(text){if(status)status.textContent=text;}
 function sound(){
@@ -11,7 +11,7 @@ function sound(){
 }
 function unlockAudio(){try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume().catch(()=>{});}catch{}}
 function text(id,value){if($(id))$(id).textContent=value;}
-function paint(){
+function paint(allowStart=false){
  const sec=state.remainingSeconds,str=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
  for(const id of ['pomodoro-timer','pomodoro-mini-time','focus-main-timer'])text(id,str);
  const label=state.isRunning?'暂停':sec>0&&sec<MODES[state.mode]?'继续':'开始';
@@ -23,13 +23,14 @@ function paint(){
  for(const [id,value,unit] of [['focus-completed-count',state.completedCount,'个番茄'],['focus-total-minutes',state.totalMinutes,'分钟']]){const el=$(id);if(el){const small=document.createElement('small');small.textContent=unit;el.replaceChildren(document.createTextNode(value+' '),small);}}
  for(const btn of document.querySelectorAll('.pomodoro-mode-btn,.focus-mode-btn')){const active=Number(btn.dataset.time)===MODES[state.mode];btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active));}
  const circle=$('focus-progress-circle');if(circle){circle.style.strokeDashoffset=String(653.45*(1-sec/MODES[state.mode]));circle.style.stroke=state.mode==='focus'?'#0071e3':state.mode==='short-break'?'#34c759':'#af52de';}
+ const signal=state.isRunning+':'+state.mode;if(signal!==lastSignal){lastSignal=signal;window.dispatchEvent(new CustomEvent('lanmao-focus-state',{detail:{running:state.isRunning,mode:state.mode,allowStart}}));}
  document.title=state.isRunning?'('+str+') 蓝昴空间 · 专注中':'Lanmao Space | 蓝昴空间';
 }
 function load(){try{return readFocus(localStorage.getItem(key),Date.now());}catch{notify('浏览器禁止保存；本次计时仅保留在当前页面。');return state;}}
 function persist(){try{localStorage.setItem(key,JSON.stringify(state));}catch{notify('保存失败；离开页面后可能丢失本次计时。');}}
 async function mutate(action){
  if(!key||ended||working)return;working=true;
- const work=()=>{if(ended)return;const previous=load();const result=changeFocus(previous,action,Date.now());state=result.state;persist();paint();if(result.completed)sound();};
+ const work=()=>{if(ended)return;const previous=load();const result=changeFocus(previous,action,Date.now());state=result.state;persist();paint(action==='toggle');if(result.completed)sound();};
  try{if(navigator.locks)await navigator.locks.request(key,work);else work();}finally{working=false;}
 }
 function pulse(){if(!key||ended)return;const result=reconcileFocus(state,Date.now());if(result.completed||state.date!==result.state.date)mutate('tick');else{state=result.state;paint();}}

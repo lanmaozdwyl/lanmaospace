@@ -1,5 +1,7 @@
 plugins { id 'com.android.application' }
 def signingReady = System.getenv('ANDROID_KEYSTORE_PATH') && System.getenv('ANDROID_STORE_PASSWORD') && System.getenv('ANDROID_KEY_ALIAS') && System.getenv('ANDROID_KEY_PASSWORD')
+def appVersionCode = (System.getenv('ANDROID_VERSION_CODE') ?: '100').toInteger()
+def appVersionName = System.getenv('ANDROID_VERSION_NAME') ?: '1.1.0'
 android {
  namespace 'space.lanmao.app'
  compileSdk 34
@@ -7,8 +9,8 @@ android {
   applicationId "space.lanmao.app"
   minSdk 21
   targetSdk 34
-  versionCode (System.getenv('ANDROID_VERSION_CODE') ?: '100').toInteger()
-  versionName (System.getenv('ANDROID_VERSION_NAME') ?: '1.1.0')
+  versionCode appVersionCode
+  versionName appVersionName
  }
  signingConfigs {
   if (signingReady) {

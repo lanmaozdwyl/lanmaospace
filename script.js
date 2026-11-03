@@ -379,6 +379,7 @@ mediaTabs.forEach((tab, index) => {
     let isPlaying = false;
     let currentSound = 'rain';
     let sleepTimerId = null;
+    let fadeTimerId = null;
     let currentVolume = Number(volSlider.value) / 100;
 
     const SOUND_INFO = {
@@ -386,7 +387,7 @@ mediaTabs.forEach((tab, index) => {
         brown: { title: '布朗噪声 · Deep Brown Noise', desc: '正在播放：温暖低频轰鸣，深度阅读心流' },
         breeze: { title: '林间微风 · Forest Breeze', desc: '正在播放：山林微风拂叶，清新自然' },
         fire: { title: '温暖柴火 · Cozy Campfire', desc: '正在播放：冬夜炉火毕剥，安心踏实' },
-        alpha: { title: '432Hz 脑波 · Alpha Flow Wave', desc: '正在播放：10Hz 双耳阿尔法波和弦，专注冥想' }
+        alpha: { title: '双音背景 · Twin Tones', desc: '正在播放：216Hz 与226Hz合成纯音' }
     };
 
     function ensureAudioContext() {
@@ -539,7 +540,7 @@ mediaTabs.forEach((tab, index) => {
         const osc2 = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
 
-        // 216Hz and 226Hz produce a pure 10Hz Alpha brainwave rhythm
+        // Mix two sine tones; no claim about brainwave effects.
         osc1.type = 'sine';
         osc1.frequency.value = 216;
 
@@ -570,6 +571,9 @@ mediaTabs.forEach((tab, index) => {
 
     function playSound(type) {
         ensureAudioContext();
+        if(fadeTimerId){clearTimeout(fadeTimerId);fadeTimerId=null;}
+        masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        masterGain.gain.setValueAtTime(currentVolume,audioCtx.currentTime);
         stopAllNodes();
 
         switch (type) {
@@ -590,7 +594,9 @@ mediaTabs.forEach((tab, index) => {
         if (masterGain && audioCtx) {
             masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
             masterGain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-            setTimeout(() => {
+            if(fadeTimerId)clearTimeout(fadeTimerId);
+            fadeTimerId=setTimeout(() => {
+                fadeTimerId=null;
                 stopAllNodes();
                 if (masterGain && audioCtx) {
                     masterGain.gain.setValueAtTime(currentVolume, audioCtx.currentTime);
@@ -669,23 +675,15 @@ mediaTabs.forEach((tab, index) => {
         });
     });
 
-    // Synergize with Pomodoro Focus: when pomodoro starts, auto-play ambient sound if enabled
-    const focusStartBtn = document.getElementById('focus-main-start') || document.getElementById('pomodoro-start');
-    if (focusStartBtn && syncCheckbox) {
-        focusStartBtn.addEventListener('click', () => {
-            setTimeout(() => {
-                const timerText = document.getElementById('focus-start-label')?.textContent || focusStartBtn.textContent;
-                const isPomodoroRunning = timerText.includes('暂停');
-                if (syncCheckbox.checked) {
-                    if (isPomodoroRunning && !isPlaying) {
-                        playSound(currentSound);
-                    } else if (!isPomodoroRunning && isPlaying) {
-                        pauseSound();
-                    }
-                }
-            }, 100);
-        });
-    }
+    // 使用真实状态事件，兼容悬浮与主体按钮；只在本页主动开始时自动播音。
+    window.addEventListener('lanmao-focus-state',event=>{
+        if(!syncCheckbox?.checked)return;
+        const detail=event.detail||{};
+        if(detail.running&&detail.mode==='focus'){
+            if(detail.allowStart&&!isPlaying)playSound(currentSound);
+        }else if(isPlaying)pauseSound();
+    });
+    window.addEventListener('pagehide',()=>stopAllNodes());
 
     updateUI();
 })();
@@ -696,3 +694,4 @@ if ('serviceWorker' in navigator && window.location.protocol.startsWith('http'))
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     });
 }
+
