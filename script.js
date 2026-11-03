@@ -485,3 +485,10 @@ mediaTabs.forEach((tab, index) => {
 
     updateDisplay();
 })();
+
+// ===== Register PWA Service Worker =====
+if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+}
