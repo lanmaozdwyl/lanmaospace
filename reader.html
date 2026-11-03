@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-reader-theme="parchment">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="蓝昴空间在线阅读器：微信读书风格排版、左右分页翻页、羊皮纸与护眼夜间主题、无额度消耗本地畅读。">
+    <title>伴读阅读器 | 蓝昴空间</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="reader.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body class="reader-body">
+    <!-- 顶部控制栏 (微信读书风格，点击页面中央呼出) -->
+    <header class="reader-topbar" id="reader-topbar">
+        <div class="reader-topbar-left">
+            <a href="index.html" class="reader-back-btn" title="返回空间首页" aria-label="返回首页">
+                <span aria-hidden="true">‹</span>
+                <span class="reader-back-label">蓝昴空间</span>
+            </a>
+            <span class="reader-book-title" id="reader-header-title">《小王子》精选伴读篇</span>
+        </div>
+        <div class="reader-topbar-right">
+            <button type="button" class="reader-tool-btn" id="reader-toggle-noise" title="开启伴读白噪声" aria-label="伴读白噪声">
+                <span aria-hidden="true">🎧</span>
+                <span class="reader-tool-badge" id="reader-noise-state">关</span>
+            </button>
+            <button type="button" class="reader-tool-btn" id="reader-toggle-pomodoro" title="学术番茄专注钟" aria-label="学术专注钟">
+                <span aria-hidden="true">🍅</span>
+                <span class="reader-tool-badge" id="reader-pomodoro-time">25:00</span>
+            </button>
+            <button type="button" class="reader-tool-btn" id="reader-import-btn" title="导入本地书籍 (TXT/EPUB/MD)" aria-label="导入本地书籍">
+                <span aria-hidden="true">📂</span>
+                <span class="reader-tool-text">导入</span>
+            </button>
+            <button type="button" class="reader-tool-btn" id="reader-btn-settings" title="排版与主题设置" aria-label="排版与主题">
+                <span aria-hidden="true">Aa</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 核心阅读视口 -->
+    <main class="reader-stage" id="reader-stage">
+        <!-- 页面页眉（小字显示章节） -->
+        <div class="reader-page-header">
+            <span id="reader-header-chapter">第一章</span>
+        </div>
+
+        <!-- 分页舞台容器 -->
+        <div class="reader-viewport" id="reader-viewport">
+            <article class="reader-content" id="reader-content">
+                <!-- 动态解析渲染的书籍正文 -->
+            </article>
+        </div>
+
+        <!-- 页面页脚（页码与电量/时间风格的进度） -->
+        <div class="reader-page-footer">
+            <span id="reader-footer-info">第 1 / 1 页</span>
+            <span id="reader-footer-percent">0%</span>
+        </div>
+
+        <!-- 翻页手势/点击感应遮罩 (左翻页/中菜单/右翻页) -->
+        <div class="reader-touch-zones" aria-hidden="true">
+            <div class="touch-zone touch-prev" id="zone-prev" title="点击或左滑上一页"></div>
+            <div class="touch-zone touch-menu" id="zone-menu" title="点击呼出控制栏"></div>
+            <div class="touch-zone touch-next" id="zone-next" title="点击或右滑下一页"></div>
+        </div>
+    </main>
+
+    <!-- 底部控制栏 -->
+    <footer class="reader-bottombar" id="reader-bottombar">
+        <!-- 进度滑块行 -->
+        <div class="reader-progress-row">
+            <button type="button" class="reader-nav-step" id="reader-prev-chapter" title="上一章">上一章</button>
+            <div class="reader-slider-wrap">
+                <input type="range" min="1" max="100" value="1" id="reader-page-slider" class="reader-slider" aria-label="翻页进度条">
+            </div>
+            <button type="button" class="reader-nav-step" id="reader-next-chapter" title="下一章">下一章</button>
+        </div>
+
+        <!-- 底部快捷功能入口 -->
+        <div class="reader-dock">
+            <button type="button" class="reader-dock-btn" id="reader-btn-toc">
+                <span class="dock-icon" aria-hidden="true">📑</span>
+                <span>目录</span>
+            </button>
+            <button type="button" class="reader-dock-btn" id="reader-btn-themes">
+                <span class="dock-icon" aria-hidden="true">🎨</span>
+                <span>主题与排版</span>
+            </button>
+            <button type="button" class="reader-dock-btn" id="reader-btn-bookshelf">
+                <span class="dock-icon" aria-hidden="true">📚</span>
+                <span>内置书单</span>
+            </button>
+            <button type="button" class="reader-dock-btn" id="reader-btn-fullscreen">
+                <span class="dock-icon" aria-hidden="true">⛶</span>
+                <span>全屏沉浸</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- 目录抽屉 (左侧滑出) -->
+    <aside class="reader-drawer drawer-left" id="drawer-toc" aria-label="书籍目录" hidden>
+        <div class="drawer-header">
+            <h3>📑 目录大纲</h3>
+            <button type="button" class="drawer-close-btn" id="close-toc" aria-label="关闭目录">✕</button>
+        </div>
+        <div class="drawer-body toc-list" id="reader-toc-list">
+            <!-- 章节列表项 -->
+        </div>
+    </aside>
+
+    <!-- 排版设置抽屉 (底部滑出，微信读书同款) -->
+    <aside class="reader-drawer drawer-bottom" id="drawer-settings" aria-label="排版与主题设置" hidden>
+        <div class="drawer-header">
+            <h3>🎨 微信读书风格排版设置</h3>
+            <button type="button" class="drawer-close-btn" id="close-settings" aria-label="收起排版面板">✕</button>
+        </div>
+        <div class="drawer-body settings-body">
+            <!-- 主题色系选择 -->
+            <div class="setting-group">
+                <span class="setting-title">背景主题</span>
+                <div class="theme-chips" role="radiogroup" aria-label="背景色选择">
+                    <button type="button" class="theme-chip theme-parchment active" data-theme="parchment" title="羊皮纸护眼黄">
+                        <span class="chip-preview"></span>
+                        <span class="chip-label">羊皮纸</span>
+                    </button>
+                    <button type="button" class="theme-chip theme-green" data-theme="green" title="莫兰迪护眼绿">
+                        <span class="chip-preview"></span>
+                        <span class="chip-label">护眼绿</span>
+                    </button>
+                    <button type="button" class="theme-chip theme-white" data-theme="white" title="纯白书页">
+                        <span class="chip-preview"></span>
+                        <span class="chip-label">纯白</span>
+                    </button>
+                    <button type="button" class="theme-chip theme-dark" data-theme="dark" title="极夜黑 (夜间模式)">
+                        <span class="chip-preview"></span>
+                        <span class="chip-label">夜间黑</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 字号与行距设置 -->
+            <div class="setting-group">
+                <span class="setting-title">字号大小</span>
+                <div class="font-size-control">
+                    <button type="button" class="font-btn" id="btn-font-dec" aria-label="缩小字号">A -</button>
+                    <span class="font-current-val" id="val-font-size">18 px</span>
+                    <button type="button" class="font-btn" id="btn-font-inc" aria-label="放大字号">A +</button>
+                </div>
+            </div>
+
+            <!-- 字体风格 -->
+            <div class="setting-group">
+                <span class="setting-title">字体风格</span>
+                <div class="font-family-chips">
+                    <button type="button" class="font-family-chip active" data-font="system">系统黑体</button>
+                    <button type="button" class="font-family-chip" data-font="serif">典雅宋体</button>
+                    <button type="button" class="font-family-chip" data-font="kaiti">韵味楷体</button>
+                </div>
+            </div>
+
+            <!-- 翻页模式 -->
+            <div class="setting-group">
+                <span class="setting-title">翻页模式</span>
+                <div class="font-family-chips">
+                    <button type="button" class="flip-mode-chip active" data-mode="flip">左右分页翻页</button>
+                    <button type="button" class="flip-mode-chip" data-mode="scroll">上下连续滚动</button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 本地导入与内置书单抽屉 -->
+    <aside class="reader-drawer drawer-right" id="drawer-bookshelf" aria-label="本地导入与书架" hidden>
+        <div class="drawer-header">
+            <h3>📚 本地阅读与内置书库</h3>
+            <button type="button" class="drawer-close-btn" id="close-bookshelf" aria-label="关闭书库">✕</button>
+        </div>
+        <div class="drawer-body bookshelf-body">
+            <!-- 本地文件拖入/导入卡片 -->
+            <div class="import-card" id="drop-zone">
+                <span class="import-icon" aria-hidden="true">📥</span>
+                <h4>打开本地电子书</h4>
+                <p>支持 <b>.txt</b>、<b>.epub</b>、<b>.md</b> 格式文件</p>
+                <label class="import-file-btn" for="file-input">
+                    <span>从手机 / 电脑挑选文件</span>
+                    <input type="file" id="file-input" accept=".txt,.md,.epub,text/plain,text/markdown" hidden>
+                </label>
+                <div class="import-security-tip">
+                    <span aria-hidden="true">🔒</span>
+                    <span>纯前端内存解析，绝不上传云端，零空间消耗</span>
+                </div>
+            </div>
+
+            <div class="shelf-section-title">内置经典伴读著作</div>
+            <div class="shelf-books-list">
+                <button type="button" class="shelf-book-item active" data-book="prince">
+                    <span class="shelf-book-emoji">📙</span>
+                    <div class="shelf-book-meta">
+                        <h5>小王子 (The Little Prince)</h5>
+                        <p>圣埃克苏佩里 · 治愈灵魂的经典哲理名著</p>
+                    </div>
+                </button>
+                <button type="button" class="shelf-book-item" data-book="solitude">
+                    <span class="shelf-book-emoji">📘</span>
+                    <div class="shelf-book-meta">
+                        <h5>百年孤独 (精读篇章)</h5>
+                        <p>加西亚·马尔克斯 · 魔幻现实主义巅峰之作</p>
+                    </div>
+                </button>
+                <button type="button" class="shelf-book-item" data-book="flow">
+                    <span class="shelf-book-emoji">📗</span>
+                    <div class="shelf-book-meta">
+                        <h5>心流与学术生产力指南</h5>
+                        <p>蓝昴精选 · 沉浸式阅读与知识管理方法论</p>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 快捷提示框 -->
+    <div class="reader-toast" id="reader-toast" hidden></div>
+
+    <!-- 抽屉暗色遮罩背景 -->
+    <div class="reader-backdrop" id="reader-backdrop" hidden></div>
+
+    <script src="reader.js"></script>
+</body>
+</html>

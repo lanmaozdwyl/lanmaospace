@@ -204,6 +204,7 @@ mediaTabs.forEach((tab, index) => {
     const searchIndex = [
         { title: '首页 · 概览与精选', category: '页面', url: '#home', icon: '🏠' },
         { title: '阅读书单 · 学术专著与笔记', category: '页面', url: '#books', icon: '📚' },
+        { title: '伴读阅读器 · 微信读书排版 (零额度本地畅读)', category: '效率工具', url: 'reader.html', icon: '📖' },
         { title: '沉浸伴读白噪声 · 雨声/布朗噪声/微风/柴火/脑波', category: '伴读音效', url: '#ambient', icon: '🎧' },
         { title: '雨落窗台白噪声 (Rainfall)', category: '伴读音效', url: '#ambient', icon: '🌧️' },
         { title: '深度布朗噪声 (Deep Brown Noise)', category: '伴读音效', url: '#ambient', icon: '🌊' },

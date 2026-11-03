@@ -3108,6 +3108,37 @@ body[data-theme="dark"] .focus-stat-divider {
     background: rgba(0, 113, 227, 0.14);
     color: #0071e3;
 }
+.books-reader-pill {
+    background: rgba(179, 89, 0, 0.09);
+    color: #b35900;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    border-radius: 980px;
+}
+.books-reader-pill:hover {
+    background: rgba(179, 89, 0, 0.16);
+    color: #b35900;
+}
+.book-read-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #0071e3;
+    background: rgba(0, 113, 227, 0.08);
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-decoration: none;
+    margin-left: 8px;
+    transition: background-color 0.15s;
+}
+.book-read-pill:hover {
+    background: rgba(0, 113, 227, 0.16);
+}
 
 /* Dark mode for Ambient Card */
 @media (prefers-color-scheme: dark) {
