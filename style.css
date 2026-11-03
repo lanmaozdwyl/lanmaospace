@@ -1758,3 +1758,87 @@ body[data-theme="dark"] ::-webkit-scrollbar-thumb {
 body[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.35);
 }
+
+/* ===== 网易云音乐歌单专属卡片 ===== */
+.netease-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    max-width: 640px;
+    margin: 24px auto 0;
+    padding: 18px 24px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    backdrop-filter: blur(12px);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.netease-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(234, 51, 35, 0.4);
+    box-shadow: 0 8px 30px rgba(234, 51, 35, 0.12);
+}
+.netease-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+}
+.netease-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #e60026, #b8001f);
+    font-size: 20px;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(230, 0, 38, 0.35);
+    flex-shrink: 0;
+}
+.netease-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f5f5f7;
+    margin: 0;
+}
+.netease-sub {
+    font-size: 13px;
+    color: #8e8e93;
+    margin: 4px 0 0;
+}
+.netease-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: 980px;
+    background: linear-gradient(135deg, #e60026, #c20020);
+    color: #ffffff !important;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(230, 0, 38, 0.3);
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
+}
+.netease-btn:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 6px 20px rgba(230, 0, 38, 0.45);
+}
+.netease-btn:active {
+    transform: scale(0.96);
+}
+@media (max-width: 600px) {
+    .netease-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px 20px;
+    }
+    .netease-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
