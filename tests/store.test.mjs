@@ -146,3 +146,15 @@ test('无匹配时显示空提示并计数为零', async () => {
     assert.equal(get('empty').hidden, false);
     assert.equal(countText(get), '0 款可咨询商品');
 });
+
+test('未填写质保时不生成 undefined 或退款承诺',async()=>{
+ const {get,done}=await runStore(successFetch());await done;await flush();
+ get('products').children[0].children[4].onclick();
+ assert.equal(get('detail-warranty-text').textContent,'质保与售后范围请在付款前联系店主确认。');
+});
+test('无质保与已填写质保商品展示对应说明',async()=>{
+ const rows=catalogData.map((p,i)=>({...p,warranty:i===0?'无质保':'质保 1 个月'}));
+ const {get,done}=await runStore(async()=>({ok:true,json:async()=>rows}));await done;await flush();
+ get('products').children[0].children[4].onclick();assert.equal(get('detail-warranty-text').className,'warranty-none');
+ get('products').children[1].children[4].onclick();assert.match(get('detail-warranty-text').textContent,/质保 1 个月/);assert.equal(get('detail-warranty-text').className,'');
+});

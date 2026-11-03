@@ -119,7 +119,10 @@ function openDetail(product, button) {
     document.getElementById("detail-note").textContent = product.note;
     document.getElementById("detail-requirements").textContent = product.requirements || "请联系店主确认账号条件。";
     const warrantyText = document.getElementById("detail-warranty-text");
-    if (product.warranty === "无质保") {
+    if (!product.warranty) {
+        warrantyText.textContent = "质保与售后范围请在付款前联系店主确认。";
+        warrantyText.className = "";
+    } else if (product.warranty === "无质保") {
         warrantyText.textContent = "此商品不提供质保与售后，购买前请确认是否接受。";
         warrantyText.className = "warranty-none";
     } else {

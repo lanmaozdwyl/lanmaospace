@@ -210,3 +210,9 @@ Supabase 新域名 Site URL / Redirect URLs 已通知店主配置，店主回复
 新增 .github/workflows/checks.yml：main 推送和 PR 自动运行 48 项功能测试及 56 项 PostgreSQL 权限检查，随后验证 dist 打包。固定官方 checkout/setup-node 提交，只有 contents:read，不保存 Git 凭据，不使用任何 Supabase 密钥或连接生产库。PGlite 0.5.14 只装到 runner 临时目录，不增加网站运行依赖，也不进入 dist。
 
 新增头像数据库测试验证 profiles 自己可读写、跨用户修改拒绝、avatars 存储路径写权限、公开留言函数仅返回已通过留言且无邮箱/user_id 列、头像桶限额/类型配置和 SQL 可重复执行。注意：内存 SQL 测试不模拟 Storage HTTP 文件大小/MIME 网关校验，也不能代替真实用户上传测试。GitHub 检查与 Cloudflare 自动部署并行；数据库检查失败会报告，但当前不会单独阻止 Cloudflare 发布，生产构建继续依赖功能测试门槛。
+
+## FAQ、质保与缓存修复（2026-11-03）
+
+基于 d52b744 修复审核发现的五项问题：FAQ HTML/CSS 纳入 dist 与线上验收；登录回跳放行 /faq 和 /faq.html；商品测试改用独立缺省样例以适配新增质保字段，补充质保字段校验与缺省/无质保说明回归；缺少 warranty 时不再显示 undefined 或自动生成退款承诺；未版本化资源统一 no-cache 重新验证，memo-config.js 单独 no-store，移除冲突的一年 immutable 规则（_headers 和旧 netlify.toml 对齐）。FAQ 未确认的付款方式、交付时限、在线时段改为咨询确认。products.json、商品价格和店主填写的质保内容未改。
+
+本地 52 项功能测试与 dist 构建通过，产物内 FAQ 页面、CSS、登录脚本通过 HTTP 检查。真实邮件及账号流程仍待用户实测。上线后须核验 FAQ 200、新 JS/CSS 匹配与实际缓存头，并查看 GitHub checks 结果。

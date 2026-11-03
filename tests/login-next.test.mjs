@@ -9,3 +9,5 @@ test('头像页两种正式地址在登录后正确返回',()=>{assert.equal(nex
 test('工具分类、搜索参数及锚点在登录后保留',()=>{assert.equal(next('/tools/?category=academic#tools-search'),'/tools/?category=academic#tools-search');});
 test('外部网址和协议相对网址不能作为回跳目标',()=>{for(const raw of ['https://evil.invalid/profile','//evil.invalid/profile','javascript:alert(1)'])assert.equal(next(raw),'index.html');});
 test('未知站内路径与缺失回跳参数返回首页',()=>{assert.equal(next('/unknown'),'index.html');assert.equal(next(''),'index.html');});
+
+test('FAQ 页面登录后保留原目标与锚点',()=>{assert.equal(next('/faq'),'/faq');assert.equal(next('/faq.html#faq-warranty'),'/faq.html#faq-warranty');});
