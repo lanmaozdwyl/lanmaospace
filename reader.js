@@ -7,7 +7,7 @@
  * 2. 微信读书同款排版美学与交互：左右分页平滑滑动、横向手势、三区点击感应、自适应列高。
  * 3. 基础个性化设置：四色主题（羊皮纸/护眼绿/纯白/极夜黑）、无级字号缩放（A-/A+）、三大字体、翻页/连续滚动切换。
  * 4. 内置经典伴读名著（《小王子》、《百年孤独》、《心流与学术生产力指南》）与本地书籍秒级导入（TXT/MD/EPUB）。
- * 5. 沉浸伴读伴侣：Web Audio 程序化实时白噪声（雨声）与 25 分钟学术专注番茄钟。
+ * 5. 沉浸伴读伴侣：自托管自然录音及柔和木鱼与 25 分钟学术专注番茄钟。
  */
 
 (function () {
@@ -247,7 +247,7 @@
                         '将任务拆解为不可分割的 25 分钟“专注冲刺”，期间杜绝任何多任务切换。当计时钟滴答流逝时，大脑会进入一种纯粹的目标锁定状态。',
                         '而伴读白噪声（White & Brown Noise）的声学原理在于“听觉掩蔽效应”：',
                         '人耳之所以容易被办公室交谈声或邻居家关门声打断，是因为这些声音具有突发的高峰值动态对比。',
-                        '通过 Web Audio 合成的连续雨声或深层布朗噪声，能够均匀填补环境声谱的凹陷，将外界突发噪音自然平滑化，降低大脑听觉皮层的唤醒阈值，促成深层心流。'
+                        '你可以按个人喜好选择溪流、三档雨声、木鱼、远钟、海浪或林间鸟鸣。建议从低音量开始；环境音的舒适度因人而异，不作专注或健康效果保证。'
                     ]
                 },
                 {
@@ -802,96 +802,7 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // ===== 10. Web Audio 程序化伴读白噪声 (纯代码合成，免流量) =====
-    let noiseCtx = null;
-    let noiseGain = null;
-    let noiseSource = null;
-    let isNoiseOn = false;
-
-    function toggleWhiteNoise() {
-        if (isNoiseOn) {
-            stopWhiteNoise();
-        } else {
-            startWhiteNoise();
-        }
-    }
-
-    function startWhiteNoise() {
-        try {
-            const AudioCtx = window.AudioContext || window.webkitAudioContext;
-            if (!AudioCtx) {
-                showToast('当前浏览器不支持 Web Audio');
-                return;
-            }
-            noiseCtx = noiseCtx || new AudioCtx();
-            if (noiseCtx.state === 'suspended') {
-                noiseCtx.resume();
-            }
-
-            // 生成 2 秒粉红/布朗噪声缓冲
-            const bufferSize = noiseCtx.sampleRate * 2;
-            const buffer = noiseCtx.createBuffer(1, bufferSize, noiseCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            let lastVal = 0;
-            for (let i = 0; i < bufferSize; i++) {
-                const white = Math.random() * 2 - 1;
-                lastVal = (lastVal + (0.02 * white)) / 1.02;
-                data[i] = lastVal * 3.6;
-            }
-
-            noiseSource = noiseCtx.createBufferSource();
-            noiseSource.buffer = buffer;
-            noiseSource.loop = true;
-
-            // 低通滤波器营造淅淅沥沥的柔和雨声
-            const filter = noiseCtx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(850, noiseCtx.currentTime);
-
-            noiseGain = noiseCtx.createGain();
-            noiseGain.gain.setValueAtTime(0.001, noiseCtx.currentTime);
-            noiseGain.gain.linearRampToValueAtTime(0.2, noiseCtx.currentTime + 0.6);
-
-            noiseSource.connect(filter);
-            filter.connect(noiseGain);
-            noiseGain.connect(noiseCtx.destination);
-
-            noiseSource.start();
-            isNoiseOn = true;
-            updateNoiseBadge(true);
-            showToast('🎧 伴读雨声白噪声已开启');
-        } catch (err) {
-            console.warn('White noise failed to initialize:', err);
-        }
-    }
-
-    function stopWhiteNoise() {
-        if (!isNoiseOn || !noiseGain || !noiseCtx) return;
-        try {
-            noiseGain.gain.setValueAtTime(noiseGain.gain.value, noiseCtx.currentTime);
-            noiseGain.gain.linearRampToValueAtTime(0.001, noiseCtx.currentTime + 0.35);
-            setTimeout(() => {
-                if (noiseSource) {
-                    try { noiseSource.stop(); noiseSource.disconnect(); } catch (_) {}
-                    noiseSource = null;
-                }
-                isNoiseOn = false;
-                updateNoiseBadge(false);
-                showToast('伴读白噪声已关闭');
-            }, 360);
-        } catch (_) {
-            isNoiseOn = false;
-            updateNoiseBadge(false);
-        }
-    }
-
-    function updateNoiseBadge(active) {
-        const badge = document.getElementById('reader-noise-state');
-        if (badge) {
-            badge.textContent = active ? '开' : '关';
-            badge.style.color = active ? '#34c759' : '';
-        }
-    }
+    // 伴读声音由 reader-audio.js 与全站共用音源管理。
 
     // ===== 11. 25分钟学术番茄专注钟 =====
     let pomodoroSeconds = 25 * 60;
@@ -1048,6 +959,7 @@
 
         // 键盘按键翻页支持
         document.addEventListener('keydown', (e) => {
+            if (document.querySelector('dialog[open]')) return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
                 e.preventDefault();
@@ -1091,8 +1003,6 @@
         }
 
         // 顶部工具栏快捷按钮
-        const noiseBtn = document.getElementById('reader-toggle-noise');
-        if (noiseBtn) noiseBtn.addEventListener('click', toggleWhiteNoise);
 
         const pomodoroBtn = document.getElementById('reader-toggle-pomodoro');
         if (pomodoroBtn) pomodoroBtn.addEventListener('click', togglePomodoro);

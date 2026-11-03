@@ -215,7 +215,7 @@
         <div class="container">
             <div class="section-header fade-up">
                 <h2 class="section-title" id="ambient-title"><span aria-hidden="true">🎧</span> 沉浸伴读白噪声</h2>
-                <p class="section-desc">浏览器内声音合成 · 不下载音频文件 · 深度阅读、自习与冥想伴侣</p>
+                <p class="section-desc">自然实录与柔和木鱼 · 轻声陪伴阅读 · 选择后才加载音频</p>
             </div>
 
             <div class="ambient-card fade-up">
@@ -226,8 +226,8 @@
                             <span></span><span></span><span></span><span></span>
                         </span>
                         <div class="ambient-now-text">
-                            <span class="ambient-now-title" id="ambient-current-title">雨落窗台 · Rainfall</span>
-                            <span class="ambient-now-status" id="ambient-current-status">就绪 · 点击卡片或播放键开启伴读心流</span>
+                            <span class="ambient-now-title" id="ambient-current-title">山间溪流</span>
+                            <span class="ambient-now-status" id="ambient-current-status" role="status" aria-live="polite">就绪 · 选择一种声音，低音量开始</span>
                         </div>
                     </div>
 
@@ -238,79 +238,109 @@
                         </button>
                         <div class="ambient-vol-wrap">
                             <span class="ambient-vol-icon" aria-hidden="true">🔉</span>
-                            <input type="range" id="ambient-volume" min="0" max="100" value="65" class="ambient-vol-slider" aria-label="白噪声主音量">
+                            <input type="range" id="ambient-volume" min="0" max="100" value="40" class="ambient-vol-slider" aria-label="白噪声主音量">
                             <span class="ambient-vol-icon" aria-hidden="true">🔊</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- 声音卡片网格 -->
-                <div class="ambient-grid" role="radiogroup" aria-label="选择白噪声类型">
-                    <button type="button" class="ambient-sound-card active" data-sound="rain" role="radio" aria-checked="true">
-                        <div class="ambient-card-icon">🌧️</div>
-                        <div class="ambient-card-info">
-                            <h4>雨落窗台</h4>
-                            <p class="ambient-card-en">Rainfall Ambience</p>
-                            <p class="ambient-card-desc">淅沥细雨敲打窗台，遮蔽外界杂音，沉淀浮躁心境</p>
-                        </div>
-                        <span class="ambient-card-tag">经典伴读</span>
+                <div class="ambient-grid" role="radiogroup" aria-label="选择伴读声音">
+                    <button type="button" class="ambient-sound-card active" data-sound="stream" role="radio" aria-checked="true" tabindex="0">
+                        <span class="ambient-card-icon" aria-hidden="true">💧</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">山间溪流</span>
+                            <span class="ambient-card-en">Flowing Stream</span>
+                            <span class="ambient-card-desc">细碎水流绕过石头，保留自然轻响</span>
+                        </span>
+                        <span class="ambient-card-tag">自然实录</span>
                     </button>
-
-                    <button type="button" class="ambient-sound-card" data-sound="brown" role="radio" aria-checked="false">
-                        <div class="ambient-card-icon">🌊</div>
-                        <div class="ambient-card-info">
-                            <h4>布朗噪声</h4>
-                            <p class="ambient-card-en">Deep Brown Noise</p>
-                            <p class="ambient-card-desc">温暖低频背景音，可按个人喜好调节音量</p>
-                        </div>
-                        <span class="ambient-card-tag">深度专注</span>
+                    <button type="button" class="ambient-sound-card" data-sound="rain-light" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🌦️</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">檐下小雨</span>
+                            <span class="ambient-card-en">Light Rain</span>
+                            <span class="ambient-card-desc">轻一点的雨丝，柔和安静</span>
+                        </span>
+                        <span class="ambient-card-tag">轻柔雨声</span>
                     </button>
-
-                    <button type="button" class="ambient-sound-card" data-sound="breeze" role="radio" aria-checked="false">
-                        <div class="ambient-card-icon">🌲</div>
-                        <div class="ambient-card-info">
-                            <h4>林间微风</h4>
-                            <p class="ambient-card-en">Forest Breeze</p>
-                            <p class="ambient-card-desc">风拂树叶的起伏沙沙声，宛若置身安静的自然林荫</p>
-                        </div>
-                        <span class="ambient-card-tag">清新自然</span>
+                    <button type="button" class="ambient-sound-card" data-sound="rain-medium" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🌧️</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">窗外中雨</span>
+                            <span class="ambient-card-en">Steady Rain</span>
+                            <span class="ambient-card-desc">均匀雨声，保留自然起伏</span>
+                        </span>
+                        <span class="ambient-card-tag">均匀雨声</span>
                     </button>
-
-                    <button type="button" class="ambient-sound-card" data-sound="fire" role="radio" aria-checked="false">
-                        <div class="ambient-card-icon">🔥</div>
-                        <div class="ambient-card-info">
-                            <h4>温暖柴火</h4>
-                            <p class="ambient-card-en">Cozy Campfire</p>
-                            <p class="ambient-card-desc">冬夜炉火毕剥轻响，带来安心踏实的伴读包裹感</p>
-                        </div>
-                        <span class="ambient-card-tag">温暖治愈</span>
+                    <button type="button" class="ambient-sound-card" data-sound="rain-heavy" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">☔</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">绵密大雨</span>
+                            <span class="ambient-card-en">Dense Rain</span>
+                            <span class="ambient-card-desc">实录片段叠成绵密雨幕，不加雷声</span>
+                        </span>
+                        <span class="ambient-card-tag">绵密雨幕</span>
                     </button>
-
-                    <button type="button" class="ambient-sound-card" data-sound="alpha" role="radio" aria-checked="false">
-                        <div class="ambient-card-icon">🧘</div>
-                        <div class="ambient-card-info">
-                            <h4>双音背景</h4>
-                            <p class="ambient-card-en">Alpha Flow Wave</p>
-                            <p class="ambient-card-desc">216Hz 与 226Hz 合成纯音，作为可选背景音</p>
-                        </div>
-                        <span class="ambient-card-tag">学术冥想</span>
+                    <button type="button" class="ambient-sound-card" data-sound="wooden-fish" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🪵</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">慢敲木鱼</span>
+                            <span class="ambient-card-en">Soft Wooden Fish</span>
+                            <span class="ambient-card-desc">每 2.4 秒轻敲，温和的木质共鸣</span>
+                        </span>
+                        <span class="ambient-card-tag">柔和合成</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="temple-bell" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🔔</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">寺院远钟</span>
+                            <span class="ambient-card-en">Distant Temple Bell</span>
+                            <span class="ambient-card-desc">每 24 秒一次，钟声渐渐散去</span>
+                        </span>
+                        <span class="ambient-card-tag">留白悠长</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="waves" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🌊</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">缓缓海浪</span>
+                            <span class="ambient-card-en">Gentle Ocean Waves</span>
+                            <span class="ambient-card-desc">浪涌轻推沙岸，缓缓来去</span>
+                        </span>
+                        <span class="ambient-card-tag">自然实录</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="forest" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🌿</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">林间鸟鸣</span>
+                            <span class="ambient-card-en">Birdsong & Forest Wind</span>
+                            <span class="ambient-card-desc">鸟鸣和树叶风声混合，轻盈自然</span>
+                        </span>
+                        <span class="ambient-card-tag">实录混音</span>
                     </button>
                 </div>
+
+                <p class="ambient-hint">建议从低音量开始。首次播放约加载 0.55 MB；切换时轻柔淡入淡出。木鱼为合成音，其余来自实录；三档雨声由同一录音选段、柔化与叠加制作。</p>
+                <details class="ambient-source-notes">
+                    <summary>声音来源与许可</summary>
+                    <p>本站对录音进行了选段、滤波柔化、响度调整及循环衔接；森林为混音，大雨有片段叠加。原作者、许可与修改说明如下：</p>
+                    <div id="ambient-credits"></div>
+                </details>
 
                 <!-- 底部智能设置与联动 -->
                 <div class="ambient-footer-bar">
                     <label class="ambient-feature-toggle" for="ambient-pomodoro-sync">
                         <input type="checkbox" id="ambient-pomodoro-sync" checked>
                         <span class="ambient-toggle-box"></span>
-                        <span class="ambient-toggle-text">🍅 联动学术番茄钟：开启专注时自动播放，小憩时淡出</span>
+                        <span class="ambient-toggle-text">🍅 联动专注钟：本页开始专注时播放，休息时淡出</span>
                     </label>
 
                     <div class="ambient-timer-select">
                         <span class="ambient-timer-label">⏱️ 定时关闭：</span>
-                        <button type="button" class="ambient-timer-pill active" data-timer="0">常开</button>
-                        <button type="button" class="ambient-timer-pill" data-timer="900">15m</button>
-                        <button type="button" class="ambient-timer-pill" data-timer="1800">30m</button>
-                        <button type="button" class="ambient-timer-pill" data-timer="3600">60m</button>
+                        <button type="button" class="ambient-timer-pill active" data-timer="0" aria-pressed="true">常开</button>
+                        <button type="button" class="ambient-timer-pill" data-timer="900" aria-pressed="false">15m</button>
+                        <button type="button" class="ambient-timer-pill" data-timer="1800" aria-pressed="false">30m</button>
+                        <button type="button" class="ambient-timer-pill" data-timer="3600" aria-pressed="false">60m</button>
                     </div>
                 </div>
             </div>
@@ -726,6 +756,7 @@
     <script type="module" src="guestbook.js"></script>
     <script type="module" src="guestbook-admin.js"></script>
     <script src="script.js"></script>
+    <script type="module" src="ambient.js"></script>
 <script src="motion.js"></script>
     <!-- Apple Spotlight Search Dialog -->
     <dialog id="spotlight-dialog" class="spotlight-modal" aria-label="全局快速搜索">

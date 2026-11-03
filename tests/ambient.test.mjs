@@ -1,15 +1,46 @@
-import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
-const source=fs.readFileSync(new URL('../script.js',import.meta.url),'utf8');const code=source.slice(source.indexOf('// ===== Ambient Focus Sounds'),source.indexOf('// ===== Register PWA'));
-function fixture(){
- const handlers={},elements=new Map(),timers=new Map();let timerId=0,starts=0,stops=0;
- function el(id){if(!elements.has(id))elements.set(id,{textContent:'',value:'65',checked:true,dataset:{},events:{},classList:{add(){},remove(){},toggle(){}},setAttribute(){},addEventListener(k,fn){this.events[k]=fn;}});return elements.get(id);}
- const cards=['rain','brown'].map(k=>{const e=el(k);e.dataset.sound=k;return e;});
- const param=()=>({value:1,setValueAtTime(){},linearRampToValueAtTime(){},cancelScheduledValues(){}});
- function node(stoppable=false){const n={gain:param(),frequency:param(),Q:param(),connect(){},disconnect(){}};if(stoppable){n.start=()=>starts++;n.stop=()=>stops++;}return n;}
- class Audio{constructor(){this.sampleRate=16;this.currentTime=0;this.state='running';this.destination={};}createGain(){return node();}createBuffer(c,n){return {getChannelData:()=>new Float32Array(n)};}createBufferSource(){return node(true);}createBiquadFilter(){return node();}createOscillator(){return node(true);}}
- const ctx={window:{AudioContext:Audio,addEventListener:(name,fn)=>handlers[name]=fn},document:{getElementById:el,querySelectorAll:selector=>selector==='.ambient-sound-card'?cards:[]},setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id)};
- vm.runInNewContext(code,ctx);return {el,signal:detail=>handlers['lanmao-focus-state']({detail}),flush:()=>{for(const [id,fn] of [...timers]){timers.delete(id);fn();}},get starts(){return starts;},get stops(){return stops;}};
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {createHash} from 'node:crypto';
+import {AMBIENT_SOUNDS, AmbientPlayer} from '../lib/ambient.mjs';
+const tick=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};
+function fixture(o={}){
+ const nodes=[],tasks=new Map();let n=0,fetches=0;
+ const param=()=>({value:1,setValueAtTime(v){this.value=v;},linearRampToValueAtTime(){},cancelScheduledValues(){},setTargetAtTime(v){this.value=v;}});
+ const context={currentTime:0,state:'running',destination:{},resume:o.resume||(()=>Promise.resolve()),decodeAudioData:o.decode||(()=>Promise.resolve({duration:46})),createGain:()=>({gain:param(),connect(){},disconnect(){}}),createBufferSource(){const x={starts:0,stops:0,connect(){},disconnect(){},start(){this.starts++;},stop(){this.stops++;}};nodes.push(x);return x;}};
+ const player=new AmbientPlayer({createContext:()=>context,schedule:fn=>{tasks.set(++n,fn);return n;},cancel:n=>tasks.delete(n),fetchAudio:o.fetch|| (async()=>{fetches++;return {ok:true,arrayBuffer:async()=>new ArrayBuffer(4)};})});
+ return {player,nodes,tasks,get fetches(){return fetches;},flush(){for(const [key,fn] of [...tasks]){tasks.delete(key);fn();}}};
 }
-test('本页主动开始专注触发播放，完成或休息停止声音',()=>{const f=fixture();f.signal({running:true,mode:'focus',allowStart:true});assert.equal(f.starts,1);assert.equal(f.el('ambient-play-label').textContent,'暂停声音');f.signal({running:false,mode:'focus'});assert.equal(f.el('ambient-play-label').textContent,'开启声音');f.flush();assert.equal(f.stops,1);});
-test('跨标签恢复或页面加载不自动播音，取消联动后不受专注状态影响',()=>{const f=fixture();f.signal({running:true,mode:'focus',allowStart:false});assert.equal(f.starts,0);f.el('ambient-pomodoro-sync').checked=false;f.signal({running:true,mode:'focus',allowStart:true});assert.equal(f.starts,0);});
-test('暂停后快速重新播放，旧淡出回调不能停止新声音',()=>{const f=fixture(),play=f.el('ambient-master-play').events.click;play();play();play();assert.equal(f.starts,2);assert.equal(f.stops,1);f.flush();assert.equal(f.stops,1);assert.equal(f.el('ambient-play-label').textContent,'暂停声音');});
+test('按需加载、循环播放，音量可归零',async()=>{const f=fixture();assert.equal(f.fetches,0);await f.player.play();assert.equal(f.fetches,1);assert.equal(f.nodes[0].loop,true);assert.equal(f.player.state,'playing');f.player.setVolume(0);assert.equal(f.player.gain.gain.value,0);});
+test('快速暂停重播，旧淡出不能停止新声音，缓存避免重复下载',async()=>{const f=fixture();await f.player.play();f.player.pause();await f.player.play();f.flush();assert.equal(f.nodes[0].stops,1);assert.equal(f.nodes[1].stops,0);assert.equal(f.fetches,1);});
+test('快速换声，旧加载结果不能覆盖新选择',async()=>{let resolve;const f=fixture({fetch:async u=>u.includes('stream')?new Promise(r=>resolve=r):{ok:true,arrayBuffer:async()=>new ArrayBuffer(4)}});const old=f.player.play();await tick();await f.player.play('forest');resolve({ok:true,arrayBuffer:async()=>new ArrayBuffer(4)});await old;assert.equal(f.player.current,'forest');assert.equal(f.nodes.length,1);assert.deepEqual([...f.player.cache.keys()],['forest']);});
+test('加载中取消，迟到的解码不能播放',async()=>{let resolve;const f=fixture({decode:()=>new Promise(r=>resolve=r)});const p=f.player.play();await tick();f.player.pause();resolve({});await p;assert.equal(f.nodes.length,0);assert.equal(f.player.state,'paused');});
+test('网络错误可显示失败并重试',async()=>{let fail=true;const f=fixture({fetch:async()=>({ok:!fail,arrayBuffer:async()=>new ArrayBuffer(4)})});await f.player.play();assert.equal(f.player.state,'error');fail=false;await f.player.play();assert.equal(f.player.state,'playing');});
+test('系统拒绝恢复或坏音频解码时都退出加载',async()=>{for(const o of [{resume:()=>Promise.reject(Error())},{decode:()=>Promise.reject(Error())}]){const f=fixture(o);await f.player.play();assert.equal(f.player.state,'error');assert.equal(f.nodes.length,0);}});
+test('恢复一直未完成也能在超时后退出',async()=>{const f=fixture({resume:()=>new Promise(()=>{})});const p=f.player.play();f.flush();await p;assert.equal(f.player.state,'error');});
+test('浏览器原生 fetch 和计时器不被播放器重新绑定接收者',async()=>{
+ const saved={fetch:globalThis.fetch,setTimeout:globalThis.setTimeout,clearTimeout:globalThis.clearTimeout};
+ const f=fixture();await f.player.play();let requests=0;
+ try {
+  globalThis.setTimeout=function(){assert.equal(this,undefined);return 1;};
+  globalThis.clearTimeout=function(){assert.equal(this,undefined);};
+  globalThis.fetch=async function(){assert.equal(this,undefined);requests++;return {ok:true,arrayBuffer:async()=>new ArrayBuffer(4)};};
+  const player=new AmbientPlayer({createContext:()=>f.player.context});await player.play();assert.equal(player.state,'playing');assert.equal(requests,1);player.dispose();
+ } finally {Object.assign(globalThis,saved);}
+});
+test('缓存最多两段；离开页面清理节点和缓存',async()=>{const f=fixture();for(const id of ['stream','forest','waves'])await f.player.play(id);assert.deepEqual([...f.player.cache.keys()],['forest','waves']);f.player.dispose();assert.equal(f.player.cache.size,0);assert.equal(f.player.retiring.size,0);assert(f.nodes.every(n=>n.stops===1));});
+function uiFixture(){
+ const elements=new Map(),handlers={},tasks=new Map();let now=0,task=0;
+ const el=id=>{if(!elements.has(id))elements.set(id,{value:'40',checked:true,dataset:{},events:{},textContent:'',attrs:{},classList:{toggle(){}},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){this.events[k]=fn;},append(){},focus(){this.focused=true;}});return elements.get(id);};
+ const cards=AMBIENT_SOUNDS.map(s=>Object.assign(el(s.id),{dataset:{sound:s.id}}));const pills=[0,900,1800,3600].map(n=>Object.assign(el(String(n)),{dataset:{timer:String(n)}}));
+ const f=fixture();class Player{constructor({onState}){f.player.onState=onState;return f.player;}}
+ const document={getElementById:el,createElement:el,querySelectorAll:s=>s.includes('sound-card')?cards:pills,addEventListener:(k,fn)=>handlers[k]=fn};
+ const code=fs.readFileSync(new URL('../ambient.js',import.meta.url),'utf8').replace(/^import .*;\s*/,'');
+ vm.runInNewContext(code,{AMBIENT_SOUNDS,AmbientPlayer:Player,document,window:{addEventListener:(k,fn)=>handlers[k]=fn},Date:{now:()=>now},setTimeout:fn=>{tasks.set(++task,fn);return task;},clearTimeout:id=>tasks.delete(id)});
+ return {...f,el,cards,pills,signal:d=>handlers['lanmao-focus-state']({detail:d}),advance:ms=>{now+=ms;handlers.visibilitychange();}};
+}
+test('仅本页主动开始专注才播放，跨标签恢复不播放，休息暂停',async()=>{const f=uiFixture();f.signal({running:true,mode:'focus',allowStart:false});await tick();assert.equal(f.nodes.length,0);f.signal({running:true,mode:'focus',allowStart:true});await tick();assert.equal(f.player.state,'playing');f.signal({running:false,mode:'break'});assert.equal(f.player.state,'paused');f.el('ambient-pomodoro-sync').checked=false;f.signal({running:true,mode:'focus',allowStart:true});await tick();assert.equal(f.player.state,'paused');});
+test('键盘切换更新焦点和单选状态，点击当前声音暂停',async()=>{const f=uiFixture();f.cards[0].events.keydown({key:'End',preventDefault(){}});await tick();assert.equal(f.player.current,'forest');assert(f.cards.at(-1).focused);assert.equal(f.cards.at(-1).attrs['aria-checked'],'true');f.cards.at(-1).events.click();assert.equal(f.player.state,'paused');});
+test('后台恢复时按真实截止时间停止定时播放',async()=>{const f=uiFixture();f.el('ambient-master-play').events.click();await tick();f.pills[1].events.click();f.advance(901000);assert.equal(f.player.state,'paused');assert.match(f.el('ambient-current-status').textContent,/定时已结束/);assert.equal(f.pills[0].attrs['aria-pressed'],'true');});
+test('8段音频授权、哈希、体积和雨声强弱顺序正确',()=>{const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),manifest=JSON.parse(fs.readFileSync(new URL('../audio/manifest.json',import.meta.url)));assert.equal(AMBIENT_SOUNDS.length,8);assert.equal(manifest.length,8);let bytes=0;for(const s of AMBIENT_SOUNDS){assert(html.includes(`data-sound="${s.id}"`));assert(s.credits.every(c=>c.author&&c.url.startsWith('https://')&&c.licenseUrl));const e=manifest.find(m=>m.id===s.id),data=fs.readFileSync(new URL('..'+s.url,import.meta.url));assert.equal(createHash('sha256').update(data).digest('hex'),e.sha256);assert(e.bytes<600000&&e.seconds>=40&&e.peak<.85);bytes+=data.length;}assert(bytes<4600000);const rms=id=>manifest.find(m=>m.id===id).rms;assert(rms('rain-light')<rms('rain-medium'));assert(rms('rain-medium')<rms('rain-heavy'));});

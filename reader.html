@@ -21,7 +21,7 @@
             <span class="reader-book-title" id="reader-header-title">《小王子》精选伴读篇</span>
         </div>
         <div class="reader-topbar-right">
-            <button type="button" class="reader-tool-btn" id="reader-toggle-noise" title="开启伴读白噪声" aria-label="伴读白噪声">
+            <button type="button" class="reader-tool-btn" id="reader-toggle-noise" title="选择伴读声音" aria-label="伴读白噪声" aria-haspopup="dialog" aria-expanded="false" aria-controls="reader-audio-panel">
                 <span aria-hidden="true">🎧</span>
                 <span class="reader-tool-badge" id="reader-noise-state">关</span>
             </button>
@@ -226,6 +226,18 @@
     <!-- 抽屉暗色遮罩背景 -->
     <div class="reader-backdrop" id="reader-backdrop" hidden></div>
 
+    <dialog id="reader-audio-panel" class="reader-audio-panel" aria-labelledby="reader-audio-title">
+        <div class="reader-audio-heading"><h2 id="reader-audio-title">伴读声音</h2><button type="button" id="reader-audio-close" aria-label="收起声音面板">✕</button></div>
+        <p>自然实录与柔和木鱼 · 选择后才加载，每段约 0.55 MB</p>
+        <label for="reader-audio-select">声音</label>
+        <select id="reader-audio-select"></select>
+        <label for="reader-audio-volume">音量</label>
+        <input id="reader-audio-volume" type="range" min="0" max="100" value="40">
+        <p id="reader-audio-status" role="status" aria-live="polite">就绪 · 选择声音后点击播放</p>
+        <button type="button" id="reader-audio-play" aria-pressed="false">播放声音</button>
+        <details><summary>当前声音来源与许可</summary><p id="reader-audio-credits"></p></details>
+    </dialog>
     <script src="reader.js"></script>
+    <script type="module" src="reader-audio.js"></script>
 </body>
 </html>

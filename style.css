@@ -2954,7 +2954,7 @@ body[data-theme="dark"] .focus-stat-divider {
 
 .ambient-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
 }
 .ambient-sound-card {
@@ -3320,3 +3320,16 @@ body[data-theme="dark"] .books-ambient-pill {
         animation: none;
     }
 }
+
+/* 自然伴读声：8 张卡片，保留手机布局与键盘焦点。 */
+.ambient-card-info > span { display: block; }
+.ambient-card-title { font-size: 15px; font-weight: 650; color: var(--dark); }
+body[data-theme="dark"] .ambient-card-title { color: #f5f5f7; }
+@media (prefers-color-scheme: dark) { body:not([data-theme="light"]) .ambient-card-title { color: #f5f5f7; } }
+.ambient-hint, .ambient-source-notes { font-size: 12px; color: var(--gray-600); line-height: 1.8; margin-top: 20px; }
+.ambient-source-notes summary { cursor: pointer; padding: 10px 0; }
+.ambient-source-notes a { color: var(--blue); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.ambient-sound-card:focus-visible, .ambient-play-btn:focus-visible, .ambient-timer-pill:focus-visible, .ambient-source-notes summary:focus-visible, .ambient-vol-slider:focus-visible { outline: 3px solid #0071e3; outline-offset: 4px; }
+@media (max-width: 600px) { .ambient-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ambient-sound-card { min-width: 0; padding: 16px 12px; } .ambient-master-controls { width: 100%; } .ambient-vol-wrap { flex: 1; } .ambient-vol-slider { width: 100%; min-width: 50px; } }
+
+.ambient-feature-toggle input:focus-visible + .ambient-toggle-box { outline: 3px solid #0071e3; outline-offset: 4px; }

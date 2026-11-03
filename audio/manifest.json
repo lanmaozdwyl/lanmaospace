@@ -1,0 +1,98 @@
+[
+  {
+    "id": "stream",
+    "file": "audio/stream.mp3",
+    "bytes": 553080,
+    "seconds": 46.0,
+    "sampleRate": 32000,
+    "channels": 2,
+    "peak": 0.631676,
+    "rms": 0.076653,
+    "seamDelta": 0.097866,
+    "sha256": "568a26a9a353731ce3f8459f22ebde1d671b2d8e9935a25a0f0b174fc6160cc4"
+  },
+  {
+    "id": "rain-light",
+    "file": "audio/rain-light.mp3",
+    "bytes": 553080,
+    "seconds": 46.0,
+    "sampleRate": 32000,
+    "channels": 2,
+    "peak": 0.438576,
+    "rms": 0.059782,
+    "seamDelta": 0.024671,
+    "sha256": "3201059d8a9e657eec1b1b25fea8a67c0d921c2454288c6a36886cf66c61fa52"
+  },
+  {
+    "id": "rain-medium",
+    "file": "audio/rain-medium.mp3",
+    "bytes": 553080,
+    "seconds": 46.0,
+    "sampleRate": 32000,
+    "channels": 2,
+    "peak": 0.486544,
+    "rms": 0.082701,
+    "seamDelta": 0.060598,
+    "sha256": "24be233e5c31e294a6adaff13c5fba7856e4ded62966d9ba09a3015d212198a0"
+  },
+  {
+    "id": "rain-heavy",
+    "file": "audio/rain-heavy.mp3",
+    "bytes": 553080,
+    "seconds": 46.0,
+    "sampleRate": 32000,
+    "channels": 2,
+    "peak": 0.479642,
+    "rms": 0.102494,
+    "seamDelta": 0.097408,
+    "sha256": "9c04f20c38873f8db6d3532e0dd54a8c3f13082e127bdb90091662d4c90c9814"
+  },
+  {
+    "id": "forest",
+    "file": "audio/forest.mp3",
+    "bytes": 553080,
+    "seconds": 46.0,
+    "sampleRate": 32000,
+    "channels": 2,
+    "peak": 0.467182,
+    "rms": 0.066957,
+    "seamDelta": 0.009171,
+    "sha256": "2855e6074dc3d827f69c8a81d0dbee0e2053cc21d6efd48d46e165ac5a5a963b"
+  },
+  {
+    "id": "waves",
+    "file": "audio/waves.mp3",
+    "bytes": 553080,
+    "seconds": 46.0,
+    "sampleRate": 32000,
+    "channels": 2,
+    "peak": 0.479373,
+    "rms": 0.083726,
+    "seamDelta": 0.027068,
+    "sha256": "6c42bf2e3c2a09b950cd9b34a05b0b6811ef98fad488481f39771d42dce76e83"
+  },
+  {
+    "id": "wooden-fish",
+    "file": "audio/wooden-fish.mp3",
+    "bytes": 577272,
+    "seconds": 48.0,
+    "sampleRate": 32000,
+    "channels": 2,
+    "peak": 0.323207,
+    "rms": 0.039956,
+    "seamDelta": 0.0,
+    "sha256": "aa8a2698b34c44908e7998806df73db905143ef9d05cf485a498cb66f82f836c"
+  },
+  {
+    "id": "temple-bell",
+    "file": "audio/temple-bell.mp3",
+    "bytes": 577272,
+    "seconds": 48.0,
+    "sampleRate": 32000,
+    "channels": 2,
+    "peak": 0.300265,
+    "rms": 0.036852,
+    "seamDelta": 0.0,
+    "sha256": "0fe9c05485fddf2140d3cac8cd9bb01e037e749b3418faa10f44f645fbc17695"
+  }
+]

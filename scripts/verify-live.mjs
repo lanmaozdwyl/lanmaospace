@@ -53,7 +53,8 @@ async function checkHash(path) {
 for (const [path, markers] of [
     ['memo.html', ['backup-panel', 'conflict-panel', 'preview-dialog', 'memo-sync-status', 'clear-search-button']],
     ['store.html', ['catalog-error', 'catalog-retry', 'detail-metadata', 'id="search"', 'id="products"']],
-    ['index.html', ['guestbookStatus', 'id="toolbox"', 'tools/']],
+    ['reader.html', ['reader-audio-panel','reader-audio-select','reader-audio.js']],
+    ['index.html', ['guestbookStatus', 'id="toolbox"', 'tools/', 'ambient-credits', 'data-sound="forest"', 'ambient.js']],
     ['login.html', ['login-form', 'login-panel', 'recovery-form']],
     ['faq.html', ['faq-purchase','faq-warranty','faq-account','faq-contact']],
     ['account.html', ['account-reset-password','account-signout-all','account-actions']],
@@ -65,8 +66,20 @@ for (const [path, markers] of [
 for (const path of [
     'memo.js', 'memo-core.mjs', 'memo.css', 'login.js', 'guestbook-admin.js',
     'lib/supabase-client.js', 'store.js', 'lib/catalog.mjs', 'tools/tools.js', 'tools/tools.css',
-    'guestbook.js', 'auth-guard.js', 'profile.js', 'profile.css', 'lib/avatar.mjs', 'faq.css', 'store.css', 'space.js', 'space.css', 'lib/space.mjs', 'lib/space-export.mjs', 'lib/account-security.mjs','lib/signout.mjs', 'account.js', 'script.js','style.css','mobile.css','mobile-nav.js','focus.js','lib/focus.mjs','sw.js','manifest.json',
+    'guestbook.js', 'auth-guard.js', 'profile.js', 'profile.css', 'lib/avatar.mjs', 'faq.css', 'store.css', 'space.js', 'space.css', 'lib/space.mjs', 'lib/space-export.mjs', 'lib/account-security.mjs','lib/signout.mjs', 'account.js', 'script.js','style.css','mobile.css','mobile-nav.js','focus.js','lib/focus.mjs','ambient.js','reader-audio.js','reader.js','reader.css','lib/ambient.mjs','audio/manifest.json','sw.js','manifest.json',
 ]) await checkHash(path);
+
+// 自托管声音逐字节验收，避免只有按钮上线而音频漏发或返回 HTML。
+for (const track of JSON.parse(await localText('audio/manifest.json'))) {
+    try {
+        const response = await fetch(`${site}/${track.file}?verify=${Date.now()}`, {signal: AbortSignal.timeout(20000)});
+        const bytes = response.ok ? Buffer.from(await response.arrayBuffer()) : Buffer.alloc(0);
+        const match = response.ok && response.headers.get('content-type')?.includes('audio/') &&
+            bytes.length === track.bytes && createHash('sha256').update(bytes).digest('hex') === track.sha256;
+        console.log(`${track.file}: HTTP ${response.status}, ${match ? 'MATCH' : 'OLD_OR_DIFFERENT'}`);
+        ready &&= match;
+    } catch (error) { ready = false; console.log(`${track.file}: REQUEST_FAILED (${error.name})`); }
+}
 
 // 商品目录：结构比对（名称、分类、价格顺序一致），不把字节差异当成内容不一致。
 try {

@@ -35,3 +35,9 @@ Cloudflare Pages 免费项目 `lanmaospace` 关联 GitHub `main` 分支，Framew
 ## 最近部署状态
 
 正式站为 Cloudflare Pages（https://lanmaospace.pages.dev/），推送 main 后自动构建部署；用 `node scripts/verify-live.mjs` 核验（2026-11-02 已扩展覆盖商店/工具站/首页/登录页与商品图片）。Netlify 旧站不再更新。
+
+## 自然伴读声音（2026-11-03）
+
+首页提供溪流、小雨、中雨、大雨、慢敲木鱼、寺院远钟、海浪、林间鸟鸣与风声。自然声为开放实录，木鱼为自制柔和合成音；三档雨由同一实录分段处理。点击后才加载，支持淡入淡出、定时和专注钟联动。来源与离线制作方法见 [AUDIO-SOURCES.md](AUDIO-SOURCES.md)。
+
+阅读器耳机按钮也已接入同一套 8 种声音（reader-audio.js），支持底部面板选择、音量、暂停及原作者署名；面板打开不自动播放。reader.js 旧合成雨声已移除，保留原阅读器其他功能。
