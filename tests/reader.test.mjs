@@ -9,6 +9,11 @@ const jsSource = readFileSync(new URL('../reader.js', import.meta.url), 'utf8');
 
 test('reader.html 结构完整且严格符合 CSP 无内联代码', () => {
     // 包含核心组件
+    assert(htmlSource.includes('id="view-bookshelf"'), '缺少书架视图容器');
+    assert(htmlSource.includes('id="view-reader"'), '缺少阅读器视图容器');
+    assert(htmlSource.includes('id="btn-back-to-shelf"'), '缺少返回书架按钮');
+    assert(htmlSource.includes('id="shelf-hero-card"'), '缺少书架 Hero 卡片');
+    assert(htmlSource.includes('id="shelf-books-grid"'), '缺少书架典藏网格');
     assert(htmlSource.includes('id="reader-viewport"'), '缺少视口容器');
     assert(htmlSource.includes('id="reader-content"'), '缺少正文容器');
     assert(htmlSource.includes('id="reader-topbar"'), '缺少顶部控制栏');
@@ -50,6 +55,39 @@ test('reader.css 包含微信读书四大主题色与自适应列分页样式', 
     assert(cssSource.includes('perspective: 2000px'), '缺少 3D 立体透视深度设置');
     assert(cssSource.includes('.reader-book-spine'), '缺少精装书书脊装订线样式');
     assert(cssSource.includes('.flip-effects-grid'), '缺少翻页动效四宫格样式');
+});
+
+test('我的书架总览大厅与微信读书沉浸伴读器双视图 SPA 架构验证', () => {
+    // 视图一与视图二共存且默认隔离
+    assert(htmlSource.includes('id="view-bookshelf"'), '需包含“我的书架”大厅视图容器');
+    assert(htmlSource.includes('id="view-reader"'), '需包含沉浸阅读器视图容器');
+    assert(htmlSource.includes('id="btn-back-to-shelf"'), '需包含“‹ 我的书架”返回按钮');
+    assert(htmlSource.includes('id="shelf-hero-card"'), '需包含最近在读/继续阅读 Hero 推荐卡片');
+    assert(htmlSource.includes('id="shelf-books-grid"'), '需包含精选伴读典藏卡片网格');
+    assert(htmlSource.includes('id="shelf-file-input"'), '需包含本地零额度文件导入通道');
+
+    // CSS 双视图控制与样式
+    assert(cssSource.includes('.reader-view-container'), '需定义双视图容器基础样式');
+    assert(cssSource.includes('.reader-view-container[hidden]'), '需定义隐藏视图 display: none 规则');
+    assert(cssSource.includes('.shelf-hero-card'), '需定义书架 Hero 卡片样式');
+    assert(cssSource.includes('.shelf-books-grid'), '需定义书架书籍网格样式');
+    assert(cssSource.includes('.reader-back-shelf-btn'), '需定义阅读器返回书架按钮样式');
+
+    // JS 视图切换机制
+    assert(jsSource.includes('function switchView('), '需实现 switchView 双视图平滑切换引擎');
+    assert(jsSource.includes('updateBookshelfHero()'), '需包含书架 Hero 卡片进度更新逻辑');
+    assert(jsSource.includes("switchView('bookshelf')"), '需默认导向我的书架大厅');
+});
+
+test('移动端点击与长按蓝块遮罩彻底消除（WebKit Tap-Highlight & Callout Suppression）', () => {
+    // 验证全局 -webkit-tap-highlight-color 消除默认半透明蓝色高亮
+    assert(cssSource.includes('-webkit-tap-highlight-color: transparent !important;'), '全局必须强制关闭 WebKit 移动端点击蓝块遮罩');
+    // 验证 -webkit-touch-callout 消除长按放大镜与上下文系统选区蓝块
+    assert(cssSource.includes('-webkit-touch-callout: none !important;'), '必须强制关闭 WebKit 移动端长按呼出放大镜及呼出菜单');
+    // 验证触控热区禁绝选中
+    assert(cssSource.includes('.reader-touch-zones'), '触控区必须单独配置防选中保护');
+    // 验证 JS 中 contextmenu 阻止长按上下文事件
+    assert(jsSource.includes("contextmenu"), '需阻止长按 contextmenu 事件以彻底消除蓝块');
 });
 
 test('reader.js 内置伴读名著完整且无任何外部网络依赖', () => {

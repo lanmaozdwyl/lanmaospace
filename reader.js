@@ -274,6 +274,7 @@
         currentPage: 1,
         totalPages: 1,
         menuVisible: false,
+        activeView: 'bookshelf',
         settings: {
             theme: 'parchment', // parchment | green | white | dark
             fontSize: 18,        // 14 ~ 28
@@ -459,6 +460,135 @@
         });
         const backdrop = document.getElementById('reader-backdrop');
         if (backdrop) backdrop.hidden = true;
+    }
+
+    
+    // ===== 6.5 双视图切换与书架大厅管理 =====
+    function switchView(viewName, bookId, chapterIndex, page) {
+        const shelfView = document.getElementById('view-bookshelf');
+        const readerView = document.getElementById('view-reader');
+        if (!shelfView || !readerView) return;
+
+        if (viewName === 'reader') {
+            shelfView.hidden = true;
+            readerView.hidden = false;
+            state.activeView = 'reader';
+
+            const targetBookId = bookId || state.currentBookId || 'prince';
+            const targetChapter = typeof chapterIndex === 'number' ? chapterIndex : (state.currentChapterIndex || 0);
+            const targetPage = typeof page === 'number' ? page : (state.currentPage || 1);
+
+            loadBook(targetBookId, targetChapter, targetPage);
+            hideMenu();
+
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('book', targetBookId);
+                window.history.replaceState({ view: 'reader', book: targetBookId }, '', url.toString());
+            } catch (_) {}
+        } else {
+            readerView.hidden = true;
+            shelfView.hidden = false;
+            state.activeView = 'bookshelf';
+
+            closeAllDrawers();
+            updateBookshelfHero();
+
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('book');
+                window.history.replaceState({ view: 'bookshelf' }, '', url.toString());
+            } catch (_) {}
+        }
+    }
+
+    function updateBookshelfHero() {
+        const heroCard = document.getElementById('shelf-hero-card');
+        if (!heroCard) return;
+
+        const saved = loadSavedProgress();
+        let bookId = 'prince';
+        let chapterIndex = 0;
+        let page = 1;
+
+        if (saved && saved.bookId && state.books[saved.bookId]) {
+            bookId = saved.bookId;
+            chapterIndex = saved.chapterIndex || 0;
+            page = saved.page || 1;
+        }
+
+        const book = state.books[bookId] || BUILTIN_BOOKS.prince;
+        const heroEmoji = document.getElementById('shelf-hero-emoji');
+        const heroTitle = document.getElementById('shelf-hero-title');
+        const heroAuthor = document.getElementById('shelf-hero-author');
+        const heroChapter = document.getElementById('shelf-hero-chapter');
+        const heroBar = document.getElementById('shelf-hero-bar');
+        const heroPct = document.getElementById('shelf-hero-pct');
+        const heroCover = document.getElementById('shelf-hero-cover');
+
+        if (heroEmoji) heroEmoji.textContent = book.coverEmoji || '📖';
+        if (heroTitle) heroTitle.textContent = book.title;
+        if (heroAuthor) heroAuthor.textContent = book.author || '经典著作';
+
+        const chapter = (book.chapters && book.chapters[chapterIndex]) ? book.chapters[chapterIndex] : null;
+        if (heroChapter) {
+            heroChapter.textContent = chapter ? chapter.title : '第一章';
+        }
+
+        const totalChapters = (book.chapters && book.chapters.length) || 1;
+        const pct = Math.min(100, Math.max(5, Math.round(((chapterIndex + (page > 1 ? 0.5 : 0)) / totalChapters) * 100)));
+        if (heroBar) heroBar.style.width = pct + '%';
+        if (heroPct) heroPct.textContent = `已读 ${pct}%`;
+
+        if (heroCover) {
+            if (bookId === 'prince') {
+                heroCover.style.background = 'linear-gradient(135deg, #f4a261, #e76f51)';
+            } else if (bookId === 'solitude') {
+                heroCover.style.background = 'linear-gradient(135deg, #457b9d, #1d3557)';
+            } else if (bookId === 'flow') {
+                heroCover.style.background = 'linear-gradient(135deg, #2a9d8f, #264653)';
+            } else {
+                heroCover.style.background = 'linear-gradient(135deg, #9d4edd, #5a189a)';
+            }
+        }
+
+        const continueBtn = document.getElementById('shelf-hero-continue-btn');
+        if (continueBtn) {
+            continueBtn.onclick = () => {
+                switchView('reader', bookId, chapterIndex, page);
+            };
+        }
+    }
+
+    function renderBookshelfGrid() {
+        const grid = document.getElementById('shelf-books-grid');
+        if (!grid) return;
+
+        const bookKeys = Object.keys(state.books);
+        const customKeys = bookKeys.filter(k => !BUILTIN_BOOKS[k]);
+
+        grid.querySelectorAll('.book-card-item.custom-card').forEach(el => el.remove());
+
+        customKeys.forEach(k => {
+            const b = state.books[k];
+            const card = document.createElement('div');
+            card.className = 'book-card-item custom-card';
+            card.dataset.book = b.id;
+            card.tabIndex = 0;
+            card.setAttribute('role', 'button');
+            card.innerHTML = `
+                <div class="card-cover-wrap cover-custom">
+                    <span class="card-cover-emoji">${escapeHtml(b.coverEmoji || '📄')}</span>
+                    <div class="card-cover-spine"></div>
+                </div>
+                <div class="card-meta">
+                    <h4 class="card-title">${escapeHtml(b.title)}</h4>
+                    <p class="card-author">${escapeHtml(b.author || '本地导入')}</p>
+                    <span class="card-tag">本地书籍</span>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
     }
 
     // ===== 7. 书籍与章节加载 =====
@@ -998,7 +1128,8 @@
             }
             const bookObj = parseUploadedFile(file.name, text);
             state.books[bookObj.id] = bookObj;
-            loadBook(bookObj.id, 0, 1);
+            renderBookshelfGrid();
+            switchView('reader', bookObj.id, 0, 1);
             closeAllDrawers();
             showToast(`📖 已载入《${bookObj.title}》，零云端空间消耗！`, 3200);
         };
@@ -1057,12 +1188,18 @@
     }
 
     function updatePomodoroBadge() {
-        const badge = document.getElementById('reader-pomodoro-time');
-        if (!badge) return;
         const m = String(Math.floor(pomodoroSeconds / 60)).padStart(2, '0');
         const s = String(pomodoroSeconds % 60).padStart(2, '0');
-        badge.textContent = `${m}:${s}`;
-        badge.style.color = isPomodoroActive ? '#ff3b30' : '';
+        const badge = document.getElementById('reader-pomodoro-time');
+        if (badge) {
+            badge.textContent = `${m}:${s}`;
+            badge.style.color = isPomodoroActive ? '#ff3b30' : '';
+        }
+        const shelfBadge = document.getElementById('shelf-pomodoro-badge');
+        if (shelfBadge) {
+            shelfBadge.textContent = `${m}:${s}`;
+            shelfBadge.style.color = isPomodoroActive ? '#ff3b30' : '';
+        }
     }
 
     function playPomodoroChime() {
@@ -1379,7 +1516,111 @@
         if (btnThemes) btnThemes.addEventListener('click', () => openDrawer('drawer-settings'));
 
         const btnBookshelf = document.getElementById('reader-btn-bookshelf');
-        if (btnBookshelf) btnBookshelf.addEventListener('click', () => openDrawer('drawer-bookshelf'));
+        if (btnBookshelf) btnBookshelf.addEventListener('click', () => switchView('bookshelf'));
+
+        // 返回书架主厅按钮
+        const btnBackToShelf = document.getElementById('btn-back-to-shelf');
+        if (btnBackToShelf) {
+            btnBackToShelf.addEventListener('click', () => switchView('bookshelf'));
+        }
+
+        // 消除移动端长按选区及触控蓝块
+        const readingArea = document.getElementById('reader-stage');
+        if (readingArea) {
+            readingArea.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+        document.querySelectorAll('.touch-zone').forEach(z => {
+            z.addEventListener('contextmenu', (e) => e.preventDefault());
+        });
+
+        // 我的书架大厅交互逻辑
+        const shelfGrid = document.getElementById('shelf-books-grid');
+        if (shelfGrid) {
+            shelfGrid.addEventListener('click', (e) => {
+                const card = e.target.closest('.book-card-item');
+                if (card && card.dataset.book) {
+                    const bookId = card.dataset.book;
+                    const saved = loadSavedProgress();
+                    if (saved && saved.bookId === bookId) {
+                        switchView('reader', bookId, saved.chapterIndex || 0, saved.page || 1);
+                    } else {
+                        switchView('reader', bookId, 0, 1);
+                    }
+                }
+            });
+            shelfGrid.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const card = e.target.closest('.book-card-item');
+                    if (card && card.dataset.book) {
+                        e.preventDefault();
+                        card.click();
+                    }
+                }
+            });
+        }
+
+        // 书架本地文件选择与拖拽导入
+        const shelfFileInput = document.getElementById('shelf-file-input');
+        if (shelfFileInput) {
+            shelfFileInput.addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (file) handleLocalFileInput(file);
+                shelfFileInput.value = '';
+            });
+        }
+
+        const shelfDropZone = document.getElementById('shelf-drop-zone');
+        if (shelfDropZone) {
+            ['dragenter', 'dragover'].forEach(name => {
+                shelfDropZone.addEventListener(name, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    shelfDropZone.classList.add('dragover');
+                });
+            });
+            ['dragleave', 'drop'].forEach(name => {
+                shelfDropZone.addEventListener(name, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    shelfDropZone.classList.remove('dragover');
+                });
+            });
+            shelfDropZone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer && e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    handleLocalFileInput(files[0]);
+                }
+            });
+        }
+
+        // 书架白噪声联动
+        const shelfToggleNoise = document.getElementById('shelf-toggle-noise');
+        if (shelfToggleNoise) {
+            shelfToggleNoise.addEventListener('click', () => {
+                const readerToggleNoise = document.getElementById('reader-toggle-noise');
+                if (readerToggleNoise) readerToggleNoise.click();
+            });
+        }
+
+        // 书架专注番茄钟联动
+        const shelfTogglePomodoro = document.getElementById('shelf-toggle-pomodoro');
+        if (shelfTogglePomodoro) {
+            shelfTogglePomodoro.addEventListener('click', togglePomodoro);
+        }
+
+        // 书架主题轮换按钮
+        const shelfThemeBtn = document.getElementById('shelf-theme-btn');
+        if (shelfThemeBtn) {
+            shelfThemeBtn.addEventListener('click', () => {
+                const themes = ['parchment', 'green', 'white', 'dark'];
+                const currentIndex = themes.indexOf(state.settings.theme);
+                const nextTheme = themes[(currentIndex + 1) % themes.length];
+                state.settings.theme = nextTheme;
+                saveSettings();
+                applySettings();
+                showToast(`已切换主题：${nextTheme === 'parchment' ? '羊皮纸' : nextTheme === 'green' ? '护眼绿' : nextTheme === 'white' ? '纯白' : '夜间黑'}`);
+            });
+        }
 
         const btnFullscreen = document.getElementById('reader-btn-fullscreen');
         if (btnFullscreen) btnFullscreen.addEventListener('click', toggleFullscreen);
@@ -1544,21 +1785,26 @@
         loadSavedSettings();
         applySettings();
         bindEvents();
+        updateBookshelfHero();
+        renderBookshelfGrid();
 
         // 检查 URL 参数是否有直接打开的书籍
         const params = new URLSearchParams(window.location.search);
         const bookParam = params.get('book');
+        const viewParam = params.get('view');
 
         if (bookParam && state.books[bookParam]) {
-            loadBook(bookParam, 0, 1);
-        } else {
-            // 尝试恢复上次阅读历史
+            switchView('reader', bookParam, 0, 1);
+        } else if (viewParam === 'read') {
             const saved = loadSavedProgress();
             if (saved && saved.bookId && state.books[saved.bookId]) {
-                loadBook(saved.bookId, saved.chapterIndex || 0, saved.page || 1);
+                switchView('reader', saved.bookId, saved.chapterIndex || 0, saved.page || 1);
             } else {
-                loadBook('prince', 0, 1);
+                switchView('reader', 'prince', 0, 1);
             }
+        } else {
+            // 默认展现“我的书架”总览大厅，书籍需从书架点击进入
+            switchView('bookshelf');
         }
 
         // 默认将控制栏隐藏，营造微信读书纯净沉浸感
