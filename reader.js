@@ -669,11 +669,23 @@
 
     function saveProgress() {
         try {
+            const viewport = document.getElementById('reader-viewport');
+            let scrollY = 0;
+            let scrollRatio = 0;
+            if (state.settings.mode === 'scroll' && viewport) {
+                scrollY = viewport.scrollTop;
+                const maxScroll = viewport.scrollHeight - viewport.clientHeight;
+                scrollRatio = maxScroll > 0 ? (scrollY / maxScroll) : 0;
+            }
+
             const data = {
                 bookId: state.currentBookId,
                 chapterIndex: state.currentChapterIndex,
                 page: state.currentPage,
                 totalPages: state.totalPages,
+                scrollY: scrollY,
+                scrollRatio: scrollRatio,
+                hasRead: true,
                 timestamp: Date.now()
             };
             localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(data));
@@ -688,6 +700,9 @@
                     chapterIndex: state.currentChapterIndex,
                     page: state.currentPage,
                     totalPages: state.totalPages,
+                    scrollY: scrollY,
+                    scrollRatio: scrollRatio,
+                    hasRead: true,
                     timestamp: Date.now()
                 };
                 localStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(map));
@@ -1002,6 +1017,17 @@
         if (drawer) drawer.hidden = false;
         if (backdrop) backdrop.hidden = false;
         if (stage) stage.classList.add('drawer-opened');
+
+        // 目录抽屉自动将当前阅读章节居中滚入可视区
+        if (drawerId === 'drawer-toc' && drawer) {
+            highlightActiveToc();
+            requestAnimationFrame(() => {
+                const activeItem = drawer.querySelector('.toc-item.active');
+                if (activeItem) {
+                    activeItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }
+            });
+        }
     }
 
     function closeAllDrawers() {
@@ -1242,17 +1268,33 @@
 
         content.innerHTML = htmlParts.join('\n');
 
-        // 重置滚动位置
+        // 重置滚动位置 (分页模式下归零；滚动模式下交由后续精确恢复)
         const viewport = document.getElementById('reader-viewport');
-        if (viewport) viewport.scrollTop = 0;
+        if (viewport && state.settings.mode !== 'scroll') {
+            viewport.scrollTop = 0;
+        }
 
         // 重新排版计算分页
         requestAnimationFrame(() => {
             updatePaginationMetrics();
-            if (pageTarget === 'last') {
-                goToPage(state.totalPages);
+            if (state.settings.mode === 'scroll') {
+                // 滚动模式恢复章内垂直滚动位置
+                const saved = loadBookProgress(state.currentBookId) || loadSavedProgress();
+                if (saved && saved.chapterIndex === chapterIndex && viewport) {
+                    if (typeof saved.scrollRatio === 'number' && saved.scrollRatio > 0) {
+                        const maxScroll = viewport.scrollHeight - viewport.clientHeight;
+                        viewport.scrollTop = Math.round(maxScroll * saved.scrollRatio);
+                    } else if (typeof saved.scrollY === 'number' && saved.scrollY > 0) {
+                        viewport.scrollTop = saved.scrollY;
+                    }
+                }
+                updateFooterInfo();
             } else {
-                goToPage(Number(pageTarget) || 1);
+                if (pageTarget === 'last') {
+                    goToPage(state.totalPages);
+                } else {
+                    goToPage(Number(pageTarget) || 1);
+                }
             }
             updateChapterNavButtons();
             highlightActiveToc();
@@ -1277,10 +1319,16 @@
         });
     }
 
-    function highlightActiveToc() {
+    function highlightActiveToc(autoScroll = false) {
         const items = document.querySelectorAll('.toc-item');
         items.forEach((item, idx) => {
-            item.classList.toggle('active', idx === state.currentChapterIndex);
+            const isActive = idx === state.currentChapterIndex;
+            item.classList.toggle('active', isActive);
+            if (isActive && autoScroll) {
+                requestAnimationFrame(() => {
+                    item.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                });
+            }
         });
     }
 
@@ -1706,10 +1754,21 @@
         };
     }
 
+    function resetFileInputs() {
+        const shelfInput = document.getElementById('shelf-file-input');
+        if (shelfInput) shelfInput.value = '';
+        const drawerInput = document.getElementById('file-input');
+        if (drawerInput) drawerInput.value = '';
+    }
+
     function handleLocalFileInput(file) {
-        if (!file) return;
+        if (!file) {
+            resetFileInputs();
+            return;
+        }
         const reader = new FileReader();
         reader.onload = function (e) {
+            resetFileInputs();
             const buffer = e.target.result;
             if (!buffer || buffer.byteLength === 0) {
                 showToast('文件内容为空，请重新选择');
@@ -1758,6 +1817,7 @@
             closeAllDrawers();
         };
         reader.onerror = function () {
+            resetFileInputs();
             showToast('读取文件失败，请检查文件格式');
         };
         reader.readAsArrayBuffer(file);
@@ -2064,6 +2124,20 @@
             }
             return false;
         };
+
+        // 连续长卷滚动模式下的滚动进度实时持久化
+        const readerVp = document.getElementById('reader-viewport');
+        if (readerVp) {
+            let scrollSaveTimer = null;
+            readerVp.addEventListener('scroll', () => {
+                if (state.settings.mode !== 'scroll') return;
+                updateFooterInfo();
+                clearTimeout(scrollSaveTimer);
+                scrollSaveTimer = setTimeout(() => {
+                    saveProgress();
+                }, 120);
+            }, { passive: true });
+        }
 
         // 键盘按键翻页支持
         document.addEventListener('keydown', (e) => {

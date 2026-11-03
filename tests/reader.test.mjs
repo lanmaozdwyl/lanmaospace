@@ -496,3 +496,33 @@ test('存储空间异常与超限失败路径友好提示保障', () => {
     // 2. 失败提示分支
     assert(jsSource.includes('本机存储已满，刷新可能不会保留'), '写入失败时给出明确的临时阅读与空间提示');
 });
+
+test('第一梯队修复：长章节目录打开自动居中当前阅读章节', () => {
+    // 1. openDrawer 针对 drawer-toc 自动滚动激活项
+    assert(jsSource.includes("drawerId === 'drawer-toc'"), 'openDrawer 需专门处理目录抽屉');
+    assert(jsSource.includes("scrollIntoView({ block: 'center', behavior: 'smooth' })"), '打开目录必须对激活章节执行居中平滑滚动');
+    assert(jsSource.includes('highlightActiveToc'), '打开目录需触发高亮校验');
+});
+
+test('第一梯队修复：连续滚动模式 (Scroll) 垂直偏移持久化与精准恢复', () => {
+    // 1. saveProgress 包含垂直偏移字段
+    assert(jsSource.includes('scrollY: scrollY'), 'saveProgress 需保存垂直滚动像素偏移');
+    assert(jsSource.includes('scrollRatio: scrollRatio'), 'saveProgress 需保存垂直滚动比例');
+
+    // 2. 视口滚动事件监听与防抖存储
+    assert(jsSource.includes("readerVp.addEventListener('scroll'"), '需在 bindEvents 中监听阅读视口 scroll 事件');
+
+    // 3. 渲染章节时平滑回滚到章内精确阅读位置
+    assert(jsSource.includes('viewport.scrollTop = Math.round(maxScroll * saved.scrollRatio)'), '滚动模式恢复时需根据比例平滑恢复章内滚动位置');
+});
+
+test('第一梯队修复：文件选择器拦截后清空重置机制保障', () => {
+    // 1. resetFileInputs 工具函数
+    assert(jsSource.includes('function resetFileInputs()'), '必须包含统一清空文件选择器的函数 resetFileInputs');
+    assert(jsSource.includes("shelfInput.value = ''"), '必须重置书架文件选择器');
+    assert(jsSource.includes("drawerInput.value = ''"), '必须重置抽屉文件选择器');
+
+    // 2. 异常退出、魔数拦截及读取完成均触发重置
+    const handleFn = jsSource.slice(jsSource.indexOf('function handleLocalFileInput'), jsSource.indexOf('// 伴读声音由 reader-audio.js'));
+    assert(handleFn.includes('resetFileInputs()'), 'handleLocalFileInput 必须调用 resetFileInputs');
+});
