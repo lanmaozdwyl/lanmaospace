@@ -1,11 +1,20 @@
 const nav=document.createElement('nav');nav.className='mobile-dock';nav.setAttribute('aria-label','手机主要功能');
-const items=[['/','首页','⌂'],['/store.html','商店','▣'],['/tools/','工具','⊞'],['/space.html','我的','♙']];
-function active(path){let p=location.pathname.replace(/\.html$/,'').replace(/\/$/,'')||'/';if(p==='/index')p='/';if(p==='/tools/index')p='/tools';return path==='/'?p==='/':path==='/space.html'?['/space','/account','/profile','/memo'].includes(p):p===(path.replace(/\.html$/,'').replace(/\/$/,'')||'/');}
-for(const [href,label,icon] of items){const a=document.createElement('a');a.href=href;if(active(href))a.setAttribute('aria-current','page');const symbol=document.createElement('span');symbol.className='dock-symbol';symbol.textContent=icon;symbol.setAttribute('aria-hidden','true');const name=document.createElement('span');name.textContent=label;a.append(symbol,name);nav.append(a);}
+const items=[['/','首页','⌂'],['/reader.html','阅读','▤'],['/#focus','专注','◷'],['/space.html','我的','♙']];
+const dockLinks=[];
+function active(path){
+ let p=location.pathname.replace(/\.html$/,'').replace(/\/$/,'')||'/';if(p==='/index')p='/';
+ if(path==='/')return p==='/'&&location.hash!=='#focus';
+ if(path==='/#focus')return p==='/'&&location.hash==='#focus';
+ if(path==='/space.html')return ['/space','/account','/profile','/memo'].includes(p);
+ return p===path.replace(/\.html$/,'');
+}
+function updateDock(){for(const [a,href] of dockLinks){if(active(href))a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');}}
+window.addEventListener?.('hashchange',updateDock);
+for(const [href,label,icon] of items){const a=document.createElement('a');a.href=href;dockLinks.push([a,href]);if(active(href))a.setAttribute('aria-current','page');const symbol=document.createElement('span');symbol.className='dock-symbol';symbol.textContent=icon;symbol.setAttribute('aria-hidden','true');const name=document.createElement('span');name.textContent=label;a.append(symbol,name);nav.append(a);}
 const more=document.createElement('button');more.type='button';more.innerHTML='<span class="dock-symbol" aria-hidden="true">•••</span><span>更多</span>';more.setAttribute('aria-haspopup','dialog');nav.append(more);
 const sheet=document.createElement('dialog');sheet.className='mobile-sheet';sheet.id='mobile-menu';sheet.setAttribute('aria-labelledby','mobile-menu-title');more.setAttribute('aria-controls',sheet.id);more.setAttribute('aria-expanded','false');
 const header=document.createElement('div');header.className='mobile-sheet-header';const title=document.createElement('h2');title.id='mobile-menu-title';title.textContent='常用功能';const close=document.createElement('button');close.type='button';close.textContent='关闭';header.append(title,close);sheet.append(header);
-for(const [href,label,note] of [['/reader.html','伴读阅读器','微信读书排版与本地畅读'],['/#focus','专注钟','在本机计时'],['/#ambient','伴读白噪声','浏览器内合成声音'],['/#books','书单','阅读与收藏'],['/#music','音乐与影视','首页收藏'],['/#links','精选导航','常用网站'],['/#contact','留言板','提交与查看留言'],['/account.html','账号安全','改密与全设备退出'],['/profile.html','设置头像','预设与图片上传'],['/memo.html','店主备忘录','需要店主身份和独立口令'],['/faq.html','帮助与常见问题','人工接单说明']]){const a=document.createElement('a');a.href=href;const name=document.createElement('strong'),detail=document.createElement('span');name.textContent=label;detail.textContent=note;a.append(name,detail);a.addEventListener('click',()=>sheet.close());sheet.append(a);}
+for(const [href,label,note] of [['/#ambient','自然声音','溪流、雨声与柔和伴读'],['/#contact','留言板','交流与反馈'],['/account.html','账号安全','改密与全设备退出'],['/profile.html','设置头像','预设与图片上传'],['/memo.html','店主备忘录','需要店主身份和独立口令']]){const a=document.createElement('a');a.href=href;const name=document.createElement('strong'),detail=document.createElement('span');name.textContent=label;detail.textContent=note;a.append(name,detail);a.addEventListener('click',()=>sheet.close());sheet.append(a);}
 function action(label,fn){const b=document.createElement('button');b.type='button';b.className='mobile-sheet-action';b.textContent=label;b.addEventListener('click',fn);sheet.append(b);return b;}
 try{const saved=localStorage.getItem('lanmao_theme');if(saved==='dark'||saved==='light')document.body.dataset.theme=saved;}catch{}
 if(document.getElementById('spotlight-trigger'))action('搜索本站',()=>{sheet.close();document.getElementById('spotlight-trigger').click();});

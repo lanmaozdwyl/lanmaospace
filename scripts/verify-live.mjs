@@ -54,7 +54,7 @@ for (const [path, markers] of [
     ['memo.html', ['backup-panel', 'conflict-panel', 'preview-dialog', 'memo-sync-status', 'clear-search-button']],
     ['store.html', ['catalog-error', 'catalog-retry', 'detail-metadata', 'id="search"', 'id="products"']],
     ['reader.html', ['reader-audio-panel','reader-audio-select','reader-audio.js']],
-    ['index.html', ['guestbookStatus', 'id="toolbox"', 'tools/', 'ambient-credits', 'data-sound="forest"', 'ambient.js']],
+    ['index.html', ['guestbookStatus', 'home-simple', 'home-account', 'home-primary-action', 'data-paused-section="books"', 'data-paused-section="music"', 'data-paused-section="links"', 'data-paused-section="toolbox"', 'ambient-credits', 'data-sound="forest"', 'ambient.js']],
     ['login.html', ['login-form', 'login-panel', 'recovery-form']],
     ['faq.html', ['faq-purchase','faq-warranty','faq-account','faq-contact']],
     ['account.html', ['account-reset-password','account-signout-all','account-actions']],

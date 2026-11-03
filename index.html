@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。">
+    <meta name="description" content="蓝昴空间：读几页书，听一会儿自然声，专注眼前的事。">
     <meta property="og:title" content="Lanmao Space | 蓝昴空间">
-    <meta property="og:description" content="蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。">
+    <meta property="og:description" content="蓝昴空间：读几页书，听一会儿自然声，专注眼前的事。">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="zh_CN">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Lanmao Space | 蓝昴空间">
-    <meta name="twitter:description" content="蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。">
+    <meta name="twitter:description" content="蓝昴空间：读几页书，听一会儿自然声，专注眼前的事。">
     <title>Lanmao Space | 蓝昴空间</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="auth.css">
@@ -25,7 +25,7 @@
     <meta property="og:image" content="https://lanmaospace.pages.dev/images/og-cover.png">
     <meta name="twitter:image" content="https://lanmaospace.pages.dev/images/og-cover.png">
 <link rel="stylesheet" href="/mobile.css"></head>
-<body>
+<body class="home-simple">
     <div class="reading-progress" id="reading-progress" aria-hidden="true"></div>
     <a href="#main-content" class="skip-link">跳到主要内容</a>
     <nav class="navbar" id="navbar">
@@ -36,19 +36,21 @@
             </a>
             <div class="nav-links" id="nav-links">
                 <a href="#home" class="nav-link active">首页</a>
-                <a href="#books" class="nav-link">书单</a>
-                <a href="reader.html" class="nav-link">伴读</a>
-                <a href="#ambient" class="nav-link">白噪声</a>
-                <a href="#music" class="nav-link">音乐影视</a>
+                <a href="reader.html" class="nav-link">阅读器</a>
+                <a href="#ambient" class="nav-link">自然声音</a>
                 <a href="#focus" class="nav-link">专注钟</a>
-                <a href="#links" class="nav-link">精选导航</a>
-                <a href="tools/" class="nav-link">工具站</a>
-                <a href="memo.html" class="nav-link">备忘录</a>
-                <a href="space.html" class="nav-link">成员空间</a>
-                <a href="#contact" class="nav-link">留言</a>
-                <a href="profile.html" class="nav-link header-avatar-link" data-header-avatar title="我的头像" aria-label="我的头像"><span aria-hidden="true">👤</span></a>
-                <button type="button" class="nav-link nav-signout" data-signout>退出登录</button>
-                <button type="button" class="nav-link spotlight-trigger-btn" id="spotlight-trigger" aria-label="全局搜索 (Ctrl+K)" title="全局搜索 (Ctrl+K)"><span aria-hidden="true">🔍</span><span class="spotlight-kbd">⌘K</span></button>
+                <details class="home-account" id="home-account">
+                    <summary>我的 <span aria-hidden="true">⌄</span></summary>
+                    <div class="home-account-menu">
+                        <a href="space.html">成员空间</a>
+                        <a href="memo.html">店主备忘录</a>
+                        <a href="account.html">账号安全</a>
+                        <a href="#contact">留言板</a>
+                        <a href="profile.html" class="home-avatar-row"><span class="header-avatar-link" data-header-avatar aria-hidden="true">👤</span><span>设置头像</span></a>
+                        <button type="button" data-signout>退出登录</button>
+                    </div>
+                </details>
+                <button type="button" class="nav-link spotlight-trigger-btn" id="spotlight-trigger" aria-label="搜索本站 (Ctrl+K)" title="搜索本站 (Ctrl+K)"><span aria-hidden="true">🔍</span></button>
                 <button type="button" class="nav-link theme-toggle-btn" id="theme-toggle" aria-label="切换至暗色模式" title="切换暗色/亮色模式"><span aria-hidden="true">🌙</span></button>
             </div>
             <button class="nav-toggle" id="nav-toggle" aria-label="打开导航菜单" aria-expanded="false" aria-controls="nav-links">
@@ -69,13 +71,12 @@
         <div class="hero-content">
             <div class="hero-eyebrow" id="greeting">你好呀</div>
             <h1 class="hero-title">
-                蓝昴的<br><span class="gradient-text">学术空间</span>
+                蓝昴空间<br><span class="gradient-text">阅读 · 专注 · 记录</span>
             </h1>
             <p class="hero-subtitle">
-                在学术海洋中漫游的蓝昴<br>
-                在这里记录阅读、收藏美好、分享工具
+                读几页书，听一会儿自然声。<br>把时间留给眼前的事。
             </p>
-            <div class="hero-stats">
+            <div class="hero-stats" hidden data-paused-section="statistics">
                 <div class="stat-item">
                     <span class="stat-number" data-target="42">0</span>
                     <span class="stat-label">读过的书</span>
@@ -91,15 +92,15 @@
                     <span class="stat-label">收藏工具</span>
                 </div>
             </div>
-            <a href="#books" class="hero-cta">
-                <span>开始探索</span>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-            </a>
+            <div class="home-hero-actions">
+                <a href="reader.html" class="hero-cta home-primary-action">打开阅读器 <span aria-hidden="true">↗</span></a>
+                <a href="#ambient" class="hero-cta home-secondary-action">听自然声 <span aria-hidden="true">↓</span></a>
+            </div>
         </div>
     </section>
 
     <!-- ========== 书单 ========== -->
-    <section class="section section-light" id="books">
+    <section class="section section-light" id="books" hidden data-paused-section="books">
         <div class="container">
             <div class="section-header fade-up">
                 <h2 class="section-title"><span aria-hidden="true">📚</span> 阅读书单</h2>
@@ -348,7 +349,7 @@
     </section>
 
     <!-- ========== 音乐影视 ========== -->
-    <section class="section section-dark" id="music">
+    <section class="section section-dark" id="music" hidden data-paused-section="music">
         <div class="container">
             <div class="section-header fade-up">
                 <h2 class="section-title"><span aria-hidden="true">🎵</span> 音乐 &amp; 影视</h2>
@@ -561,7 +562,7 @@
     </section>
 
     <!-- ========== 友情链接 ========== -->
-    <section class="section section-light" id="links">
+    <section class="section section-light" id="links" hidden data-paused-section="links">
         <div class="container">
             <div class="section-header fade-up">
                 <h2 class="section-title"><span aria-hidden="true">🔗</span> 友情链接</h2>
@@ -604,19 +605,19 @@
     </section>
 
     <!-- ========== 工具导航入口 ========== -->
-    <section class="section section-dark" id="toolbox" aria-labelledby="toolbox-title">
+    <section class="section section-dark" id="toolbox" hidden data-paused-section="toolbox" aria-labelledby="toolbox-title">
         <div class="container">
             <div class="section-header fade-up">
                 <h2 class="section-title" id="toolbox-title"><span aria-hidden="true">🛠️</span> 从这里，找到顺手的工具。</h2>
                 <p class="section-desc">按你现在要做的事出发，在工具站查看完整目录与搜索。</p>
             </div>
             <div class="tool-entry-grid">
-                <a href="tools/?category=translate" class="tool-entry fade-up"><span class="tool-entry-icon" aria-hidden="true">🌐</span><h3>读懂另一种语言</h3><p>翻译文本，辅助外文阅读。</p><span class="tool-entry-action">浏览翻译工具 →</span></a>
-                <a href="tools/?category=academic" class="tool-entry fade-up"><span class="tool-entry-icon" aria-hidden="true">📝</span><h3>整理文献与写作</h3><p>查找论文、管理引用、组织笔记。</p><span class="tool-entry-action">浏览学术工具 →</span></a>
-                <a href="tools/?category=dev" class="tool-entry fade-up"><span class="tool-entry-icon" aria-hidden="true">💻</span><h3>开始编程与计算</h3><p>准备开发环境，编写与运行代码。</p><span class="tool-entry-action">浏览开发工具 →</span></a>
-                <a href="tools/?category=design" class="tool-entry fade-up"><span class="tool-entry-icon" aria-hidden="true">🎨</span><h3>把想法变得清晰</h3><p>画图、设计界面、安排待办。</p><span class="tool-entry-action">浏览设计与效率工具 →</span></a>
+                <a hidden data-paused-entry href="tools/?category=translate" class="tool-entry fade-up"><span class="tool-entry-icon" aria-hidden="true">🌐</span><h3>读懂另一种语言</h3><p>翻译文本，辅助外文阅读。</p><span class="tool-entry-action">浏览翻译工具 →</span></a>
+                <a hidden data-paused-entry href="tools/?category=academic" class="tool-entry fade-up"><span class="tool-entry-icon" aria-hidden="true">📝</span><h3>整理文献与写作</h3><p>查找论文、管理引用、组织笔记。</p><span class="tool-entry-action">浏览学术工具 →</span></a>
+                <a hidden data-paused-entry href="tools/?category=dev" class="tool-entry fade-up"><span class="tool-entry-icon" aria-hidden="true">💻</span><h3>开始编程与计算</h3><p>准备开发环境，编写与运行代码。</p><span class="tool-entry-action">浏览开发工具 →</span></a>
+                <a hidden data-paused-entry href="tools/?category=design" class="tool-entry fade-up"><span class="tool-entry-icon" aria-hidden="true">🎨</span><h3>把想法变得清晰</h3><p>画图、设计界面、安排待办。</p><span class="tool-entry-action">浏览设计与效率工具 →</span></a>
             </div>
-            <div class="tool-entry-footer"><a href="tools/" class="tool-entry-all">打开完整工具站 ↗</a></div>
+            <div class="tool-entry-footer"><a hidden data-paused-entry href="tools/" class="tool-entry-all">打开完整工具站 ↗</a></div>
 
             <!-- 手机客户端原生下载卡片 -->
             <div class="app-banner fade-up" id="mobile-app">
@@ -695,8 +696,8 @@
                         <a href="https://wpa.qq.com/msgrd?v=3&uin=3126477562&site=qq&menu=yes" class="contact-link" target="_blank" rel="noopener noreferrer">
                             <span class="contact-icon">💬</span>
                             <div>
-                                <span class="contact-label">QQ 咨询</span>
-                                <span class="contact-value">点击联系店主</span>
+                                <span class="contact-label">QQ 联系</span>
+                                <span class="contact-value">与我联系</span>
                             </div>
                         </a>
                         <a href="https://github.com/lanmaozdwyl" class="contact-link" target="_blank" rel="noopener noreferrer">
@@ -722,20 +723,15 @@
                     <span>Lanmao Space</span>
                 </div>
                 <nav class="footer-nav" aria-label="页脚导航">
-                    <a href="store.html">商店</a>
-                    <a href="faq.html">常见问题</a>
-                    <a href="tools/">工具站</a>
-                    <a href="memo.html">备忘录</a>
+                    <a href="reader.html">阅读器</a>
+                    <a href="space.html">成员空间</a>
+                    <a href="#contact">留言板</a>
                 </nav>
                 <p class="footer-text">
                     © 2026 蓝昴空间 · 保持专注与好奇
                 </p>
                 <div class="footer-sublinks">
-                    <a href="lanmaospace.apk" class="footer-sublink" download="lanmaospace.apk">📱 下载安卓客户端 (.apk)</a>
-                    <span class="footer-sep">·</span>
-                    <a href="store.html" class="footer-sublink">服务与支持</a>
-                    <span class="footer-sep">·</span>
-                    <a href="faq.html" class="footer-sublink">常见问题</a>
+                    <a href="lanmaospace.apk" class="footer-sublink" download="lanmaospace.apk">下载安卓客户端</a>
                     <span class="footer-sep">·</span>
                     <a href="account.html" class="footer-sublink">账号安全</a>
                 </div>
@@ -755,7 +751,7 @@
     <script type="module" src="auth-guard.js"></script>
     <script type="module" src="guestbook.js"></script>
     <script type="module" src="guestbook-admin.js"></script>
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
     <script type="module" src="ambient.js"></script>
 <script src="motion.js"></script>
     <!-- Apple Spotlight Search Dialog -->
@@ -763,7 +759,7 @@
         <div class="spotlight-shell">
             <div class="spotlight-searchbox">
                 <span class="spotlight-icon" aria-hidden="true">🔍</span>
-                <input type="text" id="spotlight-input" placeholder="搜索书单、工具、服务或快捷跳转..." autocomplete="off" spellcheck="false">
+                <input type="text" id="spotlight-input" placeholder="搜索阅读器、声音、专注或个人空间…" autocomplete="off" spellcheck="false">
                 <kbd class="spotlight-esc-tip">ESC</kbd>
             </div>
             <div class="spotlight-results" id="spotlight-results" role="listbox"></div>

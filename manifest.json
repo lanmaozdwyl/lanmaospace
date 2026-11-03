@@ -1,7 +1,7 @@
 {
   "name": "Lanmao Space | 蓝昴空间",
   "short_name": "蓝昴空间",
-  "description": "蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。",
+  "description": "蓝昴空间：读几页书，听一会儿自然声，专注眼前的事。",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fbfbfd",

@@ -1,14 +1,13 @@
 # Lanmao Space 🐱
 
-蓝昴的个人学术空间与人工接单商店。
+蓝昴的阅读与专注空间。
 
 - **网站**：https://lanmaospace.pages.dev/
-- **商店**：https://lanmaospace.pages.dev/store.html
 - **开发交接**：[HANDOFF.md](HANDOFF.md)（换电脑或交给其他 agent 前先读）
 
 ## 功能
 
-个人首页、书单筛选、音乐影视、友链、工具箱、工具站（`tools/`）、留言板（Supabase，支持店主站内审核后显示）；商店包含商品分类、搜索、详情与 QQ 人工咨询。网站支持响应式布局和减少动态效果。私人备忘录包含加密备份与恢复、冲突保护、闲置锁定、附件预览、标签、置顶和回收站；详见 [MEMO-GUIDE.md](MEMO-GUIDE.md)。
+当前首页聚焦阅读器、自然声音和专注钟，保留留言板；成员空间、店主备忘录、头像与账号安全从“我的”进入。商店、音乐影视、工具导航/工具站、阅读书单、友情链接已按店主要求暂时隐藏入口和首页区块，原页面及数据保留，商品价格和 QQ 人工接单方式未修改。私人备忘录详见 [MEMO-GUIDE.md](MEMO-GUIDE.md)。
 
 手机端提供底部功能导航与本机专注钟；Android安装与维护见 [ANDROID-GUIDE.md](ANDROID-GUIDE.md)，当前任务见 [TASKS.md](TASKS.md)。
 

@@ -2,7 +2,7 @@
 const navbar = document.getElementById('navbar');
 const navToggle = document.getElementById('nav-toggle');
 const navLinks = document.getElementById('nav-links');
-const sections = [...document.querySelectorAll('.section, .hero')];
+const sections = [...document.querySelectorAll('.section, .hero')].filter(section => !section.hidden);
 const navLinkElements = [...document.querySelectorAll('.nav-link')];
 const backToTop = document.getElementById('backToTop');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -100,7 +100,8 @@ if ('IntersectionObserver' in window) {
             statsObserver.disconnect();
         }
     });
-    statsObserver.observe(document.querySelector('.hero-stats'));
+    const stats = document.querySelector('.hero-stats');
+    if (stats && !stats.hidden) statsObserver.observe(stats);
 } else {
     animateCounters();
 }
@@ -202,42 +203,16 @@ mediaTabs.forEach((tab, index) => {
     if (!dialog || !input || !list) return;
 
     const searchIndex = [
-        { title: '首页 · 概览与精选', category: '页面', url: '#home', icon: '🏠' },
-        { title: '阅读书单 · 学术专著与笔记', category: '页面', url: '#books', icon: '📚' },
-        { title: '伴读阅读器 · 微信读书排版 (零额度本地畅读)', category: '效率工具', url: 'reader.html', icon: '📖' },
-        { title: '沉浸伴读白噪声 · 溪流/小雨/中雨/大雨/木鱼/寺院钟声/海浪/林间鸟鸣与风声', category: '伴读音效', url: '#ambient', icon: '🎧' },
-        { title: '柔和自然雨声 · 小雨/中雨/大雨 (Rainfall)', category: '伴读音效', url: '#ambient', icon: '🌧️' },
-        { title: '音乐与影视 · 治愈旋律与影片', category: '页面', url: '#music', icon: '🎵' },
-        { title: '学术专注番茄钟 · 25m 深度专注 / 5m 小憩', category: '效率工具', url: '#focus', icon: '🍅' },
-        { title: '精选学术与工程导航 · 顶级科研资源', category: '页面', url: '#links', icon: '🔗' },
-        { title: '工具站 · 翻译/写作/编程全能合集', category: '页面', url: 'tools/', icon: '🛠️' },
-        { title: '我的商店 · 生产力与服务咨询', category: '页面', url: 'store.html', icon: '🛒' },
-        { title: '常见问题 · 购物与服务解答', category: '页面', url: 'faq.html', icon: '❓' },
-        { title: '下载安卓版客户端 APK（无需谷歌框架）', category: '客户端下载', url: 'lanmaospace.apk', icon: '📱' },
-        { title: '加密备忘录 · 本地安全私密笔记', category: '页面', url: 'memo.html', icon: '📝' },
-        { title: '成员空间 · 个人主页与动态', category: '页面', url: 'space.html', icon: '🪐' },
-        { title: '账号安全中心 · 密码与登录管理', category: '页面', url: 'account.html', icon: '🛡️' },
-
-        { title: 'Overleaf 在线 LaTeX 论文协作与排版', category: '工具', url: 'tools/#writing', icon: '📝' },
-        { title: 'Zotero 强大文献管理与引用导出', category: '工具', url: 'tools/#writing', icon: '📎' },
-        { title: 'DeepL 高精度学术与专业 AI 翻译', category: '工具', url: 'tools/#translation', icon: '🌐' },
-        { title: 'Google Colab 免配置云端 GPU Jupyter 环境', category: '工具', url: 'tools/#dev', icon: '🧪' },
-        { title: 'GitHub 全球开源代码托管与协作', category: '工具', url: 'tools/#dev', icon: '🐙' },
-        { title: 'VS Code 现代化轻量全能代码编辑器', category: '工具', url: 'tools/#dev', icon: '💎' },
-        { title: 'Figma 协同式界面设计与原型工具', category: '工具', url: 'tools/#design', icon: '🎨' },
-        { title: 'Excalidraw 纯粹手绘风格白板与草图', category: '工具', url: 'tools/#design', icon: '✏️' },
-
-        { title: '百年孤独 (马尔克斯)', category: '书单', url: '#books', icon: '📘' },
-        { title: '深度学习 (Deep Learning · Ian Goodfellow)', category: '书单', url: '#books', icon: '📗' },
-        { title: '统计学习方法 (李航)', category: '书单', url: '#books', icon: '📒' },
-        { title: '人类简史 (尤瓦尔·赫拉利)', category: '书单', url: '#books', icon: '📕' },
-        { title: '小王子 (圣埃克苏佩里)', category: '书单', url: '#books', icon: '📙' },
-
-        { title: '网易云音乐专属精选歌单 (ID: 9209159326)', category: '音乐', url: 'https://music.163.com/playlist?id=9209159326', icon: '🎧' },
-        { title: '晴天 · 周杰伦', category: '音乐', url: '#music', icon: '🎸' },
-        { title: 'Nuvole Bianche · Ludovico Einaudi', category: '音乐', url: '#music', icon: '🎹' },
-        { title: '星际穿越 (Interstellar)', category: '影视', url: '#music', icon: '🎬' },
-        { title: '肖申克的救赎', category: '影视', url: '#music', icon: '🎭' }
+        { title: '首页 · 蓝昴空间', category: '页面', url: '#home', icon: '🏠' },
+        { title: '阅读器 · 打开书架与本地阅读', category: '阅读', url: 'reader.html', icon: '📖' },
+        { title: '自然声音 · 溪流/小雨/中雨/大雨/木鱼/钟声/海浪/鸟鸣', category: '伴读', url: '#ambient', icon: '🎧' },
+        { title: '专注钟 · 开始一段专注时间', category: '专注', url: '#focus', icon: '🍅' },
+        { title: '成员空间 · 个人主页与动态', category: '个人', url: 'space.html', icon: '🪐' },
+        { title: '店主备忘录 · 加密私人笔记', category: '个人', url: 'memo.html', icon: '📝' },
+        { title: '账号安全 · 密码与登录管理', category: '个人', url: 'account.html', icon: '🛡️' },
+        { title: '留言板 · 交流与反馈', category: '交流', url: '#contact', icon: '💬' },
+        { title: '设置头像', category: '个人', url: 'profile.html', icon: '👤' },
+        { title: '下载安卓客户端', category: '客户端', url: 'lanmaospace.apk', icon: '📱' },
     ];
 
     let selectedIndex = 0;
@@ -367,3 +342,15 @@ if ('serviceWorker' in navigator && window.location.protocol.startsWith('http'))
     });
 }
 
+
+// “我的”菜单保持原生 details 的键盘操作，并支持点外部/按 Esc 收起。
+const accountMenu = document.getElementById('home-account');
+document.addEventListener('click', event => {
+    if (accountMenu?.open && (!accountMenu.contains(event.target) || event.target.closest('a'))) accountMenu.open = false;
+});
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && accountMenu?.open) {
+        accountMenu.open = false;
+        accountMenu.querySelector('summary').focus();
+    }
+});

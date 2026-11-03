@@ -33,6 +33,7 @@
 }
 
 /* ===== Reset & Base ===== */
+[hidden] { display: none !important; }
 *, *::before, *::after {
     margin: 0;
     padding: 0;
@@ -3333,3 +3334,36 @@ body[data-theme="dark"] .ambient-card-title { color: #f5f5f7; }
 @media (max-width: 600px) { .ambient-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ambient-sound-card { min-width: 0; padding: 16px 12px; } .ambient-master-controls { width: 100%; } .ambient-vol-wrap { flex: 1; } .ambient-vol-slider { width: 100%; min-width: 50px; } }
 
 .ambient-feature-toggle input:focus-visible + .ambient-toggle-box { outline: 3px solid #0071e3; outline-offset: 4px; }
+
+/* 精简首页：阅读、声音与专注；暂停模块通过 HTML hidden 保留原内容。 */
+.home-simple .hero { min-height: 580px; min-height: min(78svh, 740px); padding: 112px 22px 72px; }
+.home-simple .hero-title { font-size: clamp(38px, 6vw, 64px); margin-bottom: 24px; line-height: 1.2; }
+.home-simple .hero-subtitle { font-size: 18px; margin-bottom: 32px; }
+.home-simple .hero-eyebrow, .home-simple .hero-title, .home-simple .hero-subtitle, .home-simple .hero-cta { opacity: 1; transform: none; animation: none; }
+.home-simple .hero-orb { opacity: .14; }
+.home-simple .section { padding: 88px 0; }
+.home-simple .section-header { margin-bottom: 36px; }
+.home-hero-actions { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.home-simple .home-primary-action, .home-simple .home-secondary-action { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 12px 24px; border-radius: 999px; font-size: 15px; }
+.home-simple .home-primary-action { background: var(--blue); color: #fff; }
+.home-simple .home-primary-action:hover { background: var(--blue-hover); }
+.home-simple .home-secondary-action { border: 1px solid var(--gray-200); color: var(--dark); background: transparent; }
+.home-simple .nav-links { align-items: center; }
+.home-simple .nav-link { white-space: nowrap; }
+.home-account { position: relative; font-size: 13px; color: var(--gray-600); }
+.home-account summary { cursor: pointer; list-style: none; padding: 8px 14px; border-radius: 999px; white-space: nowrap; }
+.home-account summary::-webkit-details-marker { display: none; }
+.home-account[open] summary { background: var(--gray-50); color: var(--dark); }
+.home-account-menu { position: absolute; right: 0; top: calc(100% + 12px); min-width: 196px; padding: 8px; background: var(--white); color: var(--dark); border: 1px solid var(--gray-100); border-radius: 18px; box-shadow: 0 14px 40px rgba(0,0,0,.12); z-index: 1100; }
+.home-account-menu a, .home-account-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; color: inherit; text-align: left; font: inherit; }
+.home-account-menu a:hover, .home-account-menu button:hover { background: var(--gray-50); }
+.home-account-menu .header-avatar-link { width: 26px; min-width: 26px; height: 26px; min-height: 26px; padding: 0; }
+.home-simple .hero-cta:focus-visible, .home-account summary:focus-visible, .home-account-menu :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.home-simple .footer-quote { display: none; }
+@media (max-width: 820px) {
+    .home-simple .hero { min-height: calc(100svh - 76px); padding: 100px 22px 64px; }
+    .home-simple .hero-title { font-size: clamp(32px, 7.7vw, 50px); }
+    .home-simple .hero-subtitle { font-size: 16px; }
+    .home-simple .section { padding: 64px 0; }
+    .home-account-menu { position: static; min-width: 0; margin-top: 6px; box-shadow: none; }
+}
