@@ -205,6 +205,7 @@ mediaTabs.forEach((tab, index) => {
         { title: '首页 · 概览与精选', category: '页面', url: '#home', icon: '🏠' },
         { title: '阅读书单 · 学术专著与笔记', category: '页面', url: '#books', icon: '📚' },
         { title: '音乐与影视 · 治愈旋律与影片', category: '页面', url: '#music', icon: '🎵' },
+        { title: '学术专注番茄钟 · 25m 深度专注 / 5m 小憩', category: '效率工具', url: '#focus', icon: '🍅' },
         { title: '精选学术与工程导航 · 顶级科研资源', category: '页面', url: '#links', icon: '🔗' },
         { title: '工具站 · 翻译/写作/编程全能合集', category: '页面', url: 'tools/', icon: '🛠️' },
         { title: '我的商店 · 生产力与服务咨询', category: '页面', url: 'store.html', icon: '🛒' },
@@ -351,8 +352,11 @@ mediaTabs.forEach((tab, index) => {
     updateProgress();
 })();
 
-// ===== Academic Pomodoro Focus Widget Driver =====
-(function initPomodoro() {
+// ===== Academic Pomodoro Engine (Dual-UI & Cross-Device Sync) =====
+(function initPomodoroEngine() {
+    const STORAGE_KEY = 'lanmao_pomodoro_state_v2';
+    
+    // Floating Widget Elements
     const widget = document.getElementById('pomodoro-widget');
     const toggle = document.getElementById('pomodoro-toggle');
     const panel = document.getElementById('pomodoro-panel');
@@ -364,32 +368,93 @@ mediaTabs.forEach((tab, index) => {
     const resetBtn = document.getElementById('pomodoro-reset');
     const modeBtns = document.querySelectorAll('.pomodoro-mode-btn');
 
-    if (!widget || !toggle || !panel || !timerDisplay) return;
+    // Section Full-UI Elements
+    const mainTimer = document.getElementById('focus-main-timer');
+    const mainStatus = document.getElementById('focus-main-status');
+    const mainStart = document.getElementById('focus-main-start');
+    const startIcon = document.getElementById('focus-start-icon');
+    const startLabel = document.getElementById('focus-start-label');
+    const mainReset = document.getElementById('focus-main-reset');
+    const soundToggle = document.getElementById('focus-sound-toggle');
+    const soundIcon = document.getElementById('focus-sound-icon');
+    const progressCircle = document.getElementById('focus-progress-circle');
+    const completedDisplay = document.getElementById('focus-completed-count');
+    const totalMinutesDisplay = document.getElementById('focus-total-minutes');
+    const sectionModeBtns = document.querySelectorAll('.focus-mode-btn');
 
-    let totalSeconds = 1500;
-    let remainingSeconds = 1500;
+    const CIRCLE_CIRCUMFERENCE = 653.45; // 2 * PI * 104
+
+    function getTodayStr() {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    let state = {
+        totalSeconds: 1500,
+        remainingSeconds: 1500,
+        isRunning: false,
+        endTime: 0,
+        mode: 'focus',
+        sound: true,
+        date: getTodayStr(),
+        completedCount: 0,
+        totalMinutes: 0
+    };
+
     let timerId = null;
-    let isRunning = false;
-    let currentMode = 'focus';
+
+    function loadState() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                state.totalSeconds = parsed.totalSeconds || 1500;
+                state.remainingSeconds = typeof parsed.remainingSeconds === 'number' ? parsed.remainingSeconds : 1500;
+                state.isRunning = Boolean(parsed.isRunning);
+                state.endTime = parsed.endTime || 0;
+                state.mode = parsed.mode || 'focus';
+                state.sound = parsed.sound !== false;
+                state.date = parsed.date || getTodayStr();
+                state.completedCount = parsed.completedCount || 0;
+                state.totalMinutes = parsed.totalMinutes || 0;
+
+                // Reset daily stats if new day
+                if (state.date !== getTodayStr()) {
+                    state.date = getTodayStr();
+                    state.completedCount = 0;
+                    state.totalMinutes = 0;
+                }
+
+                // If running, reconcile elapsed time
+                if (state.isRunning && state.endTime) {
+                    const now = Date.now();
+                    if (state.endTime > now) {
+                        state.remainingSeconds = Math.round((state.endTime - now) / 1000);
+                    } else {
+                        state.remainingSeconds = 0;
+                        state.isRunning = false;
+                        onComplete(false);
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    function saveState() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (_) {}
+    }
 
     function formatTime(sec) {
+        sec = Math.max(0, sec);
         const m = Math.floor(sec / 60);
         const s = sec % 60;
         return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
     }
 
-    function updateDisplay() {
-        const str = formatTime(remainingSeconds);
-        timerDisplay.textContent = str;
-        if (miniTimeDisplay) miniTimeDisplay.textContent = str;
-        if (isRunning) {
-            document.title = '(' + str + ') 蓝昴空间 · 专注中';
-        } else {
-            document.title = 'Lanmao Space | 蓝昴空间';
-        }
-    }
-
     function playChime() {
+        if (!state.sound) return;
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const now = ctx.currentTime;
@@ -416,78 +481,207 @@ mediaTabs.forEach((tab, index) => {
             osc2.start(now + 0.2);
             osc2.stop(now + 1.2);
         } catch (_) {}
+
+        // Phone native vibration (supported on Android WebView)
+        if (navigator.vibrate) {
+            try { navigator.vibrate([200, 100, 200, 100, 300]); } catch (_) {}
+        }
+    }
+
+    function updateUI() {
+        const str = formatTime(state.remainingSeconds);
+        
+        // 1. Clock strings
+        if (timerDisplay) timerDisplay.textContent = str;
+        if (miniTimeDisplay) miniTimeDisplay.textContent = str;
+        if (mainTimer) mainTimer.textContent = str;
+
+        // 2. Circular progress
+        if (progressCircle && state.totalSeconds > 0) {
+            const ratio = Math.max(0, Math.min(1, state.remainingSeconds / state.totalSeconds));
+            progressCircle.style.strokeDashoffset = (CIRCLE_CIRCUMFERENCE * (1 - ratio)).toFixed(2);
+            if (state.mode === 'focus') {
+                progressCircle.style.stroke = '#0071e3';
+            } else if (state.mode === 'short-break') {
+                progressCircle.style.stroke = '#34c759';
+            } else {
+                progressCircle.style.stroke = '#af52de';
+            }
+        }
+
+        // 3. Status text
+        let statusText = '准备开启专注';
+        if (state.isRunning) {
+            statusText = state.mode === 'focus' ? '深度专注中，保持心流' : '正在休息，远眺放松';
+        } else if (state.remainingSeconds === 0) {
+            statusText = state.mode === 'focus' ? '🎉 专注完成！休息一下吧' : '☕ 休息结束，准备投入新任务';
+        } else if (state.remainingSeconds < state.totalSeconds) {
+            statusText = '已暂停，随时继续';
+        } else {
+            statusText = state.mode === 'focus' ? '保持专注与好奇，行稳致远' : '短暂小憩，放松身心';
+        }
+        if (statusDisplay) statusDisplay.textContent = statusText;
+        if (mainStatus) mainStatus.textContent = statusText;
+
+        // 4. Start buttons
+        const startText = state.isRunning ? '暂停' : (state.remainingSeconds < state.totalSeconds && state.remainingSeconds > 0 ? '继续' : '开始专注');
+        if (startBtn) startBtn.textContent = startText;
+        if (startLabel) startLabel.textContent = startText;
+        if (startIcon) startIcon.textContent = state.isRunning ? '⏸' : '▶';
+
+        // 5. Mode buttons sync
+        modeBtns.forEach(btn => {
+            btn.classList.toggle('active', Number(btn.dataset.time) === state.totalSeconds);
+        });
+        sectionModeBtns.forEach(btn => {
+            btn.classList.toggle('active', Number(btn.dataset.time) === state.totalSeconds);
+        });
+
+        // 6. Stats display
+        if (completedDisplay) completedDisplay.innerHTML = state.completedCount + ' <small>个番茄</small>';
+        if (totalMinutesDisplay) totalMinutesDisplay.innerHTML = state.totalMinutes + ' <small>分钟</small>';
+
+        // 7. Sound toggle icon
+        if (soundIcon) soundIcon.textContent = state.sound ? '🔔' : '🔕';
+        if (soundToggle) soundToggle.setAttribute('aria-label', state.sound ? '提示音已开启，点击静音' : '提示音已静音，点击开启');
+
+        // 8. Tab title
+        if (state.isRunning) {
+            document.title = '(' + str + ') 蓝昴空间 · 专注中 🍅';
+        } else {
+            document.title = 'Lanmao Space | 蓝昴空间';
+        }
+    }
+
+    function onComplete(playAlert = true) {
+        state.isRunning = false;
+        if (timerId) {
+            clearInterval(timerId);
+            timerId = null;
+        }
+
+        if (state.mode === 'focus') {
+            state.completedCount = (state.completedCount || 0) + 1;
+            state.totalMinutes = (state.totalMinutes || 0) + Math.round(state.totalSeconds / 60);
+        }
+
+        if (playAlert) {
+            playChime();
+        }
+        saveState();
+        updateUI();
     }
 
     function tick() {
-        if (remainingSeconds > 0) {
-            remainingSeconds--;
-            updateDisplay();
+        if (!state.isRunning) return;
+        const now = Date.now();
+        if (state.endTime > now) {
+            state.remainingSeconds = Math.round((state.endTime - now) / 1000);
+            updateUI();
         } else {
-            clearInterval(timerId);
-            timerId = null;
-            isRunning = false;
-            startBtn.textContent = '开始专注';
-            statusDisplay.textContent = currentMode === 'focus' ? '🎉 专注完成！休息 5 分钟吧' : '☕ 休息结束，准备好投入了吗？';
-            playChime();
-            updateDisplay();
+            state.remainingSeconds = 0;
+            onComplete(true);
         }
     }
 
     function startTimer() {
-        if (isRunning) {
+        if (state.isRunning) {
+            // Pause
+            state.isRunning = false;
             clearInterval(timerId);
             timerId = null;
-            isRunning = false;
-            startBtn.textContent = '继续专注';
-            statusDisplay.textContent = '已暂停，随时恢复';
+            state.endTime = 0;
+            saveState();
+            updateUI();
         } else {
-            isRunning = true;
-            startBtn.textContent = '暂停';
-            statusDisplay.textContent = currentMode === 'focus' ? '深度专注中，排除干扰' : '小憩一下，眺望远方';
+            // Start / Resume
+            state.isRunning = true;
+            if (state.remainingSeconds <= 0) {
+                state.remainingSeconds = state.totalSeconds;
+            }
+            state.endTime = Date.now() + state.remainingSeconds * 1000;
+            saveState();
             timerId = setInterval(tick, 1000);
+            updateUI();
         }
-        updateDisplay();
     }
 
     function resetTimer() {
+        state.isRunning = false;
         clearInterval(timerId);
         timerId = null;
-        isRunning = false;
-        remainingSeconds = totalSeconds;
-        startBtn.textContent = '开始专注';
-        statusDisplay.textContent = currentMode === 'focus' ? '专注时间，保持独立思考' : '短暂小憩，放松身心';
-        updateDisplay();
+        state.endTime = 0;
+        state.remainingSeconds = state.totalSeconds;
+        saveState();
+        updateUI();
     }
 
     function setMode(seconds, modeName) {
-        modeBtns.forEach(b => b.classList.toggle('active', Number(b.dataset.time) === seconds));
-        currentMode = modeName;
-        totalSeconds = seconds;
+        state.totalSeconds = seconds;
+        state.mode = modeName;
         resetTimer();
     }
 
-    toggle.addEventListener('click', () => {
-        const isHidden = panel.hidden;
-        panel.hidden = !isHidden;
-        toggle.setAttribute('aria-expanded', String(isHidden));
-    });
+    function toggleSound() {
+        state.sound = !state.sound;
+        saveState();
+        updateUI();
+    }
 
-    closeBtn.addEventListener('click', () => {
-        panel.hidden = true;
-        toggle.setAttribute('aria-expanded', 'false');
-    });
-
-    startBtn.addEventListener('click', startTimer);
-    resetBtn.addEventListener('click', resetTimer);
-
+    // Bind Floating Widget
+    if (toggle && panel) {
+        toggle.addEventListener('click', () => {
+            const isHidden = panel.hidden;
+            panel.hidden = !isHidden;
+            toggle.setAttribute('aria-expanded', String(isHidden));
+        });
+    }
+    if (closeBtn && panel && toggle) {
+        closeBtn.addEventListener('click', () => {
+            panel.hidden = true;
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    }
+    if (startBtn) startBtn.addEventListener('click', startTimer);
+    if (resetBtn) resetBtn.addEventListener('click', resetTimer);
     modeBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const time = Number(btn.dataset.time);
-            setMode(time, time === 1500 ? 'focus' : 'break');
+            setMode(time, time === 1500 ? 'focus' : (time === 300 ? 'short-break' : 'long-break'));
         });
     });
 
-    updateDisplay();
+    // Bind Section Full-UI
+    if (mainStart) mainStart.addEventListener('click', startTimer);
+    if (mainReset) mainReset.addEventListener('click', resetTimer);
+    if (soundToggle) soundToggle.addEventListener('click', toggleSound);
+    sectionModeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const time = Number(btn.dataset.time);
+            setMode(time, btn.dataset.mode || (time === 1500 ? 'focus' : 'short-break'));
+        });
+    });
+
+    // Cross-tab & Multi-window Synchronization
+    window.addEventListener('storage', (e) => {
+        if (e.key === STORAGE_KEY) {
+            loadState();
+            if (state.isRunning && !timerId) {
+                timerId = setInterval(tick, 1000);
+            } else if (!state.isRunning && timerId) {
+                clearInterval(timerId);
+                timerId = null;
+            }
+            updateUI();
+        }
+    });
+
+    // Initialize
+    loadState();
+    if (state.isRunning && state.remainingSeconds > 0) {
+        timerId = setInterval(tick, 1000);
+    }
+    updateUI();
 })();
 
 // ===== Register PWA Service Worker =====

@@ -38,6 +38,7 @@
                 <a href="#home" class="nav-link active">首页</a>
                 <a href="#books" class="nav-link">书单</a>
                 <a href="#music" class="nav-link">音乐影视</a>
+                <a href="#focus" class="nav-link">专注钟</a>
                 <a href="#links" class="nav-link">精选导航</a>
                 <a href="tools/" class="nav-link">工具站</a>
                 <a href="memo.html" class="nav-link">备忘录</a>
@@ -351,6 +352,67 @@
                             <div class="movie-rating">⭐ 8.4</div>
                             <p class="movie-comment">AI 时代下的孤独与爱，细腻又深刻</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== 学术专注番茄钟 ========== -->
+    <section class="section section-light" id="focus" aria-labelledby="focus-title">
+        <div class="container">
+            <div class="section-header fade-up">
+                <h2 class="section-title" id="focus-title"><span aria-hidden="true">🍅</span> 学术专注番茄钟</h2>
+                <p class="section-desc">25 分钟沉浸阅读与研究，5 分钟小憩放松 · 全站与手机 App 默认同步</p>
+            </div>
+
+            <div class="focus-card fade-up">
+                <div class="focus-modes" role="tablist" aria-label="专注模式切换">
+                    <button type="button" class="focus-mode-btn active" data-time="1500" data-mode="focus">🍅 25m 深度专注</button>
+                    <button type="button" class="focus-mode-btn" data-time="300" data-mode="short-break">☕ 5m 短暂小憩</button>
+                    <button type="button" class="focus-mode-btn" data-time="900" data-mode="long-break">🌿 15m 深度长休</button>
+                </div>
+
+                <div class="focus-display-wrap">
+                    <div class="focus-circle-progress" aria-hidden="true">
+                        <svg viewBox="0 0 240 240" class="focus-svg">
+                            <circle class="focus-circle-bg" cx="120" cy="120" r="104"></circle>
+                            <circle class="focus-circle-bar" id="focus-progress-circle" cx="120" cy="120" r="104"></circle>
+                        </svg>
+                        <div class="focus-center-text">
+                            <span class="focus-timer-text" id="focus-main-timer">25:00</span>
+                            <span class="focus-status-text" id="focus-main-status">准备开启专注</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="focus-controls">
+                    <button type="button" class="focus-btn focus-btn-primary" id="focus-main-start">
+                        <span class="focus-btn-icon" aria-hidden="true" id="focus-start-icon">▶</span>
+                        <span id="focus-start-label">开始专注</span>
+                    </button>
+                    <button type="button" class="focus-btn focus-btn-secondary" id="focus-main-reset">
+                        <span>重置</span>
+                    </button>
+                    <button type="button" class="focus-btn focus-btn-icon" id="focus-sound-toggle" aria-label="提示音开关" title="提示音开启/关闭">
+                        <span id="focus-sound-icon" aria-hidden="true">🔔</span>
+                    </button>
+                </div>
+
+                <div class="focus-stats-row">
+                    <div class="focus-stat-item">
+                        <span class="focus-stat-label">今日已专注</span>
+                        <span class="focus-stat-val" id="focus-completed-count">0 <small>个番茄</small></span>
+                    </div>
+                    <div class="focus-stat-divider"></div>
+                    <div class="focus-stat-item">
+                        <span class="focus-stat-label">累计专注时长</span>
+                        <span class="focus-stat-val" id="focus-total-minutes">0 <small>分钟</small></span>
+                    </div>
+                    <div class="focus-stat-divider"></div>
+                    <div class="focus-stat-item">
+                        <span class="focus-stat-label">多端同步状态</span>
+                        <span class="focus-stat-val focus-sync-badge">✓ 本地与 App 默认同步</span>
                     </div>
                 </div>
             </div>

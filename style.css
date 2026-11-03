@@ -2480,3 +2480,317 @@ body[data-theme="dark"] .pomodoro-act-btn {
     border-color: rgba(255, 255, 255, 0.1);
     color: #f5f5f7;
 }
+
+/* ===================================================================
+   Academic Pomodoro Focus Section
+   =================================================================== */
+.focus-card {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 44px 36px 36px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+.focus-card:hover {
+    box-shadow: 0 28px 60px -12px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.focus-modes {
+    display: inline-flex;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 14px;
+    gap: 4px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.focus-mode-btn {
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-600);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.focus-mode-btn.active {
+    background: #ffffff;
+    color: var(--dark);
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.focus-display-wrap {
+    position: relative;
+    width: 240px;
+    height: 240px;
+    margin: 0 auto 32px;
+}
+.focus-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+.focus-circle-bg {
+    fill: none;
+    stroke: rgba(0, 0, 0, 0.06);
+    stroke-width: 8;
+}
+.focus-circle-bar {
+    fill: none;
+    stroke: #0071e3;
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 653.45;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;
+}
+.focus-center-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.focus-timer-text {
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+    color: var(--dark);
+    line-height: 1.1;
+}
+.focus-status-text {
+    font-size: 13px;
+    color: var(--gray-600);
+    margin-top: 6px;
+    font-weight: 500;
+}
+.focus-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 32px;
+    width: 100%;
+    max-width: 380px;
+}
+.focus-btn {
+    padding: 12px 24px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: transform var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.focus-btn:active {
+    transform: scale(0.97);
+}
+.focus-btn-primary {
+    flex: 2;
+    background: #0071e3;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(0, 113, 227, 0.35);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.focus-btn-primary:hover {
+    background: #0077ed;
+    box-shadow: 0 6px 20px rgba(0, 113, 227, 0.5);
+}
+.focus-btn-secondary {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--dark);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.focus-btn-secondary:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+.focus-btn-icon {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    font-size: 16px;
+    color: var(--dark);
+}
+.focus-btn-icon:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+.focus-stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    width: 100%;
+    padding-top: 24px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+.focus-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.focus-stat-label {
+    font-size: 12px;
+    color: var(--gray-600);
+}
+.focus-stat-val {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--dark);
+}
+.focus-stat-val small {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-600);
+}
+.focus-sync-badge {
+    color: #34c759;
+    font-size: 12px;
+    font-weight: 600;
+}
+.focus-stat-divider {
+    width: 1px;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.08);
+}
+
+/* Dark mode for Focus Card */
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .focus-card {
+        background: rgba(28, 28, 30, 0.85);
+        border-color: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.5);
+    }
+    body:not([data-theme="light"]) .focus-modes {
+        background: rgba(255, 255, 255, 0.08);
+    }
+    body:not([data-theme="light"]) .focus-mode-btn {
+        color: #8e8e93;
+    }
+    body:not([data-theme="light"]) .focus-mode-btn.active {
+        background: #3a3a3c;
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .focus-circle-bg {
+        stroke: rgba(255, 255, 255, 0.1);
+    }
+    body:not([data-theme="light"]) .focus-timer-text {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .focus-status-text {
+        color: #8e8e93;
+    }
+    body:not([data-theme="light"]) .focus-btn-secondary,
+    body:not([data-theme="light"]) .focus-btn-icon {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .focus-stats-row {
+        border-top-color: rgba(255, 255, 255, 0.08);
+    }
+    body:not([data-theme="light"]) .focus-stat-label {
+        color: #8e8e93;
+    }
+    body:not([data-theme="light"]) .focus-stat-val {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .focus-stat-divider {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+body[data-theme="dark"] .focus-card {
+    background: rgba(28, 28, 30, 0.85);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.5);
+}
+body[data-theme="dark"] .focus-modes {
+    background: rgba(255, 255, 255, 0.08);
+}
+body[data-theme="dark"] .focus-mode-btn {
+    color: #8e8e93;
+}
+body[data-theme="dark"] .focus-mode-btn.active {
+    background: #3a3a3c;
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .focus-circle-bg {
+    stroke: rgba(255, 255, 255, 0.1);
+}
+body[data-theme="dark"] .focus-timer-text {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .focus-status-text {
+    color: #8e8e93;
+}
+body[data-theme="dark"] .focus-btn-secondary,
+body[data-theme="dark"] .focus-btn-icon {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .focus-stats-row {
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+body[data-theme="dark"] .focus-stat-label {
+    color: #8e8e93;
+}
+body[data-theme="dark"] .focus-stat-val {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .focus-stat-divider {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 600px) {
+    .focus-card {
+        padding: 30px 20px 24px;
+        border-radius: 22px;
+    }
+    .focus-display-wrap {
+        width: 200px;
+        height: 200px;
+        margin-bottom: 24px;
+    }
+    .focus-timer-text {
+        font-size: 44px;
+    }
+    .focus-controls {
+        max-width: 100%;
+        gap: 10px;
+    }
+    .focus-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    .focus-stat-val {
+        font-size: 13px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .focus-card, .focus-circle-bar, .focus-btn, .focus-mode-btn {
+        transition: none;
+    }
+}
