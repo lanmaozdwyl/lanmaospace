@@ -22,37 +22,37 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build Release APK
         working-directory: android
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          gradle assembleRelease --no-daemon
+          gradle assembleRelease --no-daemon --stacktrace
 
       - name: Rename APK
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk lanmaospace-app.apk
+          cp android/app/build/outputs/apk/release/app-release.apk lanmaospace.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lanmaospace-android-apk
-          path: lanmaospace-app.apk
+          name: lanmaospace-apk
+          path: lanmaospace.apk
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0
-          name: 蓝昴空间 手机版 APK (无谷歌框架依赖)
+          name: 蓝昴空间 手机版 APK (无谷歌框架)
           body: |
-            ### 📱 蓝昴空间 手机版下载（无需谷歌框架）
-            - 适配华为鸿蒙 (HarmonyOS)、小米 (HyperOS)、OPPO、vivo、荣耀、三星等所有安卓手机；
-            - 纯原生系统组件驱动，不需要 Google Play 服务，不会闪退；
-            - 安卓手机点击下方 `lanmaospace-app.apk` 即可直接下载安装。
-          files: lanmaospace-app.apk
+            ### 📱 蓝昴空间 手机版直接下载（无需谷歌框架）
+            - 适配华为鸿蒙、小米、OPPO、vivo、荣耀等所有安卓手机；
+            - 纯原生 WebView 驱动，零 Google Play 依赖；
+            - 下载后直接在手机上点击安装即可。
+          files: lanmaospace.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
