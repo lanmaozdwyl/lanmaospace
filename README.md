@@ -13,7 +13,7 @@
 
 ## 本地运行
 
-纯 HTML / CSS / JavaScript，无需 npm 安装或构建。
+纯 HTML / CSS / JavaScript，本地预览无需 npm 安装或构建；部署时 Cloudflare 会执行 `node scripts/build.mjs`（先做语法检查与测试，再打包到 dist）。
 
 ```powershell
 git clone https://github.com/lanmaozdwyl/lanmaospace.git
