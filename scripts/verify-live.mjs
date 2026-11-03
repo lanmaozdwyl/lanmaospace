@@ -57,7 +57,7 @@ for (const [path, markers] of [
     ['login.html', ['login-form', 'login-panel', 'recovery-form']],
     ['faq.html', ['faq-purchase','faq-warranty','faq-account','faq-contact']],
     ['account.html', ['account-reset-password','account-signout-all','account-actions']],
-    ['space.html', ['space-form','member-list','post-list','edit-post-form','member-search-form','reports-panel','export-space','space-usage']],
+    ['space.html', ['space-form','member-list','post-list','edit-post-form','member-search-form','reports-panel','export-space','space-usage','toggle-member-block','blocks-panel']],
     ['profile.html', ['avatar-presets', 'avatar-upload', 'avatar-preview', 'data-header-avatar']],
     ['tools/', ['tools-search', 'data-filter="translate"', 'deepl.com/translator']],
 ]) await checkMarkers(path, markers);

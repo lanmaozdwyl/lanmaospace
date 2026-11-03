@@ -177,5 +177,29 @@ try {
  await db.exec('alter table public.space_posts enable trigger space_post_limits;');
  await as('authenticated',guest);await denied('insert into public.space_posts(user_id,body) values($1,$2)',[guest,'quota denied']);
  await as('anon','');await denied('select * from public.search_member_spaces()');await denied('select public.report_space_post($1,$2)',[publicPost,'anon']);await denied('select * from public.owner_space_reports()');
+
+ await db.exec('reset role');const blocksSQL=readFileSync(root+'/supabase/space-blocks.sql','utf8');await db.exec(blocksSQL);await db.exec(blocksSQL);checks++;
+ await as('authenticated',guest);
+ await allowed('select public.set_space_block($1,true)',[owner]);
+ await allowed('select public.set_space_block($1,true)',[owner]);
+ assert.equal((await allowed('select * from public.my_space_blocks(0)')).rows.length,1);
+ assert.equal((await allowed('select * from public.member_spaces($1,0)',[owner])).rows.length,0);
+ assert.equal((await allowed('select * from public.search_member_spaces($1,0)',['owner'])).rows.length,0);
+ assert.equal((await allowed('select id from public.space_posts where user_id=$1',[owner])).rows.length,0);
+ assert.equal((await allowed('select * from public.member_spaces($1,0)',[guest])).rows.length,1);
+ assert((await allowed('select id from public.space_posts where user_id=$1',[guest])).rows.length>0);
+ await denied('select public.set_space_block($1,true)',[guest]);
+ await denied('insert into public.space_blocks(blocker_id,blocked_id) values($1,$2)',[owner,guest]);
+ await denied('delete from public.space_blocks');
+ await as('authenticated',owner);
+ assert.equal((await allowed('select * from public.space_blocks')).rows.length,0);
+ assert.equal((await allowed('select * from public.my_space_blocks(0)')).rows.length,0);
+ assert.equal((await allowed('select * from public.member_spaces($1,0)',[guest])).rows.length,1);
+ await as('authenticated',guest);await allowed('select public.set_space_block($1,false)',[owner]);
+ await allowed('select public.set_space_block($1,false)',[owner]);
+ assert.equal((await allowed('select * from public.member_spaces($1,0)',[owner])).rows.length,1);
+ assert((await allowed('select id from public.space_posts where user_id=$1',[owner])).rows.length>0);
+ assert.equal((await allowed('select * from public.my_space_blocks(0)')).rows.length,0);
+ await as('anon','');await denied('select * from public.space_blocks');await denied('select * from public.my_space_blocks(0)');await denied('select public.set_space_block($1,true)',[owner]);
  console.log(`PASS ${checks} PostgreSQL checks: owner CRUD, visitor isolation, storage isolation, CAS conflict, guestbook moderation/privacy, avatar row/storage isolation, idempotent migration`);
 } finally {await db.close();}

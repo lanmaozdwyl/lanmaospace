@@ -6,6 +6,7 @@ const $=id=>document.getElementById(id);
 let client,user,target,own,baseline=null,memberOffset=0,postOffset=0,busy=false,ended=false,dirty=false,profileDirty=false;
 const linkInputs=[];
 let editPost=null,editDirty=false,reportOffset=0;
+let targetBlocked=false,blockOffset=0;
 function updateDirty(){dirty=profileDirty||editDirty||!!$('post-body').value.trim();}
 function node(tag,text){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;}
 function message(text){$('space-status').textContent=text;}
@@ -14,6 +15,23 @@ async function result(query){const {data,error}=await query;assertSession();if(e
 function lockControls(value){$('space-app').querySelectorAll('input,textarea,button').forEach(el=>el.disabled=value);$('reload-space').disabled=value;}
 async function task(fn){if(busy||ended)return;busy=true;lockControls(true);try{await fn();}catch(e){if(!ended)message(`操作失败：${e.message}`);}finally{busy=false;if(!ended){lockControls(false);$('posts-prev').disabled=postOffset===0;$('members-prev').disabled=memberOffset===0;}}}
 function avatar(profile,name){const el=$('member-avatar'),display=avatarDisplay(profile)||fallbackAvatarDisplay(name);el.replaceChildren();if(display.type==='image'){const img=node('img');img.src=avatarPublicUrl(client,display.path);img.alt='';el.append(img);}else{el.style.background=display.color;el.textContent=display.emoji;}}
+function renderBlockState(){
+ $('member-profile-card').hidden=targetBlocked;$('posts-panel').hidden=targetBlocked;
+ $('toggle-member-block').textContent=targetBlocked?'解除屏蔽':'屏蔽此成员';$('member-block-status').textContent=targetBlocked?'你已屏蔽此成员，主页和动态已隐藏。':'';
+ if(targetBlocked){$('member-name').textContent='';$('member-bio').textContent='';$('member-links').replaceChildren();$('post-list').replaceChildren();$('member-avatar').replaceChildren();}
+}
+async function loadBlockState(){
+ if(own){targetBlocked=false;renderBlockState();return;}
+ const rows=await result(client.from('space_blocks').select('blocked_id').eq('blocker_id',user.id).eq('blocked_id',target));targetBlocked=!!rows?.length;renderBlockState();
+}
+async function changeBlock(member,blocked){await result(client.rpc('set_space_block',{p_member:member,p_block:blocked}));}
+async function loadBlocks(){
+ if(!own)return;const rows=await result(client.rpc('my_space_blocks',{p_offset:blockOffset}));const list=$('blocked-list');list.replaceChildren();
+ for(const item of rows||[]){const row=node('div');row.className='space-post';row.append(node('p',item.display_name));const button=node('button','解除屏蔽');button.type='button';button.onclick=()=>task(async()=>{await changeBlock(item.blocked_id,false);await loadBlocks();await loadMembers();message('已解除屏蔽。');});row.append(button);list.append(row);}
+ $('blocked-list-status').textContent=rows?.length?`第 ${blockOffset/30+1} 页，${rows.length} 位成员。`:'当前没有更多屏蔽记录。';$('blocks-prev').hidden=blockOffset===0;$('blocks-next').hidden=(rows?.length||0)<30;
+}
+$('toggle-member-block').onclick=()=>{if(!own&&window.confirm(targetBlocked?'确认解除屏蔽，恢复查看此成员？':'确认屏蔽此成员？只影响你的浏览，不限制对方查看你。'))task(async()=>{const value=!targetBlocked;await changeBlock(target,value);targetBlocked=value;renderBlockState();if(!targetBlocked){await loadSpace();await loadPosts();}await loadMembers();message(value?'已屏蔽此成员。':'已解除屏蔽。');});};
+$('blocks-refresh').onclick=()=>task(loadBlocks);$('blocks-prev').onclick=()=>{blockOffset=Math.max(0,blockOffset-30);task(loadBlocks);};$('blocks-next').onclick=()=>{blockOffset+=30;task(loadBlocks);};
 async function loadSpace(){
  const rows=await result(client.rpc('member_spaces',{p_id:target,p_offset:0}));
  const row=rows?.[0];baseline=row?.updated_at||null;
@@ -48,6 +66,7 @@ async function loadMembers(){
  $('members-prev').hidden=memberOffset===0;$('members-next').hidden=(rows?.length||0)<30;
 }
 async function loadPosts(){
+ if(targetBlocked)return;
  const archived=own&&$('show-archived').checked;
  const rows=await result(client.from('space_posts').select('id,user_id,body,archived,created_at,updated_at,edited_at,moderation_hidden').eq('user_id',target).eq('archived',archived).order('created_at',{ascending:false}).order('id',{ascending:false}).range(postOffset,postOffset+19));
  const list=$('post-list');list.replaceChildren();
@@ -115,7 +134,7 @@ async function init(){try{
  user=data.user;client.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){ended=true;dirty=false;$('space-app').replaceChildren();$('space-app').hidden=true;message('已退出登录。');}});
  const raw=new URLSearchParams(location.search).get('user');if(raw&&!memberId(raw))throw Error('个人主页地址不正确。');target=raw||user.id;own=target===user.id;
  const isOwner=window.LANMAO_MEMO_CONFIG?.ownerUid===user.id;$('reports-panel').hidden=!isOwner;
- makeLinkEditor();$('space-data-panel').hidden=!own;$('space-editor').hidden=!own;$('post-form').hidden=!own;$('archive-control').hidden=!own;
- await loadSpace();await loadPosts();await loadMembers();await loadUsage();if(isOwner)await loadReports();assertSession();$('space-app').hidden=false;message(own?'欢迎来到你的个人空间。填写昵称并保存后，会出现在成员列表。':'正在查看成员主页。');
-}catch(e){if(!ended)message(`个人空间暂不可用：${e.message}。需店主执行 user-spaces.sql 和 space-community.sql，可执行后刷新本页。`);}}
+ makeLinkEditor();$('member-block-control').hidden=own;$('blocks-panel').hidden=!own;$('space-data-panel').hidden=!own;$('space-editor').hidden=!own;$('post-form').hidden=!own;$('archive-control').hidden=!own;
+ await loadBlockState();if(!targetBlocked){await loadSpace();await loadPosts();}await loadMembers();await loadUsage();await loadBlocks();if(isOwner)await loadReports();assertSession();$('space-app').hidden=false;message(own?'欢迎来到你的个人空间。填写昵称并保存后，会出现在成员列表。':'正在查看成员主页。');
+}catch(e){if(!ended)message(`个人空间暂不可用：${e.message}。需店主执行 user-spaces.sql、space-community.sql 和 space-blocks.sql，可执行后刷新本页。`);}}
 init();
