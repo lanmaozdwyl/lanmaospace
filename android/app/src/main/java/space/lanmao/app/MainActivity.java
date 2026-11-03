@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
+import android.view.View;
 import android.util.Base64;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -45,8 +47,13 @@ public class MainActivity extends Activity {
  private boolean navigate(Uri uri){if(trusted(uri))return false;external(uri);return true;}
  @Override @SuppressLint("SetJavaScriptEnabled") protected void onCreate(Bundle state){
   super.onCreate(state);
-  getWindow().setStatusBarColor(Color.rgb(251,251,253));
-  getWindow().setNavigationBarColor(Color.rgb(251,251,253));
+  int lightBar=Color.rgb(251,251,253),darkBar=Color.rgb(29,29,31);
+  getWindow().setStatusBarColor(Build.VERSION.SDK_INT>=23?lightBar:darkBar);
+  getWindow().setNavigationBarColor(Build.VERSION.SDK_INT>=26?lightBar:darkBar);
+  int flags=getWindow().getDecorView().getSystemUiVisibility();
+  if(Build.VERSION.SDK_INT>=23)flags|=View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+  if(Build.VERSION.SDK_INT>=26)flags|=View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+  getWindow().getDecorView().setSystemUiVisibility(flags);
   // 保留系统状态栏与手势区，由系统处理真实边缘间距，避免 WebView 内容被遮挡。
   webView=new WebView(this);setContentView(webView);
   WebSettings settings=webView.getSettings();
