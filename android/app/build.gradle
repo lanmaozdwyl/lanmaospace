@@ -8,7 +8,7 @@ android {
   minSdk 21
   targetSdk 34
   versionCode (System.getenv('ANDROID_VERSION_CODE') ?: '100').toInteger()
-  versionName System.getenv('ANDROID_VERSION_NAME') ?: '1.1.0'
+  versionName (System.getenv('ANDROID_VERSION_NAME') ?: '1.1.0')
  }
  signingConfigs {
   if (signingReady) {
