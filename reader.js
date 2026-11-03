@@ -814,26 +814,42 @@
             console.warn('localStorage custom books mirror failed:', err);
         }
 
-        // 2. 写入 IndexedDB (大文件持久化主通道)
-        if (dbInstance) {
+        // 2. 写入 IndexedDB (大文件持久化主通道，严格遵循事务生命周期与单次回调保护)
+        let called = false;
+        const done = (ok) => {
+            if (!called) {
+                called = true;
+                if (typeof callback === 'function') callback(ok);
+            }
+        };
+
+        const executePut = (db) => {
             try {
-                const tx = dbInstance.transaction('custom_books', 'readwrite');
+                const tx = db.transaction('custom_books', 'readwrite');
                 const store = tx.objectStore('custom_books');
                 const req = store.put(book);
-                req.onsuccess = () => {
-                    if (callback) callback(true);
+                req.onerror = (e) => {
+                    console.warn('IndexedDB put error:', req.error || e);
                 };
-                req.onerror = () => {
-                    console.warn('IndexedDB put error:', req.error);
-                    if (callback) callback(mirrorOk);
+                tx.oncomplete = () => {
+                    done(true);
                 };
                 tx.onabort = () => {
-                    if (callback) callback(mirrorOk);
+                    console.warn('IndexedDB transaction aborted');
+                    done(mirrorOk);
+                };
+                tx.onerror = () => {
+                    console.warn('IndexedDB transaction error:', tx.error);
+                    done(mirrorOk);
                 };
             } catch (err) {
                 console.warn('IndexedDB transaction failed:', err);
-                if (callback) callback(mirrorOk);
+                done(mirrorOk);
             }
+        };
+
+        if (dbInstance) {
+            executePut(dbInstance);
         } else if (window.indexedDB) {
             try {
                 const openReq = window.indexedDB.open('lanmao_reader_db_v1', 1);
@@ -845,24 +861,16 @@
                 };
                 openReq.onsuccess = (e) => {
                     dbInstance = e.target.result;
-                    try {
-                        const tx = dbInstance.transaction('custom_books', 'readwrite');
-                        const store = tx.objectStore('custom_books');
-                        const putReq = store.put(book);
-                        putReq.onsuccess = () => { if (callback) callback(true); };
-                        putReq.onerror = () => { if (callback) callback(mirrorOk); };
-                    } catch (_) {
-                        if (callback) callback(mirrorOk);
-                    }
+                    executePut(dbInstance);
                 };
                 openReq.onerror = () => {
-                    if (callback) callback(mirrorOk);
+                    done(mirrorOk);
                 };
             } catch (_) {
-                if (callback) callback(mirrorOk);
+                done(mirrorOk);
             }
         } else {
-            if (callback) callback(mirrorOk);
+            done(mirrorOk);
         }
     }
 
@@ -921,7 +929,7 @@
                 }
             } catch (_) {}
 
-            if (state.currentView === 'reader') {
+            if (state.activeView === 'reader') {
                 switchView('bookshelf', null, null, null, false);
             }
         }
@@ -2312,7 +2320,9 @@
         // 供 Android 原生 WebView 或外部控制器调用的音量键翻页桥梁
         window.__lanmaoVolumeKey = function(keyName) {
             if (!state.settings.volumeKeyEnabled) return false;
-            if (state.currentView !== 'reader') return false;
+            if (state.activeView !== 'reader') return false;
+            // 弹窗或抽屉打开时，阻止翻页以避免误触
+            if (document.querySelector('dialog[open]') || document.querySelector('.reader-drawer.open')) return false;
             if (keyName === 'VolumeDown' || keyName === 25 || keyName === 174) {
                 nextPage();
                 return true;
@@ -2475,6 +2485,7 @@
             });
             shelfGrid.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
+                    if (e.target.closest('.card-delete-btn') || e.target.closest('button')) return;
                     const card = e.target.closest('.book-card-item');
                     if (card && card.dataset.book) {
                         e.preventDefault();
@@ -2941,36 +2952,35 @@
         bindEvents();
         initFloatingCompanionFAB();
 
-        // 1. 同步加载本机离线书籍 (localStorage 快速镜像 + 异步 IndexedDB)
+        // 1. 捕获初始地址栏目标，避免在 IndexedDB 异步读取完成前被初始书架路由改写抹除
+        const initialParams = new URLSearchParams(window.location.search);
+        const initialBook = initialParams.get('book');
+        const initialView = initialParams.get('view');
+        const initialChapter = initialParams.get('chapter');
+        const initialPage = initialParams.get('page');
+
+        // 2. 同步加载本机离线书籍 (localStorage 快速镜像 + 异步 IndexedDB)
         initCustomBooksStorage((hasNew) => {
-            // IndexedDB 异步读取完成回调
-            const params = new URLSearchParams(window.location.search);
-            const bookParam = params.get('book');
-            if (bookParam && state.books[bookParam] && state.currentBookId !== bookParam) {
-                const bookProg = loadBookProgress(bookParam);
-                const chapterParam = params.get('chapter');
-                const pageParam = params.get('page');
+            // IndexedDB 异步读取完成回调：优先使用初始地址捕获的目标，防止被初始书架路由覆盖
+            const targetBookId = initialBook || new URLSearchParams(window.location.search).get('book');
+            if (targetBookId && state.books[targetBookId] && (state.activeView !== 'reader' || state.currentBookId !== targetBookId)) {
+                const bookProg = loadBookProgress(targetBookId);
                 let targetChap = (bookProg && typeof bookProg.chapterIndex === 'number') ? bookProg.chapterIndex : 0;
                 let targetPg = (bookProg && typeof bookProg.page === 'number') ? bookProg.page : 1;
-                if (chapterParam !== null) {
-                    const parsedC = parseInt(chapterParam, 10);
+                if (initialChapter !== null) {
+                    const parsedC = parseInt(initialChapter, 10);
                     if (!isNaN(parsedC)) targetChap = Math.max(0, parsedC);
                 }
-                if (pageParam !== null) {
-                    const parsedP = parseInt(pageParam, 10);
+                if (initialPage !== null) {
+                    const parsedP = parseInt(initialPage, 10);
                     if (!isNaN(parsedP)) targetPg = Math.max(1, parsedP);
                 }
-                switchView('reader', bookParam, targetChap, targetPg, true);
+                switchView('reader', targetBookId, targetChap, targetPg, true);
             }
         });
 
-        // 2. 检查 URL 参数是否有直接打开的书籍
-        const params = new URLSearchParams(window.location.search);
-        const bookParam = params.get('book');
-        const viewParam = params.get('view');
-        const chapterParam = params.get('chapter');
-        const pageParam = params.get('page');
-
+        // 3. 检查 URL 参数是否有直接打开的书籍
+        const bookParam = initialBook;
         if (bookParam && state.books[bookParam]) {
             // 直达模式：恢复该书独立进度，并在历史记录底栈保留书架
             try {
@@ -2981,16 +2991,16 @@
             const bookProg = loadBookProgress(bookParam);
             let targetChap = (bookProg && typeof bookProg.chapterIndex === 'number') ? bookProg.chapterIndex : 0;
             let targetPg = (bookProg && typeof bookProg.page === 'number') ? bookProg.page : 1;
-            if (chapterParam !== null) {
-                const parsedC = parseInt(chapterParam, 10);
+            if (initialChapter !== null) {
+                const parsedC = parseInt(initialChapter, 10);
                 if (!isNaN(parsedC)) targetChap = Math.max(0, parsedC);
             }
-            if (pageParam !== null) {
-                const parsedP = parseInt(pageParam, 10);
+            if (initialPage !== null) {
+                const parsedP = parseInt(initialPage, 10);
                 if (!isNaN(parsedP)) targetPg = Math.max(1, parsedP);
             }
             switchView('reader', bookParam, targetChap, targetPg, true);
-        } else if (viewParam === 'read') {
+        } else if (initialView === 'read') {
             try {
                 const shelfUrl = new URL(window.location.href);
                 shelfUrl.searchParams.delete('view');

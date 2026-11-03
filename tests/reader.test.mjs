@@ -588,3 +588,26 @@ test('第三梯队修复：iOS Safari 无原生全屏 API 时的视觉沉浸全�
     // 2. 降级切换函数
     assert(jsSource.includes('function toggleVisualFullscreen('), '需包含 toggleVisualFullscreen 降级函数');
 });
+
+test('审查缺陷修复：IndexedDB 事务生命周期必须以 tx.oncomplete 确认且具备单次回调保护', () => {
+    assert(jsSource.includes('tx.oncomplete = () => {'), 'saveCustomBook 必须在 tx.oncomplete 确认提交');
+    assert(jsSource.includes('tx.onabort = () => {'), '需处理 tx.onabort 事务中止');
+    assert(jsSource.includes('let called = false;'), '回调必须具备单次触发保护防止重复或时序错乱');
+    assert(!jsSource.includes('req.onsuccess = () => {\n                    if (callback) callback(true);'), '严禁在 put.onsuccess 提前回调成功');
+});
+
+test('审查缺陷修复：Android 原生音量键桥梁严格核验 activeView 并拦截活跃弹窗与抽屉', () => {
+    assert(jsSource.includes("state.activeView !== 'reader'"), '原生音量键必须校验 state.activeView 而非未定义的 currentView');
+    assert(!jsSource.includes("state.currentView !== 'reader'"), '严禁使用未定义的 state.currentView');
+    assert(jsSource.includes("document.querySelector('dialog[open]')"), '弹窗打开时必须拦截音量键翻页');
+    assert(jsSource.includes("document.querySelector('.reader-drawer.open')"), '抽屉打开时必须拦截音量键翻页');
+});
+
+test('审查缺陷修复：IndexedDB 纯异步超大书籍刷新路由恢复不依赖被改写的 URL', () => {
+    assert(jsSource.includes('initialBook || new URLSearchParams'), '异步回调必须使用初始捕获的 URL 目标书籍');
+    assert(jsSource.includes('const initialParams = new URLSearchParams'), '必须在初次路由前捕获目标参数');
+});
+
+test('审查缺陷修复：书架卡片删除按钮键盘 Enter/Space 严禁拦截并误触发打开书籍', () => {
+    assert(jsSource.includes("if (e.target.closest('.card-delete-btn') || e.target.closest('button')) return;"), '网格 keydown 必须排除删除按钮以保留原生激活');
+});
