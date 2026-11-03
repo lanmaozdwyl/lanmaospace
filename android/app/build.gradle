@@ -1,31 +1,35 @@
-plugins {
-    id 'com.android.application'
-}
-
+plugins { id 'com.android.application' }
+def signingReady = System.getenv('ANDROID_KEYSTORE_PATH') && System.getenv('ANDROID_STORE_PASSWORD') && System.getenv('ANDROID_KEY_ALIAS') && System.getenv('ANDROID_KEY_PASSWORD')
 android {
-    namespace 'space.lanmao.app'
-    compileSdk 34
-
-    defaultConfig {
-        applicationId "space.lanmao.app"
-        minSdk 21
-        targetSdk 34
-        versionCode 1
-        versionName "1.0.0"
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            signingConfig signingConfigs.debug
-        }
-    }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
+ namespace 'space.lanmao.app'
+ compileSdk 34
+ defaultConfig {
+  applicationId "space.lanmao.app"
+  minSdk 21
+  targetSdk 34
+  versionCode (System.getenv('ANDROID_VERSION_CODE') ?: '100').toInteger()
+  versionName System.getenv('ANDROID_VERSION_NAME') ?: '1.1.0'
+ }
+ signingConfigs {
+  if (signingReady) {
+   stableRelease {
+    storeFile file(System.getenv('ANDROID_KEYSTORE_PATH'))
+    storeType 'PKCS12'
+    storePassword System.getenv('ANDROID_STORE_PASSWORD')
+    keyAlias System.getenv('ANDROID_KEY_ALIAS')
+    keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+   }
+  }
+ }
+ buildTypes {
+  release {
+   minifyEnabled false
+   if(signingReady) signingConfig signingConfigs.stableRelease
+  }
+ }
+ compileOptions {
+  sourceCompatibility JavaVersion.VERSION_17
+  targetCompatibility JavaVersion.VERSION_17
+ }
 }
-
-dependencies {
-    // 纯原生项目，无任何 Google Play 服务依赖
-}
+dependencies { implementation 'androidx.webkit:webkit:1.10.0' }

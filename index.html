@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。">
     <meta property="og:title" content="Lanmao Space | 蓝昴空间">
     <meta property="og:description" content="蓝昴的个人学术空间：记录阅读、收藏音乐影视，分享学习与生产力工具。">
@@ -24,7 +24,7 @@
     <link rel="apple-touch-icon" href="images/icon-192.png">
     <meta property="og:image" content="https://lanmaospace.pages.dev/images/og-cover.png">
     <meta name="twitter:image" content="https://lanmaospace.pages.dev/images/og-cover.png">
-</head>
+<link rel="stylesheet" href="/mobile.css"></head>
 <body>
     <div class="reading-progress" id="reading-progress" aria-hidden="true"></div>
     <a href="#main-content" class="skip-link">跳到主要内容</a>
@@ -363,7 +363,7 @@
         <div class="container">
             <div class="section-header fade-up">
                 <h2 class="section-title" id="focus-title"><span aria-hidden="true">🍅</span> 学术专注番茄钟</h2>
-                <p class="section-desc">25 分钟沉浸阅读与研究，5 分钟小憩放松 · 全站与手机 App 默认同步</p>
+                <p class="section-desc">25 分钟沉浸阅读与研究，5 分钟小憩放松 · 当前账号在本机独立保存</p>
             </div>
 
             <div class="focus-card fade-up">
@@ -399,7 +399,7 @@
                     </button>
                 </div>
 
-                <div class="focus-stats-row">
+                <p id="focus-storage-status" role="status" class="focus-storage-note">专注记录在本机保存；锁屏和后台提醒受手机系统限制。</p><div class="focus-stats-row">
                     <div class="focus-stat-item">
                         <span class="focus-stat-label">今日已专注</span>
                         <span class="focus-stat-val" id="focus-completed-count">0 <small>个番茄</small></span>
@@ -411,8 +411,8 @@
                     </div>
                     <div class="focus-stat-divider"></div>
                     <div class="focus-stat-item">
-                        <span class="focus-stat-label">多端同步状态</span>
-                        <span class="focus-stat-val focus-sync-badge">✓ 本地与 App 默认同步</span>
+                        <span class="focus-stat-label">保存范围</span>
+                        <span class="focus-stat-val focus-sync-badge">仅此账号 · 当前浏览器</span>
                     </div>
                 </div>
             </div>
@@ -659,5 +659,5 @@
         </div>
     </aside>
 
-</body>
+<script type="module" src="/mobile-nav.js"></script><script type="module" src="/focus.js"></script></body>
 </html>

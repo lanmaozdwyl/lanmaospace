@@ -1,2 +1,9 @@
 dist/
 node_modules/
+
+# Signing material must never enter source control.
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.dpapi

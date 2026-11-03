@@ -3,56 +3,78 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - 'android/**'
-      - '.github/workflows/build-apk.yml'
+    paths: ['android/**','.github/workflows/build-apk.yml']
 permissions:
   contents: write
-
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          distribution: 'temurin'
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
           java-version: '17'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Build Release APK
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          gradle-version: '8.2'
+      - name: Compile Android app
+        working-directory: android
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Check stable signing configuration
+        id: signing
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE" ] && [ -n "$STORE_PASS" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASS" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Compiled only. Stable signing secrets are required before publishing an APK."
+          fi
+      - name: Build stable signed release
+        if: steps.signing.outputs.ready == 'true'
         working-directory: android
         env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/lanmao-release.p12
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_VERSION_NAME: 1.1.${{ github.run_number }}
         run: |
-          gradle assembleRelease --no-daemon --stacktrace
-
-      - name: Rename APK
-        run: |
-          cp android/app/build/outputs/apk/release/app-release.apk lanmaospace.apk
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+          export ANDROID_VERSION_CODE="$((ANDROID_VERSION_CODE + 100))"
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
+          gradle :app:assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk ../lanmaospace.apk
+          cd ..
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose lanmaospace.apk
+          sha256sum lanmaospace.apk > lanmaospace.apk.sha256
+      - name: Publish signed APK
+        if: steps.signing.outputs.ready == 'true'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
-          name: lanmaospace-apk
-          path: lanmaospace.apk
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0.0
-          name: 蓝昴空间 手机版 APK (无谷歌框架)
+          tag_name: v1.1.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: 蓝昴空间 Android 1.1.${{ github.run_number }}
           body: |
-            ### 📱 蓝昴空间 手机版直接下载（无需谷歌框架）
-            - 适配华为鸿蒙、小米、OPPO、vivo、荣耀等所有安卓手机；
-            - 纯原生 WebView 驱动，零 Google Play 依赖；
-            - 下载后直接在手机上点击安装即可。
-          files: lanmaospace.apk
+            手机底部导航、系统文件选择与分块导出、外链使用系统浏览器、稳定签名。
+            从旧版调试签名 APK 首次迁移可能需要卸载旧版。请先导出本机需要保留的内容；卸载会清除 App 本地登录状态和专注记录。
+            后续同一签名版本可覆盖更新。锁屏/后台定时提醒受 Android 系统限制。
+          files: |
+            lanmaospace.apk
+            lanmaospace.apk.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -10,6 +10,8 @@
 
 个人首页、书单筛选、音乐影视、友链、工具箱、工具站（`tools/`）、留言板（Supabase，支持店主站内审核后显示）；商店包含商品分类、搜索、详情与 QQ 人工咨询。网站支持响应式布局和减少动态效果。私人备忘录包含加密备份与恢复、冲突保护、闲置锁定、附件预览、标签、置顶和回收站；详见 [MEMO-GUIDE.md](MEMO-GUIDE.md)。
 
+手机端提供底部功能导航与本机专注钟；Android安装与维护见 [ANDROID-GUIDE.md](ANDROID-GUIDE.md)，当前任务见 [TASKS.md](TASKS.md)。
+
 ## 本地运行
 
 纯 HTML / CSS / JavaScript，无需 npm 安装或构建。
