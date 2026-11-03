@@ -204,6 +204,9 @@ mediaTabs.forEach((tab, index) => {
     const searchIndex = [
         { title: '首页 · 概览与精选', category: '页面', url: '#home', icon: '🏠' },
         { title: '阅读书单 · 学术专著与笔记', category: '页面', url: '#books', icon: '📚' },
+        { title: '沉浸伴读白噪声 · 雨声/布朗噪声/微风/柴火/脑波', category: '伴读音效', url: '#ambient', icon: '🎧' },
+        { title: '雨落窗台白噪声 (Rainfall)', category: '伴读音效', url: '#ambient', icon: '🌧️' },
+        { title: '深度布朗噪声 (Deep Brown Noise)', category: '伴读音效', url: '#ambient', icon: '🌊' },
         { title: '音乐与影视 · 治愈旋律与影片', category: '页面', url: '#music', icon: '🎵' },
         { title: '学术专注番茄钟 · 25m 深度专注 / 5m 小憩', category: '效率工具', url: '#focus', icon: '🍅' },
         { title: '精选学术与工程导航 · 顶级科研资源', category: '页面', url: '#links', icon: '🔗' },
@@ -351,6 +354,8 @@ mediaTabs.forEach((tab, index) => {
     window.addEventListener('resize', updateProgress);
     updateProgress();
 })();
+
+
 
 // ===== Register PWA Service Worker =====
 if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {

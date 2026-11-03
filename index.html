@@ -37,6 +37,7 @@
             <div class="nav-links" id="nav-links">
                 <a href="#home" class="nav-link active">首页</a>
                 <a href="#books" class="nav-link">书单</a>
+                <a href="#ambient" class="nav-link">白噪声</a>
                 <a href="#music" class="nav-link">音乐影视</a>
                 <a href="#focus" class="nav-link">专注钟</a>
                 <a href="#links" class="nav-link">精选导航</a>
@@ -110,6 +111,7 @@
                 <button class="filter-btn" data-filter="reading">在读</button>
                 <button class="filter-btn" data-filter="finished">已读</button>
                 <button class="filter-btn" data-filter="wishlist">想读</button>
+                <a href="#ambient" class="filter-btn books-ambient-pill" title="阅读时开启沉浸白噪声"><span aria-hidden="true">🎧</span> 伴读白噪声</a>
             </div>
 
             <div class="books-grid">
@@ -200,6 +202,113 @@
                         </div>
                         <span class="book-tag tag-wishlist">想读</span>
                         <p class="book-note">关于如何高效学习的方法论，列入下一本阅读计划。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== 沉浸伴读白噪声 ========== -->
+    <section class="section section-light" id="ambient" aria-labelledby="ambient-title">
+        <div class="container">
+            <div class="section-header fade-up">
+                <h2 class="section-title" id="ambient-title"><span aria-hidden="true">🎧</span> 沉浸伴读白噪声</h2>
+                <p class="section-desc">纯净程序声学合成 · 零流量免下载 · 深度阅读、自习与冥想伴侣</p>
+            </div>
+
+            <div class="ambient-card fade-up">
+                <!-- 顶部主控台 -->
+                <div class="ambient-master-bar">
+                    <div class="ambient-now-playing">
+                        <span class="ambient-playing-wave" id="ambient-wave" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span>
+                        </span>
+                        <div class="ambient-now-text">
+                            <span class="ambient-now-title" id="ambient-current-title">雨落窗台 · Rainfall</span>
+                            <span class="ambient-now-status" id="ambient-current-status">就绪 · 点击卡片或播放键开启伴读心流</span>
+                        </div>
+                    </div>
+
+                    <div class="ambient-master-controls">
+                        <button type="button" class="ambient-play-btn" id="ambient-master-play" aria-label="播放白噪声">
+                            <span id="ambient-play-icon" aria-hidden="true">▶</span>
+                            <span id="ambient-play-label">开启声音</span>
+                        </button>
+                        <div class="ambient-vol-wrap">
+                            <span class="ambient-vol-icon" aria-hidden="true">🔉</span>
+                            <input type="range" id="ambient-volume" min="0" max="100" value="65" class="ambient-vol-slider" aria-label="白噪声主音量">
+                            <span class="ambient-vol-icon" aria-hidden="true">🔊</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 声音卡片网格 -->
+                <div class="ambient-grid" role="radiogroup" aria-label="选择白噪声类型">
+                    <button type="button" class="ambient-sound-card active" data-sound="rain" role="radio" aria-checked="true">
+                        <div class="ambient-card-icon">🌧️</div>
+                        <div class="ambient-card-info">
+                            <h4>雨落窗台</h4>
+                            <p class="ambient-card-en">Rainfall Ambience</p>
+                            <p class="ambient-card-desc">淅沥细雨敲打窗台，遮蔽外界杂音，沉淀浮躁心境</p>
+                        </div>
+                        <span class="ambient-card-tag">经典伴读</span>
+                    </button>
+
+                    <button type="button" class="ambient-sound-card" data-sound="brown" role="radio" aria-checked="false">
+                        <div class="ambient-card-icon">🌊</div>
+                        <div class="ambient-card-info">
+                            <h4>布朗噪声</h4>
+                            <p class="ambient-card-en">Deep Brown Noise</p>
+                            <p class="ambient-card-desc">温暖低频轰鸣，神经科学推崇的深度阅读心流背景音</p>
+                        </div>
+                        <span class="ambient-card-tag">深度专注</span>
+                    </button>
+
+                    <button type="button" class="ambient-sound-card" data-sound="breeze" role="radio" aria-checked="false">
+                        <div class="ambient-card-icon">🌲</div>
+                        <div class="ambient-card-info">
+                            <h4>林间微风</h4>
+                            <p class="ambient-card-en">Forest Breeze</p>
+                            <p class="ambient-card-desc">风拂树叶的起伏沙沙声，宛若置身安静的自然林荫</p>
+                        </div>
+                        <span class="ambient-card-tag">清新自然</span>
+                    </button>
+
+                    <button type="button" class="ambient-sound-card" data-sound="fire" role="radio" aria-checked="false">
+                        <div class="ambient-card-icon">🔥</div>
+                        <div class="ambient-card-info">
+                            <h4>温暖柴火</h4>
+                            <p class="ambient-card-en">Cozy Campfire</p>
+                            <p class="ambient-card-desc">冬夜炉火毕剥轻响，带来安心踏实的伴读包裹感</p>
+                        </div>
+                        <span class="ambient-card-tag">温暖治愈</span>
+                    </button>
+
+                    <button type="button" class="ambient-sound-card" data-sound="alpha" role="radio" aria-checked="false">
+                        <div class="ambient-card-icon">🧘</div>
+                        <div class="ambient-card-info">
+                            <h4>432Hz 脑波</h4>
+                            <p class="ambient-card-en">Alpha Flow Wave</p>
+                            <p class="ambient-card-desc">10Hz 双耳阿尔法波和弦，诱导大脑进入平稳专注心流</p>
+                        </div>
+                        <span class="ambient-card-tag">学术冥想</span>
+                    </button>
+                </div>
+
+                <!-- 底部智能设置与联动 -->
+                <div class="ambient-footer-bar">
+                    <label class="ambient-feature-toggle" for="ambient-pomodoro-sync">
+                        <input type="checkbox" id="ambient-pomodoro-sync" checked>
+                        <span class="ambient-toggle-box"></span>
+                        <span class="ambient-toggle-text">🍅 联动学术番茄钟：开启专注时自动播放，小憩时淡出</span>
+                    </label>
+
+                    <div class="ambient-timer-select">
+                        <span class="ambient-timer-label">⏱️ 定时关闭：</span>
+                        <button type="button" class="ambient-timer-pill active" data-timer="0">常开</button>
+                        <button type="button" class="ambient-timer-pill" data-timer="900">15m</button>
+                        <button type="button" class="ambient-timer-pill" data-timer="1800">30m</button>
+                        <button type="button" class="ambient-timer-pill" data-timer="3600">60m</button>
                     </div>
                 </div>
             </div>
