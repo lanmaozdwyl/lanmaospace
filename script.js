@@ -209,6 +209,7 @@ mediaTabs.forEach((tab, index) => {
         { title: '工具站 · 翻译/写作/编程全能合集', category: '页面', url: 'tools/', icon: '🛠️' },
         { title: '我的商店 · 生产力与服务咨询', category: '页面', url: 'store.html', icon: '🛒' },
         { title: '常见问题 · 购物与服务解答', category: '页面', url: 'faq.html', icon: '❓' },
+        { title: '下载安卓版客户端 APK (无需谷歌框架 / 19KB 原生极速)', category: '客户端下载', url: 'lanmaospace.apk', icon: '📱' },
         { title: '加密备忘录 · 本地安全私密笔记', category: '页面', url: 'memo.html', icon: '📝' },
         { title: '成员空间 · 个人主页与动态', category: '页面', url: 'space.html', icon: '🪐' },
         { title: '账号安全中心 · 密码与登录管理', category: '页面', url: 'account.html', icon: '🛡️' },
@@ -252,6 +253,9 @@ mediaTabs.forEach((tab, index) => {
             if (item.url.startsWith('http')) {
                 a.target = '_blank';
                 a.rel = 'noopener noreferrer';
+            }
+            if (item.url.endsWith('.apk')) {
+                a.setAttribute('download', 'lanmaospace.apk');
             }
             a.innerHTML = '<span class="spotlight-item-icon" aria-hidden="true">' + item.icon + '</span>' +
                 '<div class="spotlight-item-text">' +
