@@ -1,0 +1,58 @@
+name: Build Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-apk.yml'
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Release APK
+        working-directory: android
+        run: |
+          gradle assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk lanmaospace-app.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lanmaospace-android-apk
+          path: lanmaospace-app.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: 蓝昴空间 手机版 APK (无谷歌框架依赖)
+          body: |
+            ### 📱 蓝昴空间 手机版下载（无需谷歌框架）
+            - 适配华为鸿蒙 (HarmonyOS)、小米 (HyperOS)、OPPO、vivo、荣耀、三星等所有安卓手机；
+            - 纯原生系统组件驱动，不需要 Google Play 服务，不会闪退；
+            - 安卓手机点击下方 `lanmaospace-app.apk` 即可直接下载安装。
+          files: lanmaospace-app.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
