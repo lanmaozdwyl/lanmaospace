@@ -335,3 +335,52 @@ test('单手侧边虚拟微动翻页条与无硬件音量键降级支持', () =>
     assert(jsSource.includes("rockerPrev.addEventListener('click'"), '绑定上一页微动触发');
     assert(jsSource.includes("rockerNext.addEventListener('click'"), '绑定下一页微动触发');
 });
+
+test('EPUB 与 ZIP 压缩二进制严格拦截校验（拒绝乱码并给出友好提示）', () => {
+    // 1. 文件类型选择器不再宣称支持 .epub 压缩包
+    assert(!htmlSource.includes('accept=".txt,.md,.epub'), '文件上传 input 不得包含 .epub 后缀');
+    assert(htmlSource.includes('accept=".txt,.md'), '文件上传需仅限制 .txt 与 .md 纯文本');
+
+    // 2. JS 二进制魔数校验 (PK 0x50 0x4B 0x03 0x04)
+    assert(jsSource.includes('0x50') && jsSource.includes('0x4B') && jsSource.includes('0x03') && jsSource.includes('0x04'), '必须包含 ZIP 魔数二进制头校验');
+    assert(jsSource.includes("file.name.toLowerCase().endsWith('.epub')"), '必须拦截 .epub 后缀文件');
+    assert(jsSource.includes('暂不支持 EPUB 压缩格式'), '拦截后需给出明确提示而不是静默解码乱码');
+});
+
+test('书籍独立进度持久化与页面刷新记忆恢复', () => {
+    // 1. 每本书独立的进度存储
+    assert(jsSource.includes('STORAGE_KEY_BOOK_PROGRESS'), '需定义每本书专属的进度存储 key');
+    assert(jsSource.includes('loadBookProgress'), '必须提供按 bookId 读取独立进度的函数');
+
+    // 2. 刷新直达页面时恢复该书进度
+    assert(jsSource.includes('const bookProg = loadBookProgress(bookParam)'), '带 ?book= 参数进入时必须读取该书专属进度');
+    assert(!jsSource.includes("switchView('reader', bookParam, 0, 1, true)"), '不得强制以章节 0、页码 1 覆盖已有进度');
+});
+
+test('未读状态展示真实 0% 与开始阅读状态', () => {
+    // 1. 无阅读记录时准确显示未读与 0%
+    assert(!jsSource.includes('Math.max(5,'), '不得将未读书籍进度下限设为伪造的 5%');
+    assert(jsSource.includes('未读 · 第 1 章'), '未读书籍明确展示未读章节状态');
+    assert(jsSource.includes('▶ 开始阅读'), '未读书籍按钮文案应为开始阅读而非继续阅读');
+});
+
+test('番茄钟按真实经过时间 Date.now() 倒计时与后台恢复防漂移', () => {
+    // 1. 记录截止时间戳 targetEndTime
+    assert(jsSource.includes('pomodoroTargetEndTime = Date.now() + pomodoroSeconds * 1000'), '必须按当前时间戳与剩余秒数计算截止时间');
+    assert(jsSource.includes('Math.round((pomodoroTargetEndTime - Date.now()) / 1000)'), '计时器 tick 需基于 Date.now() 真实经过时间计算');
+
+    // 2. 后台唤醒与锁屏恢复
+    assert(jsSource.includes("document.addEventListener('visibilitychange'"), '必须监听 visibilitychange 唤醒时校准');
+    assert(jsSource.includes("window.addEventListener('focus'"), '必须监听 focus 窗口恢复时校准');
+});
+
+test('本地导入书籍持久化与管理移除能力', () => {
+    // 1. 离线持久化初始化
+    assert(jsSource.includes('initCustomBooksStorage'), '必须在初始化时读取本机保存的书籍');
+    assert(jsSource.includes('saveCustomBook'), '导入书籍必须保存到本机存储');
+    assert(jsSource.includes('deleteCustomBook'), '必须提供从本机书架移除书籍的函数');
+
+    // 2. UI 移除按钮
+    assert(jsSource.includes('card-delete-btn'), '自定义卡片需包含移除按钮');
+    assert(cssSource.includes('.card-delete-btn'), 'CSS 需包含移除按钮样式');
+});

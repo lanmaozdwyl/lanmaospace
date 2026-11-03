@@ -561,6 +561,10 @@
     // 存储键名
     const STORAGE_KEY_SETTINGS = 'lanmao_reader_settings_v1';
     const STORAGE_KEY_PROGRESS = 'lanmao_reader_progress_v1';
+    const STORAGE_KEY_BOOK_PROGRESS = 'lanmao_reader_book_progress_v2';
+    const STORAGE_KEY_CUSTOM_BOOKS = 'lanmao_reader_custom_books_v1';
+
+    let dbInstance = null;
 
     // ===== 3. 工具函数 =====
     function escapeHtml(str) {
@@ -643,16 +647,170 @@
         }
     }
 
+    function loadBookProgress(bookId) {
+        if (!bookId) return null;
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
+            if (raw) {
+                const map = JSON.parse(raw);
+                if (map && map[bookId]) {
+                    return map[bookId];
+                }
+            }
+        } catch (_) {}
+        // Fallback to single last progress if matching
+        const last = loadSavedProgress();
+        if (last && last.bookId === bookId) {
+            return last;
+        }
+        return null;
+    }
+
     function saveProgress() {
         try {
             const data = {
                 bookId: state.currentBookId,
                 chapterIndex: state.currentChapterIndex,
                 page: state.currentPage,
+                totalPages: state.totalPages,
                 timestamp: Date.now()
             };
             localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(data));
+
+            if (state.currentBookId) {
+                let map = {};
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
+                    if (raw) map = JSON.parse(raw) || {};
+                } catch (_) {}
+                map[state.currentBookId] = {
+                    chapterIndex: state.currentChapterIndex,
+                    page: state.currentPage,
+                    totalPages: state.totalPages,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(map));
+            }
         } catch (_) {}
+    }
+
+    // ===== 4. 本地书籍离线持久化 (IndexedDB + LocalStorage 镜像兜底) =====
+    function initCustomBooksStorage() {
+        // 1. 同步加载 localStorage 镜像，首屏零延迟渲染
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+            if (raw) {
+                const list = JSON.parse(raw);
+                if (Array.isArray(list)) {
+                    list.forEach(b => {
+                        if (b && b.id && b.title && Array.isArray(b.chapters)) {
+                            state.books[b.id] = b;
+                        }
+                    });
+                }
+            }
+        } catch (_) {}
+
+        // 2. 异步打开 IndexedDB，支持长篇大体量书籍
+        try {
+            if (window.indexedDB) {
+                const req = window.indexedDB.open('lanmao_reader_db_v1', 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('custom_books')) {
+                        db.createObjectStore('custom_books', { keyPath: 'id' });
+                    }
+                };
+                req.onsuccess = (e) => {
+                    dbInstance = e.target.result;
+                    const tx = dbInstance.transaction('custom_books', 'readonly');
+                    const store = tx.objectStore('custom_books');
+                    const getAllReq = store.getAll();
+                    getAllReq.onsuccess = () => {
+                        const books = getAllReq.result || [];
+                        let hasNew = false;
+                        books.forEach(b => {
+                            if (b && b.id && b.title && Array.isArray(b.chapters)) {
+                                if (!state.books[b.id]) hasNew = true;
+                                state.books[b.id] = b;
+                            }
+                        });
+                        if (hasNew) {
+                            renderBookshelfGrid();
+                            updateBookshelfHero();
+                        }
+                    };
+                };
+            }
+        } catch (_) {}
+    }
+
+    function saveCustomBook(book) {
+        state.books[book.id] = book;
+
+        // 1. 本地存储镜像 (限制体积以防超限)
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+            let list = raw ? JSON.parse(raw) : [];
+            if (!Array.isArray(list)) list = [];
+            list = list.filter(b => b.id !== book.id);
+            list.push(book);
+            const serialized = JSON.stringify(list);
+            if (serialized.length < 2 * 1024 * 1024) {
+                localStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, serialized);
+            }
+        } catch (_) {}
+
+        // 2. 写入 IndexedDB
+        try {
+            if (dbInstance) {
+                const tx = dbInstance.transaction('custom_books', 'readwrite');
+                tx.objectStore('custom_books').put(book);
+            }
+        } catch (_) {}
+    }
+
+    function deleteCustomBook(bookId) {
+        delete state.books[bookId];
+
+        // 1. 从 localStorage 镜像移除
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+            if (raw) {
+                let list = JSON.parse(raw);
+                if (Array.isArray(list)) {
+                    list = list.filter(b => b.id !== bookId);
+                    localStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, JSON.stringify(list));
+                }
+            }
+        } catch (_) {}
+
+        // 2. 从 IndexedDB 移除
+        try {
+            if (dbInstance) {
+                const tx = dbInstance.transaction('custom_books', 'readwrite');
+                tx.objectStore('custom_books').delete(bookId);
+            }
+        } catch (_) {}
+
+        // 3. 从进度记录中移除
+        try {
+            const rawProg = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
+            if (rawProg) {
+                const map = JSON.parse(rawProg);
+                delete map[bookId];
+                localStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(map));
+            }
+        } catch (_) {}
+
+        const saved = loadSavedProgress();
+        if (saved && saved.bookId === bookId) {
+            localStorage.removeItem(STORAGE_KEY_PROGRESS);
+        }
+
+        renderBookshelfGrid();
+        updateBookshelfHero();
+        showToast('已从本机移除该书');
     }
 
     // ===== 5. UI 应用与主题切换 =====
@@ -867,9 +1025,20 @@
         }
 
         const totalChapters = (book.chapters && book.chapters.length) || 1;
-        const pct = Math.min(100, Math.max(5, Math.round(((chapterIndex + (page > 1 ? 0.5 : 0)) / totalChapters) * 100)));
+        const isRead = !!saved && (saved.bookId === bookId) && (chapterIndex > 0 || page > 1);
+        let pct = 0;
+        if (isRead) {
+            pct = Math.min(100, Math.max(1, Math.round(((chapterIndex + (page - 1) / Math.max(1, (saved && saved.totalPages) || 1)) / totalChapters) * 100)));
+        }
         if (heroBar) heroBar.style.width = pct + '%';
-        if (heroPct) heroPct.textContent = `已读 ${pct}%`;
+        if (heroPct) {
+            heroPct.textContent = pct > 0 ? `已读 ${pct}%` : '未读 · 第 1 章';
+        }
+        const continueBtn = document.getElementById('shelf-hero-continue-btn');
+        if (continueBtn) {
+            const btnSpan = continueBtn.querySelector('span');
+            if (btnSpan) btnSpan.textContent = pct > 0 ? '▶ 继续阅读' : '▶ 开始阅读';
+        }
 
         if (heroCover) {
             if (bookId === 'prince') {
@@ -883,7 +1052,6 @@
             }
         }
 
-        const continueBtn = document.getElementById('shelf-hero-continue-btn');
         if (continueBtn) {
             continueBtn.onclick = () => {
                 switchView('reader', bookId, chapterIndex, page);
@@ -908,6 +1076,7 @@
             card.tabIndex = 0;
             card.setAttribute('role', 'button');
             card.innerHTML = `
+                <button type="button" class="card-delete-btn" data-delete-book="${escapeHtml(b.id)}" title="移除此本地书籍" aria-label="移除此书籍">✕</button>
                 <div class="card-cover-wrap cover-custom">
                     <span class="card-cover-emoji">${escapeHtml(b.coverEmoji || '📄')}</span>
                     <div class="card-cover-spine"></div>
@@ -915,9 +1084,16 @@
                 <div class="card-meta">
                     <h4 class="card-title">${escapeHtml(b.title)}</h4>
                     <p class="card-author">${escapeHtml(b.author || '本地导入')}</p>
-                    <span class="card-tag">本地书籍</span>
+                    <span class="card-tag">本地离线</span>
                 </div>
             `;
+            const delBtn = card.querySelector('.card-delete-btn');
+            if (delBtn) {
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteCustomBook(b.id);
+                });
+            }
             grid.appendChild(card);
         });
     }
@@ -1392,6 +1568,17 @@
                 showToast('文件内容为空，请重新选择');
                 return;
             }
+
+            // 1. 严格检查二进制头与文件类型（拒绝未解压的 EPUB / ZIP 二进制压缩包）
+            const uint8 = new Uint8Array(buffer.slice(0, 4));
+            const isZipMagic = uint8[0] === 0x50 && uint8[1] === 0x4B && uint8[2] === 0x03 && uint8[3] === 0x04;
+            const isEpubExt = file.name.toLowerCase().endsWith('.epub');
+
+            if (isZipMagic || isEpubExt) {
+                showToast('⚠️ 暂不支持 EPUB 压缩格式，请导入 TXT 或 Markdown (.md) 纯文本书籍', 4000);
+                return;
+            }
+
             let text = '';
             try {
                 // 优先使用严格 UTF-8 解码，遇到非法序列抛错
@@ -1412,11 +1599,11 @@
                 return;
             }
             const bookObj = parseUploadedFile(file.name, text);
-            state.books[bookObj.id] = bookObj;
+            saveCustomBook(bookObj);
             renderBookshelfGrid();
             switchView('reader', bookObj.id, 0, 1);
             closeAllDrawers();
-            showToast(`📖 已载入《${bookObj.title}》，零云端空间消耗！`, 3200);
+            showToast(`📖 已载入《${bookObj.title}》，已保存在本机书架！`, 3200);
         };
         reader.onerror = function () {
             showToast('读取文件失败，请检查文件格式');
@@ -1426,8 +1613,9 @@
 
     // 伴读声音由 reader-audio.js 与全站共用音源管理。
 
-    // ===== 11. 25分钟学术番茄专注钟 =====
+    // ===== 11. 25分钟学术番茄专注钟 (精确到真实经过时间，锁屏防漂移) =====
     let pomodoroSeconds = 25 * 60;
+    let pomodoroTargetEndTime = null;
     let pomodoroInterval = null;
     let isPomodoroActive = false;
 
@@ -1439,26 +1627,35 @@
         }
     }
 
+    function tickPomodoro() {
+        if (!isPomodoroActive || !pomodoroTargetEndTime) return;
+        const remaining = Math.max(0, Math.round((pomodoroTargetEndTime - Date.now()) / 1000));
+        pomodoroSeconds = remaining;
+        updatePomodoroBadge();
+        if (pomodoroSeconds <= 0) {
+            finishPomodoro();
+        }
+    }
+
     function startPomodoro() {
         if (pomodoroSeconds <= 0) pomodoroSeconds = 25 * 60;
+        pomodoroTargetEndTime = Date.now() + pomodoroSeconds * 1000;
         isPomodoroActive = true;
         updatePomodoroBadge();
         showToast('🍅 25分钟深度伴读专注开始');
-        pomodoroInterval = setInterval(() => {
-            if (pomodoroSeconds > 0) {
-                pomodoroSeconds--;
-                updatePomodoroBadge();
-            } else {
-                finishPomodoro();
-            }
-        }, 1000);
+        if (pomodoroInterval) clearInterval(pomodoroInterval);
+        pomodoroInterval = setInterval(tickPomodoro, 500);
     }
 
     function pausePomodoro() {
+        if (isPomodoroActive && pomodoroTargetEndTime) {
+            pomodoroSeconds = Math.max(0, Math.round((pomodoroTargetEndTime - Date.now()) / 1000));
+        }
         if (pomodoroInterval) {
             clearInterval(pomodoroInterval);
             pomodoroInterval = null;
         }
+        pomodoroTargetEndTime = null;
         isPomodoroActive = false;
         updatePomodoroBadge();
         showToast('专注钟已暂停');
@@ -1822,16 +2019,17 @@
             z.addEventListener('contextmenu', (e) => e.preventDefault());
         });
 
-        // 我的书架大厅交互逻辑
+        // 我的书架大厅交互逻辑 (恢复该书专属进度)
         const shelfGrid = document.getElementById('shelf-books-grid');
         if (shelfGrid) {
             shelfGrid.addEventListener('click', (e) => {
+                if (e.target.closest('.card-delete-btn')) return;
                 const card = e.target.closest('.book-card-item');
                 if (card && card.dataset.book) {
                     const bookId = card.dataset.book;
-                    const saved = loadSavedProgress();
-                    if (saved && saved.bookId === bookId) {
-                        switchView('reader', bookId, saved.chapterIndex || 0, saved.page || 1);
+                    const bookProg = loadBookProgress(bookId);
+                    if (bookProg && typeof bookProg.chapterIndex === 'number') {
+                        switchView('reader', bookId, bookProg.chapterIndex, bookProg.page || 1);
                     } else {
                         switchView('reader', bookId, 0, 1);
                     }
@@ -2103,6 +2301,18 @@
                 updatePaginationMetrics();
             }, 100);
         });
+
+        // 页面从后台恢复或解锁时，同步准确的专注倒计时
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && isPomodoroActive) {
+                tickPomodoro();
+            }
+        });
+        window.addEventListener('focus', () => {
+            if (isPomodoroActive) {
+                tickPomodoro();
+            }
+        });
     }
 
     // ===== 13.5 浏览器历史与手机侧滑返回手势监听 (SPA 核心路由回退支持) =====
@@ -2273,19 +2483,35 @@
         renderBookshelfGrid();
         initFloatingCompanionFAB();
 
-        // 检查 URL 参数是否有直接打开的书籍
+        // 1. 初始化并加载本机离线书籍
+        initCustomBooksStorage();
+
+        // 2. 检查 URL 参数是否有直接打开的书籍
         const params = new URLSearchParams(window.location.search);
         const bookParam = params.get('book');
         const viewParam = params.get('view');
+        const chapterParam = params.get('chapter');
+        const pageParam = params.get('page');
 
         if (bookParam && state.books[bookParam]) {
-            // 直达模式：先把书架历史底栈压入，再推入书籍，保证手机侧滑返回时退至我的书架
+            // 直达模式：恢复该书独立进度，并在历史记录底栈保留书架
             try {
                 const shelfUrl = new URL(window.location.href);
                 shelfUrl.searchParams.delete('book');
                 window.history.replaceState({ view: 'bookshelf' }, '', shelfUrl.toString());
             } catch (_) {}
-            switchView('reader', bookParam, 0, 1, true);
+            const bookProg = loadBookProgress(bookParam);
+            let targetChap = (bookProg && typeof bookProg.chapterIndex === 'number') ? bookProg.chapterIndex : 0;
+            let targetPg = (bookProg && typeof bookProg.page === 'number') ? bookProg.page : 1;
+            if (chapterParam !== null) {
+                const parsedC = parseInt(chapterParam, 10);
+                if (!isNaN(parsedC)) targetChap = Math.max(0, parsedC);
+            }
+            if (pageParam !== null) {
+                const parsedP = parseInt(pageParam, 10);
+                if (!isNaN(parsedP)) targetPg = Math.max(1, parsedP);
+            }
+            switchView('reader', bookParam, targetChap, targetPg, true);
         } else if (viewParam === 'read') {
             try {
                 const shelfUrl = new URL(window.location.href);
@@ -2293,11 +2519,11 @@
                 window.history.replaceState({ view: 'bookshelf' }, '', shelfUrl.toString());
             } catch (_) {}
             const saved = loadSavedProgress();
-            if (saved && saved.bookId && state.books[saved.bookId]) {
-                switchView('reader', saved.bookId, saved.chapterIndex || 0, saved.page || 1, true);
-            } else {
-                switchView('reader', 'prince', 0, 1, true);
-            }
+            const targetBook = (saved && saved.bookId && state.books[saved.bookId]) ? saved.bookId : 'prince';
+            const bookProg = loadBookProgress(targetBook);
+            const targetChap = (bookProg && typeof bookProg.chapterIndex === 'number') ? bookProg.chapterIndex : ((saved && saved.chapterIndex) || 0);
+            const targetPg = (bookProg && typeof bookProg.page === 'number') ? bookProg.page : ((saved && saved.page) || 1);
+            switchView('reader', targetBook, targetChap, targetPg, true);
         } else {
             // 默认展现“我的书架”总览大厅，书籍需从书架点击进入
             try {

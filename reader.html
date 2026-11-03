@@ -74,7 +74,7 @@
             <section class="shelf-grid-section">
                 <div class="shelf-section-bar">
                     <h3 class="shelf-grid-heading">精选伴读典藏</h3>
-                    <span class="shelf-zero-quota-tip"><span aria-hidden="true">🔒</span> 纯前端内存解析 · 0 额度消耗</span>
+                    <span class="shelf-zero-quota-tip"><span aria-hidden="true">🔒</span> 本地离线解析 · 数据仅存本机</span>
                 </div>
 
                 <div class="shelf-books-grid" id="shelf-books-grid">
@@ -124,14 +124,14 @@
                 <div class="shelf-import-card" id="shelf-drop-zone">
                     <span class="import-big-icon" aria-hidden="true">📥</span>
                     <h4>打开手机 / 电脑中的本地电子书</h4>
-                    <p>支持 <b>.txt</b>、<b>.md</b>、<b>.epub</b> 格式，智能自动切分章节，杜绝乱码</p>
+                    <p>支持 <b>.txt</b> 与 <b>.md</b> 纯文本格式，智能切分章节目录，数据纯本地保存</p>
                     <label class="shelf-upload-btn" for="shelf-file-input">
                         <span>挑选本地文件</span>
-                        <input type="file" id="shelf-file-input" accept=".txt,.md,.epub,text/plain,text/markdown" hidden>
+                        <input type="file" id="shelf-file-input" accept=".txt,.md,text/plain,text/markdown" hidden>
                     </label>
                     <div class="shelf-security-badge">
                         <span aria-hidden="true">🛡️</span>
-                        <span>所有文本仅驻留当前浏览器内存，绝不上传云端，零空间存储占用</span>
+                        <span>所有文本仅保存在您当前浏览器的本地存储中，绝不上传云端，保护您的阅读隐私</span>
                     </div>
                 </div>
             </section>
@@ -158,7 +158,7 @@
                     <span aria-hidden="true">🍅</span>
                     <span class="reader-tool-badge" id="reader-pomodoro-time">25:00</span>
                 </button>
-                <button type="button" class="reader-tool-btn" id="reader-import-btn" title="导入本地书籍 (TXT/EPUB/MD)" aria-label="导入本地书籍">
+                <button type="button" class="reader-tool-btn" id="reader-import-btn" title="导入本地书籍 (TXT/MD)" aria-label="导入本地书籍">
                     <span aria-hidden="true">📂</span>
                     <span class="reader-tool-text">导入</span>
                 </button>
@@ -387,14 +387,14 @@
                 <div class="import-card" id="drop-zone">
                     <span class="import-icon" aria-hidden="true">📥</span>
                     <h4>打开本地电子书</h4>
-                    <p>支持 <b>.txt</b>、<b>.epub</b>、<b>.md</b> 格式文件</p>
+                    <p>支持 <b>.txt</b>、<b>.md</b> 纯文本格式 · 本机离线存储</p>
                     <label class="import-file-btn" for="file-input">
                         <span>从手机 / 电脑挑选文件</span>
-                        <input type="file" id="file-input" accept=".txt,.md,.epub,text/plain,text/markdown" hidden>
+                        <input type="file" id="file-input" accept=".txt,.md,text/plain,text/markdown" hidden>
                     </label>
                     <div class="import-security-tip">
                         <span aria-hidden="true">🔒</span>
-                        <span>纯前端内存解析，绝不上传云端，零空间消耗</span>
+                        <span>纯本地离线解析，数据仅存当前设备，绝不上传云端</span>
                     </div>
                 </div>
 

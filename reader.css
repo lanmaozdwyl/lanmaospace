@@ -1615,3 +1615,41 @@ html, body.reader-body {
     font-variant-numeric: tabular-nums;
     color: var(--r-accent);
 }
+
+
+/* 本地导入书籍移除按钮 */
+.book-card-item {
+    position: relative;
+}
+.card-delete-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.45);
+    color: #ffffff;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
+    z-index: 5;
+}
+.book-card-item:hover .card-delete-btn,
+.book-card-item:focus-within .card-delete-btn {
+    opacity: 1;
+}
+@media (max-width: 768px) {
+    .card-delete-btn {
+        opacity: 0.85;
+    }
+}
+.card-delete-btn:hover {
+    background: #ff3b30;
+    transform: scale(1.1);
+}
