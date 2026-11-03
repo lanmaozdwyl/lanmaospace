@@ -62,7 +62,7 @@ public class MainActivity extends Activity {
   settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
   settings.setMediaPlaybackRequiresUserGesture(true);
   settings.setUseWideViewPort(true);settings.setLoadWithOverviewMode(true);
-  settings.setSupportZoom(false);
+  settings.setSupportZoom(true);settings.setBuiltInZoomControls(true);settings.setDisplayZoomControls(false);
   bridgeReady=WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER);
   if(bridgeReady)WebViewCompat.addWebMessageListener(webView,"LanmaoFiles",Collections.singleton("https://lanmaospace.pages.dev"),(view,message,origin,mainFrame,proxy)->{
    if(!mainFrame||!trusted(origin)||!trusted(Uri.parse(view.getUrl()==null?"":view.getUrl())))return;
@@ -143,7 +143,17 @@ public class MainActivity extends Activity {
   }
  }
  @Override public void onBackPressed(){
-  webView.evaluateJavascript("(function(){var d=document.querySelector('dialog[open]');if(d){d.close();return true;}var p=document.getElementById('pomodoro-panel');if(p&&!p.hidden){document.getElementById('pomodoro-close').click();return true;}return false;})()",value->{if(!"true".equals(value)){if(webView.canGoBack())webView.goBack();else finish();}});
+  webView.evaluateJavascript("(function(){var d=document.querySelector('dialog[open]');if(d){d.close();return true;}var p=document.getElementById('pomodoro-panel');if(p&&!p.hidden){document.getElementById('pomodoro-close').click();return true;}var drawer=document.querySelector('.reader-drawer:not([hidden])');if(drawer){drawer.hidden=true;var b=document.getElementById('reader-backdrop');if(b)b.hidden=true;return true;}return false;})()",value->{if(!"true".equals(value)){if(webView.canGoBack())webView.goBack();else finish();}});
+ }
+ @Override public boolean dispatchKeyEvent(android.view.KeyEvent event){
+  if(event.getAction()==android.view.KeyEvent.ACTION_DOWN){
+   int code=event.getKeyCode();
+   if(code==android.view.KeyEvent.KEYCODE_VOLUME_DOWN||code==android.view.KeyEvent.KEYCODE_VOLUME_UP){
+    String keyName=(code==android.view.KeyEvent.KEYCODE_VOLUME_DOWN)?"VolumeDown":"VolumeUp";
+    webView.evaluateJavascript("(function(){if(window.__lanmaoVolumeKey){return window.__lanmaoVolumeKey('"+keyName+"');}return false;})()",value->{});
+   }
+  }
+  return super.dispatchKeyEvent(event);
  }
  @Override protected void onDestroy(){
   if(fileCallback!=null)fileCallback.onReceiveValue(null);

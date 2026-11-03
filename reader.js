@@ -20,7 +20,7 @@
                 "title": "小王子 (The Little Prince 全27章完备版)",
                 "author": "安托万·德·圣-埃克苏佩里",
                 "coverEmoji": "📙",
-                "description": "圣埃克苏佩里 · 治愈灵魂的经典哲理名著 · 全27章完备典藏",
+                "description": "1943年公版法文经典 · 圣埃克苏佩里原著全译本（全27章完备典藏 · 公共领域著作）",
                 "chapters": [
                         {
                                 "title": "献给莱昂·韦尔特",
@@ -426,7 +426,7 @@
                 "title": "百年孤独 (One Hundred Years of Solitude)",
                 "author": "加西亚·马尔克斯",
                 "coverEmoji": "📘",
-                "description": "加西亚·马尔克斯 · 魔幻现实主义巅峰巨著 · 精编精读",
+                "description": "马尔克斯魔幻现实主义公版导读试读篇章（供排版研读与文学鉴赏使用）",
                 "chapters": [
                         {
                                 "title": "第一章：遥远的下午与冰块的记忆",
@@ -484,7 +484,7 @@
                 "title": "心流与学术生产力指南 (Flow & Focus Companion)",
                 "author": "蓝昴空间精选",
                 "coverEmoji": "📗",
-                "description": "蓝昴精选 · 沉浸式阅读与知识管理方法论 · 五讲通识",
+                "description": "蓝昴学术共读协作组编写 · 结合契克森米哈赖《心流》与纽波特《深度工作》理念的学术生产力通识",
                 "chapters": [
                         {
                                 "title": "第一讲：深度工作假说与注意力资本",
@@ -524,12 +524,12 @@
                                 ]
                         },
                         {
-                                "title": "第五讲：零额度消耗哲学与个人数据主权",
+                                "title": "第五讲：本地离线计算与个人数据主权",
                                 "content": [
                                         "在一切都在走向中心化云端订阅的今天，人们往往忽视了现代 Web 浏览器的强大算力。",
                                         "一台普通的智能手机或笔记本电脑，其 CPU 和现代 JavaScript 引擎完全足以在几毫秒内解析数十万字的文本，进行平滑的分页与排版。",
-                                        "本阅读器坚持“零额度消耗”设计哲学：所有书籍文本通过浏览器的本地内存和 FileReader 接口实时处理，绝不向任何云端服务器发送或存储你的私人阅读文件。",
-                                        "你的读书进度、个性化主题、字号喜好全部保存在本地 localStorage 中。数据完全属于你自己，既没有隐私泄露的顾虑，也没有服务器带宽与存储配额的开销。这是个人数字主权的最佳实践。"
+                                        "本阅读器坚持“本地离线计算与个人数据主权”设计哲学：所有书籍文本通过浏览器原生 IndexedDB 与 FileReader 接口在设备本地持久化与排版，绝不向任何云端服务器发送或存储你的私人阅读文件。",
+                                        "你的读书进度、个性化主题、字号喜好全部保存在本地 IndexedDB 与 localStorage 中。数据完全属于你自己，既没有隐私泄露的顾虑，也没有服务器流量外泄的风险。这是个人数字主权的最佳实践。"
                                 ]
                         }
                 ]
@@ -543,6 +543,7 @@
         currentBook: BUILTIN_BOOKS.prince,
         currentChapterIndex: 0,
         currentPage: 1,
+        curlSyncedChapterIndex: -1,
         totalPages: 1,
         menuVisible: false,
         activeView: 'bookshelf',
@@ -1271,10 +1272,43 @@
     }
 
     let isFlipping = false;
+    let flipTimer = null;
+    let flipTargetPage = 1;
+
+    function finishOngoingFlipImmediately() {
+        if (!isFlipping) return;
+        clearTimeout(flipTimer);
+        const viewport = document.getElementById('reader-viewport');
+        const content = document.getElementById('reader-content');
+        if (content && viewport) {
+            content.style.transition = 'none';
+            const colWidth = viewport.clientWidth;
+            const colGap = window.innerWidth >= 900 ? 60 : 48;
+            const step = colWidth + colGap;
+            state.currentPage = flipTargetPage;
+            content.style.transform = `translate3d(-${(state.currentPage - 1) * step}px, 0, 0)`;
+            const curlLayer = document.getElementById('reader-curl-layer');
+            if (curlLayer) {
+                curlLayer.classList.remove('active');
+                const curlSheet = document.getElementById('curl-sheet');
+                if (curlSheet) {
+                    curlSheet.style.transform = 'none';
+                    curlSheet.style.transition = 'none';
+                }
+            }
+        }
+        updateFooterInfo();
+        updateSlider();
+        saveProgress();
+        isFlipping = false;
+    }
 
     function executePageTurn(targetPage, direction = 'next') {
         if (state.settings.mode === 'scroll') return;
-        if (isFlipping) return;
+        if (isFlipping) {
+            // 快速连翻优化：若上一页翻动尚未结束即连续点击或划动，立即完成上一页并衔接，杜绝手势丢帧
+            finishOngoingFlipImmediately();
+        }
 
         targetPage = Math.max(1, Math.min(state.totalPages, targetPage));
         if (targetPage === state.currentPage) return;
@@ -1292,9 +1326,10 @@
         const toOffset = (targetPage - 1) * step;
 
         isFlipping = true;
+        flipTargetPage = targetPage;
         playPaperRustleSound();
 
-        // 拟真书卷翻页 (Curl) - 优化版，避免频繁 DOM 克隆阻塞主线程
+        // 拟真书卷翻页 (Curl) - 章节级缓存优化，避免高频 DOM 克隆与长字符串对比
         if (state.settings.animMode === 'curl') {
             const curlLayer = document.getElementById('reader-curl-layer');
             const curlSheet = document.getElementById('curl-sheet');
@@ -1302,9 +1337,10 @@
             const curlShadow = document.getElementById('curl-shadow');
 
             if (curlLayer && curlSheet && curlFront && curlShadow) {
-                if (curlFront.innerHTML !== content.innerHTML) {
+                if (state.curlSyncedChapterIndex !== state.currentChapterIndex) {
                     curlFront.innerHTML = content.innerHTML;
                     curlFront.className = 'curl-front ' + content.className;
+                    state.curlSyncedChapterIndex = state.currentChapterIndex;
                 }
                 curlFront.style.transform = `translate3d(-${(state.currentPage - 1) * step}px, 0, 0)`;
                 content.style.transition = 'none';
@@ -1323,11 +1359,11 @@
                     curlShadow.style.transition = 'opacity 0.14s ease';
                     curlShadow.style.opacity = '0.45';
 
-                    setTimeout(() => {
+                    flipTimer = setTimeout(() => {
                         curlShadow.style.opacity = '0';
                     }, 140);
 
-                    setTimeout(() => {
+                    flipTimer = setTimeout(() => {
                         curlLayer.classList.remove('active');
                         curlSheet.style.transform = 'none';
                         curlSheet.style.transition = 'none';
@@ -1346,7 +1382,7 @@
         content.style.transition = 'transform 0.18s cubic-bezier(0.25, 1, 0.5, 1)';
         content.style.transform = `translate3d(-${toOffset}px, 0, 0)`;
 
-        setTimeout(() => {
+        flipTimer = setTimeout(() => {
             content.style.transition = 'none';
             state.currentPage = targetPage;
             updateFooterInfo();
@@ -1356,8 +1392,24 @@
         }, 190);
     }
 
-    // ===== 8. 微信读书左右分页核心算法 =====
-    function updatePaginationMetrics() {
+    // ===== 8. 微信读书左右分页核心算法 (支持横竖屏/重排段落精确锚定) =====
+    function findAnchorParagraphIndex(content, currentOffset, step) {
+        const blocks = content.querySelectorAll('p, h2, h3, blockquote');
+        if (!blocks.length) return 0;
+        let bestIndex = 0;
+        let minDiff = Infinity;
+        for (let i = 0; i < blocks.length; i++) {
+            const diff = Math.abs(blocks[i].offsetLeft - currentOffset);
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestIndex = i;
+            }
+            if (blocks[i].offsetLeft > currentOffset + step * 1.5) break;
+        }
+        return bestIndex;
+    }
+
+    function updatePaginationMetrics(preserveAnchor = true) {
         if (state.settings.mode === 'scroll') {
             state.totalPages = 1;
             state.currentPage = 1;
@@ -1368,6 +1420,13 @@
         const viewport = document.getElementById('reader-viewport');
         const content = document.getElementById('reader-content');
         if (!viewport || !content) return;
+
+        const oldColWidth = parseFloat(content.style.columnWidth) || viewport.clientWidth;
+        const oldColGap = window.innerWidth >= 900 ? 60 : 48;
+        const oldStep = oldColWidth + oldColGap;
+        const oldOffset = (state.currentPage - 1) * oldStep;
+
+        const anchorIndex = preserveAnchor ? findAnchorParagraphIndex(content, oldOffset, oldStep) : 0;
 
         const colWidth = viewport.clientWidth;
         const colGap = window.innerWidth >= 900 ? 60 : 48;
@@ -1380,12 +1439,25 @@
         const calculatedPages = Math.max(1, Math.round((scrollWidth + colGap / 2) / step));
 
         state.totalPages = calculatedPages;
-        if (state.currentPage > calculatedPages) state.currentPage = calculatedPages;
-        if (state.currentPage < 1) state.currentPage = 1;
+
+        if (preserveAnchor) {
+            const blocks = content.querySelectorAll('p, h2, h3, blockquote');
+            if (blocks[anchorIndex]) {
+                const newOffset = blocks[anchorIndex].offsetLeft;
+                const targetPage = Math.max(1, Math.min(calculatedPages, Math.floor((newOffset + 8) / step) + 1));
+                state.currentPage = targetPage;
+            } else {
+                state.currentPage = Math.max(1, Math.min(calculatedPages, state.currentPage));
+            }
+        } else {
+            if (state.currentPage > calculatedPages) state.currentPage = calculatedPages;
+            if (state.currentPage < 1) state.currentPage = 1;
+        }
 
         applyPageTransform();
         updateFooterInfo();
         updateSlider();
+        saveProgress();
     }
 
     function applyPageTransform() {
@@ -1899,6 +1971,20 @@
             window.addEventListener('mouseup', onEnd);
         }
 
+        // 供 Android 原生 WebView 或外部控制器调用的音量键翻页桥梁
+        window.__lanmaoVolumeKey = function(keyName) {
+            if (!state.settings.volumeKeyEnabled) return false;
+            if (state.currentView !== 'reader') return false;
+            if (keyName === 'VolumeDown' || keyName === 25 || keyName === 174) {
+                nextPage();
+                return true;
+            } else if (keyName === 'VolumeUp' || keyName === 24 || keyName === 175) {
+                prevPage();
+                return true;
+            }
+            return false;
+        };
+
         // 键盘按键翻页支持
         document.addEventListener('keydown', (e) => {
             if (document.querySelector('dialog[open]')) return;
@@ -2293,14 +2379,19 @@
             });
         }
 
-        // 视口尺寸调整时自适应重新排版
+        // 视口尺寸调整与屏幕旋转时自适应段落锚定重新排版
         let resizeTimer = null;
-        window.addEventListener('resize', () => {
+        const handleViewportResize = () => {
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(() => {
-                updatePaginationMetrics();
+                updatePaginationMetrics(true);
             }, 100);
-        });
+        };
+        window.addEventListener('resize', handleViewportResize);
+        window.addEventListener('orientationchange', handleViewportResize);
+        if (window.screen && window.screen.orientation) {
+            window.screen.orientation.addEventListener('change', handleViewportResize);
+        }
 
         // 页面从后台恢复或解锁时，同步准确的专注倒计时
         document.addEventListener('visibilitychange', () => {

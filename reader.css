@@ -2,9 +2,9 @@
    =================================================================== */
 
 :root {
-    --reader-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    --reader-serif: "Songti SC", "Source Han Serif SC", STSong, "SimSun", serif;
-    --reader-kaiti: "Kaiti SC", STKaiti, "KaiTi", serif;
+    --reader-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", system-ui, sans-serif;
+    --reader-serif: "Songti SC", "Source Han Serif SC", "Noto Serif CJK SC", STSong, "SimSun", serif;
+    --reader-kaiti: "Kaiti SC", STKaiti, "KaiTi", "FZKai-Z03S", serif;
 
     /* 默认羊皮纸护眼主题 (WeChat Read Iconic Parchment) */
     --r-bg: #f7f1e5;

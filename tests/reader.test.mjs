@@ -384,3 +384,54 @@ test('本地导入书籍持久化与管理移除能力', () => {
     assert(jsSource.includes('card-delete-btn'), '自定义卡片需包含移除按钮');
     assert(cssSource.includes('.card-delete-btn'), 'CSS 需包含移除按钮样式');
 });
+
+test('横竖屏旋转自适应与段落级平滑重排锚定验证', () => {
+    // 1. 锚定算法与视口自适应
+    assert(jsSource.includes('findAnchorParagraphIndex'), '必须包含段落级锚定算法');
+    assert(jsSource.includes("window.addEventListener('orientationchange'"), '必须监听 orientationchange 屏幕旋转事件');
+    assert(jsSource.includes('updatePaginationMetrics(true)'), '视口变化时必须保留阅读段落锚点');
+});
+
+test('多品牌移动端系统字体族保底与无障碍缩放体验', () => {
+    // 1. 系统字体族保底
+    assert(cssSource.includes('HarmonyOS Sans SC'), 'CSS 必须覆盖华为鸿蒙 HarmonyOS Sans SC 字体');
+    assert(cssSource.includes('MiSans'), 'CSS 必须覆盖小米澎湃 MiSans 字体');
+    assert(cssSource.includes('PingFang SC'), 'CSS 必须覆盖苹果苹方 PingFang SC 字体');
+
+    // 2. 无障碍视口缩放
+    assert(htmlSource.includes('viewport-fit=cover'), '需适配全面屏安全区');
+    assert(!htmlSource.includes('user-scalable=no'), '不强制禁用无障碍缩放');
+});
+
+test('连续翻页动量吞吐与卷页章节级缓存优化验证', () => {
+    // 1. 快速连翻不丢手势
+    assert(jsSource.includes('finishOngoingFlipImmediately'), '连续轻划或点击翻页需支持立即完成上一页过渡');
+    assert(jsSource.includes('flipTargetPage'), '需追踪翻页目标页码');
+
+    // 2. 卷页章节级缓存
+    assert(jsSource.includes('curlSyncedChapterIndex'), 'Curl 模式需采用章节级同步避免高频 innerHTML 序列化');
+});
+
+test('Android 原生 WebView 缩放、抽屉返回拦截与硬件音量键转发链路', () => {
+    const mainActivitySource = readFileSync(new URL('../android/app/src/main/java/space/lanmao/app/MainActivity.java', import.meta.url), 'utf8');
+    
+    // 1. 缩放支持
+    assert(mainActivitySource.includes('setSupportZoom(true)'), '安卓原生 WebView 需开启手势缩放');
+    assert(mainActivitySource.includes('setBuiltInZoomControls(true)'), '需启用内置缩放控制');
+    assert(mainActivitySource.includes('setDisplayZoomControls(false)'), '需隐藏原生屏幕浮动缩放按钮');
+
+    // 2. 返回键优先关闭阅读器抽屉
+    assert(mainActivitySource.includes('.reader-drawer:not([hidden])'), '安卓原生返回键需支持关闭阅读器抽屉');
+
+    // 3. 物理音量键转发
+    assert(mainActivitySource.includes('dispatchKeyEvent'), '安卓原生需转发硬件音量键');
+    assert(mainActivitySource.includes('__lanmaoVolumeKey'), '安卓原生需调用 __lanmaoVolumeKey 桥梁');
+    assert(jsSource.includes('window.__lanmaoVolumeKey'), 'JS 端需实现 __lanmaoVolumeKey 翻页桥梁');
+});
+
+test('全站宣传文案真实严谨性：杜绝实现导向与绝对化营销词汇', () => {
+    const indexSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    assert(!indexSource.includes('零额度消耗'), 'index.html 需剔除实现导向的“零额度消耗”文案');
+    assert(!jsSource.includes('零额度消耗'), 'reader.js 需剔除“零额度消耗”绝对化宣称');
+    assert(!htmlSource.includes('杜绝乱码'), 'reader.html 杜绝“杜绝乱码”等绝对承诺');
+});
