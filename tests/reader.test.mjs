@@ -435,3 +435,64 @@ test('全站宣传文案真实严谨性：杜绝实现导向与绝对化营销�
     assert(!jsSource.includes('零额度消耗'), 'reader.js 需剔除“零额度消耗”绝对化宣称');
     assert(!htmlSource.includes('杜绝乱码'), 'reader.html 杜绝“杜绝乱码”等绝对承诺');
 });
+
+test('P1 复验：自定义书籍刷新后书架网格卡片即时完整展示', () => {
+    // 1. initCustomBooksStorage 同步加载后立即渲染网格
+    assert(jsSource.includes('initCustomBooksStorage'), '需初始化自定义书籍存储');
+    // 确保同步读取后执行了 renderBookshelfGrid
+    const initStorageFn = jsSource.slice(jsSource.indexOf('function initCustomBooksStorage'), jsSource.indexOf('function saveCustomBook'));
+    assert(initStorageFn.includes('renderBookshelfGrid();'), 'initCustomBooksStorage 内部必须在读取 localStorage 镜像后同步执行 renderBookshelfGrid');
+    assert(initStorageFn.includes('updateBookshelfHero();'), 'initCustomBooksStorage 内部必须同步更新 updateBookshelfHero');
+
+    // 2. 初始化流程无需等待即可呈现本地导入书
+    const initFn = jsSource.slice(jsSource.indexOf('function init()'), jsSource.indexOf('// ===== 15. DOM 就绪自启动'));
+    assert(initFn.includes('initCustomBooksStorage('), 'init 流程必须调用 initCustomBooksStorage');
+});
+
+test('P2 复验：书架大厅与阅读器内页进度百分比 100% 严格对齐', () => {
+    // 1. 存在共享的统一进度函数
+    assert(jsSource.includes('function calculateReadingProgress('), '必须包含统一进度计算函数 calculateReadingProgress');
+
+    // 2. 书架 Hero 与阅读器 Footer 均调用此函数
+    const heroFn = jsSource.slice(jsSource.indexOf('function updateBookshelfHero('), jsSource.indexOf('function renderBookshelfGrid('));
+    assert(heroFn.includes('calculateReadingProgress('), 'updateBookshelfHero 必须调用 calculateReadingProgress');
+
+    const footerFn = jsSource.slice(jsSource.indexOf('function updateFooterInfo('), jsSource.indexOf('function updateSlider('));
+    assert(footerFn.includes('calculateReadingProgress('), 'updateFooterInfo 必须调用 calculateReadingProgress');
+
+    // 3. 算法精度隔离测试：《心流与学术生产力》五讲，第二讲第 1/2 页，结果必须为精确的 30%
+    const mockBook = {
+        chapters: [
+            { title: '第一讲' },
+            { title: '第二讲' },
+            { title: '第三讲' },
+            { title: '第四讲' },
+            { title: '第五讲' }
+        ]
+    };
+    const sandbox = {};
+    const extractedCalc = jsSource.slice(
+        jsSource.indexOf('function calculateReadingProgress('),
+        jsSource.indexOf('// ===== 4. 本地书籍离线持久化')
+    );
+    vm.runInNewContext(extractedCalc + '; sandbox.calc = calculateReadingProgress;', { sandbox, Math });
+
+    // 第二讲 (index 1), 第 1/2 页: 1 * 20% + (1/2) * 20% = 20% + 10% = 30%
+    const pct1 = sandbox.calc(mockBook, 1, 1, 2);
+    assert.equal(pct1, 30, '第二讲第 1/2 页两处口径必须完全一致为 30%');
+
+    // 未读/空书籍验证
+    assert.equal(sandbox.calc(null, 0, 1, 1), 0, '空书籍进度为 0%');
+    assert.equal(sandbox.calc({ chapters: [] }, 0, 1, 1), 0, '无章节进度为 0%');
+
+    // 最后一章最后一页必须精准达到 100%
+    assert.equal(sandbox.calc(mockBook, 4, 2, 2), 100, '全书读毕必须精准达到 100%');
+});
+
+test('存储空间异常与超限失败路径友好提示保障', () => {
+    // 1. saveCustomBook 接受结果回调
+    assert(jsSource.includes('function saveCustomBook(book, callback)'), 'saveCustomBook 必须支持回调通知写入状态');
+
+    // 2. 失败提示分支
+    assert(jsSource.includes('本机存储已满，刷新可能不会保留'), '写入失败时给出明确的临时阅读与空间提示');
+});

@@ -695,8 +695,25 @@
         } catch (_) {}
     }
 
+        // ===== 统一阅读进度计算 (书架大厅与阅读器页统一口径) =====
+    function calculateReadingProgress(book, chapterIndex, page, totalPages) {
+        if (!book || !book.chapters || book.chapters.length === 0) return 0;
+        const totalChapters = book.chapters.length;
+        chapterIndex = Math.max(0, Math.min(totalChapters - 1, chapterIndex || 0));
+        const safeTotalPages = Math.max(1, totalPages || 1);
+        const safePage = Math.max(1, Math.min(safeTotalPages, page || 1));
+
+        // 统一进度计算标准：当前已阅读位置在整本书中所处的完成比例
+        // 各章节平均加权：每章权重 100 / totalChapters
+        // 当前章节内进度：safePage / safeTotalPages
+        const chapterWeight = 100 / totalChapters;
+        const currentChapterProgress = (safePage / safeTotalPages) * chapterWeight;
+        const overallPct = Math.min(100, Math.round(chapterIndex * chapterWeight + currentChapterProgress));
+        return overallPct;
+    }
+
     // ===== 4. 本地书籍离线持久化 (IndexedDB + LocalStorage 镜像兜底) =====
-    function initCustomBooksStorage() {
+    function initCustomBooksStorage(callback) {
         // 1. 同步加载 localStorage 镜像，首屏零延迟渲染
         try {
             const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
@@ -712,7 +729,11 @@
             }
         } catch (_) {}
 
-        // 2. 异步打开 IndexedDB，支持长篇大体量书籍
+        // 同步加载后立即渲染书架网格与英雄榜，确保首屏刷新即呈现所有本地导入书籍
+        renderBookshelfGrid();
+        updateBookshelfHero();
+
+        // 2. 异步打开 IndexedDB，支持长篇大体量书籍（大于 2 MiB 镜像阈值）
         try {
             if (window.indexedDB) {
                 const req = window.indexedDB.open('lanmao_reader_db_v1', 1);
@@ -736,20 +757,33 @@
                                 state.books[b.id] = b;
                             }
                         });
-                        if (hasNew) {
-                            renderBookshelfGrid();
-                            updateBookshelfHero();
+                        // 无论是否有新增，只要 IndexedDB 完成读取，均确保网格与英雄榜渲染完整
+                        renderBookshelfGrid();
+                        updateBookshelfHero();
+                        if (typeof callback === 'function') {
+                            callback(hasNew);
                         }
                     };
+                    getAllReq.onerror = () => {
+                        if (typeof callback === 'function') callback(false);
+                    };
                 };
+                req.onerror = () => {
+                    if (typeof callback === 'function') callback(false);
+                };
+            } else {
+                if (typeof callback === 'function') callback(false);
             }
-        } catch (_) {}
+        } catch (_) {
+            if (typeof callback === 'function') callback(false);
+        }
     }
 
-    function saveCustomBook(book) {
+    function saveCustomBook(book, callback) {
         state.books[book.id] = book;
 
-        // 1. 本地存储镜像 (限制体积以防超限)
+        let mirrorOk = false;
+        // 1. 本地存储镜像 (限制体积在 2 MiB 以内，避免超出配额异常)
         try {
             const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
             let list = raw ? JSON.parse(raw) : [];
@@ -759,16 +793,62 @@
             const serialized = JSON.stringify(list);
             if (serialized.length < 2 * 1024 * 1024) {
                 localStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, serialized);
+                mirrorOk = true;
             }
-        } catch (_) {}
+        } catch (err) {
+            console.warn('localStorage custom books mirror failed:', err);
+        }
 
-        // 2. 写入 IndexedDB
-        try {
-            if (dbInstance) {
+        // 2. 写入 IndexedDB (大文件持久化主通道)
+        if (dbInstance) {
+            try {
                 const tx = dbInstance.transaction('custom_books', 'readwrite');
-                tx.objectStore('custom_books').put(book);
+                const store = tx.objectStore('custom_books');
+                const req = store.put(book);
+                req.onsuccess = () => {
+                    if (callback) callback(true);
+                };
+                req.onerror = () => {
+                    console.warn('IndexedDB put error:', req.error);
+                    if (callback) callback(mirrorOk);
+                };
+                tx.onabort = () => {
+                    if (callback) callback(mirrorOk);
+                };
+            } catch (err) {
+                console.warn('IndexedDB transaction failed:', err);
+                if (callback) callback(mirrorOk);
             }
-        } catch (_) {}
+        } else if (window.indexedDB) {
+            try {
+                const openReq = window.indexedDB.open('lanmao_reader_db_v1', 1);
+                openReq.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('custom_books')) {
+                        db.createObjectStore('custom_books', { keyPath: 'id' });
+                    }
+                };
+                openReq.onsuccess = (e) => {
+                    dbInstance = e.target.result;
+                    try {
+                        const tx = dbInstance.transaction('custom_books', 'readwrite');
+                        const store = tx.objectStore('custom_books');
+                        const putReq = store.put(book);
+                        putReq.onsuccess = () => { if (callback) callback(true); };
+                        putReq.onerror = () => { if (callback) callback(mirrorOk); };
+                    } catch (_) {
+                        if (callback) callback(mirrorOk);
+                    }
+                };
+                openReq.onerror = () => {
+                    if (callback) callback(mirrorOk);
+                };
+            } catch (_) {
+                if (callback) callback(mirrorOk);
+            }
+        } else {
+            if (callback) callback(mirrorOk);
+        }
     }
 
     function deleteCustomBook(bookId) {
@@ -1026,10 +1106,10 @@
         }
 
         const totalChapters = (book.chapters && book.chapters.length) || 1;
-        const isRead = !!saved && (saved.bookId === bookId) && (chapterIndex > 0 || page > 1);
+        const isRead = !!saved && (saved.bookId === bookId || !saved.bookId) && (chapterIndex > 0 || page > 1 || (saved && saved.hasRead));
         let pct = 0;
         if (isRead) {
-            pct = Math.min(100, Math.max(1, Math.round(((chapterIndex + (page - 1) / Math.max(1, (saved && saved.totalPages) || 1)) / totalChapters) * 100)));
+            pct = calculateReadingProgress(book, chapterIndex, page, (saved && saved.totalPages) || 1);
         }
         if (heroBar) heroBar.style.width = pct + '%';
         if (heroPct) {
@@ -1532,21 +1612,16 @@
             const viewport = document.getElementById('reader-viewport');
             const totalScroll = viewport ? viewport.scrollHeight - viewport.clientHeight : 1;
             const currentScroll = viewport ? viewport.scrollTop : 0;
-            const pct = totalScroll > 0 ? Math.round((currentScroll / totalScroll) * 100) : 0;
+            const scrollRatio = totalScroll > 0 ? (currentScroll / totalScroll) : 0;
+            const totalChapters = state.currentBook ? state.currentBook.chapters.length : 1;
+            const chapterWeight = 100 / totalChapters;
+            const pct = Math.min(100, Math.round(state.currentChapterIndex * chapterWeight + scrollRatio * chapterWeight));
             footerInfo.textContent = '连续滚动模式';
             footerPercent.textContent = pct + '%';
         } else {
             footerInfo.textContent = `第 ${state.currentPage} / ${state.totalPages} 页`;
-            // 计算整本书的粗略进度
-            if (state.currentBook && state.currentBook.chapters.length > 0) {
-                const totalCh = state.currentBook.chapters.length;
-                const chapterWeight = 100 / totalCh;
-                const currentChProgress = ((state.currentPage) / (state.totalPages || 1)) * chapterWeight;
-                const overallPct = Math.min(100, Math.round(state.currentChapterIndex * chapterWeight + currentChProgress));
-                footerPercent.textContent = overallPct + '%';
-            } else {
-                footerPercent.textContent = '0%';
-            }
+            const pct = calculateReadingProgress(state.currentBook, state.currentChapterIndex, state.currentPage, state.totalPages);
+            footerPercent.textContent = pct + '%';
         }
     }
 
@@ -1671,11 +1746,16 @@
                 return;
             }
             const bookObj = parseUploadedFile(file.name, text);
-            saveCustomBook(bookObj);
+            saveCustomBook(bookObj, (success) => {
+                if (success) {
+                    showToast(`📖 已载入《${bookObj.title}》，已保存在本机书架！`, 3200);
+                } else {
+                    showToast(`⚠️ 《${bookObj.title}》已载入临时阅读，但本机存储已满，刷新可能不会保留`, 4000);
+                }
+            });
             renderBookshelfGrid();
             switchView('reader', bookObj.id, 0, 1);
             closeAllDrawers();
-            showToast(`📖 已载入《${bookObj.title}》，已保存在本机书架！`, 3200);
         };
         reader.onerror = function () {
             showToast('读取文件失败，请检查文件格式');
@@ -2570,12 +2650,30 @@
         loadSavedSettings();
         applySettings();
         bindEvents();
-        updateBookshelfHero();
-        renderBookshelfGrid();
         initFloatingCompanionFAB();
 
-        // 1. 初始化并加载本机离线书籍
-        initCustomBooksStorage();
+        // 1. 同步加载本机离线书籍 (localStorage 快速镜像 + 异步 IndexedDB)
+        initCustomBooksStorage((hasNew) => {
+            // IndexedDB 异步读取完成回调
+            const params = new URLSearchParams(window.location.search);
+            const bookParam = params.get('book');
+            if (bookParam && state.books[bookParam] && state.currentBookId !== bookParam) {
+                const bookProg = loadBookProgress(bookParam);
+                const chapterParam = params.get('chapter');
+                const pageParam = params.get('page');
+                let targetChap = (bookProg && typeof bookProg.chapterIndex === 'number') ? bookProg.chapterIndex : 0;
+                let targetPg = (bookProg && typeof bookProg.page === 'number') ? bookProg.page : 1;
+                if (chapterParam !== null) {
+                    const parsedC = parseInt(chapterParam, 10);
+                    if (!isNaN(parsedC)) targetChap = Math.max(0, parsedC);
+                }
+                if (pageParam !== null) {
+                    const parsedP = parseInt(pageParam, 10);
+                    if (!isNaN(parsedP)) targetPg = Math.max(1, parsedP);
+                }
+                switchView('reader', bookParam, targetChap, targetPg, true);
+            }
+        });
 
         // 2. 检查 URL 参数是否有直接打开的书籍
         const params = new URLSearchParams(window.location.search);
