@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {bindSignOut} from '../lib/signout.mjs';
+function fixture(signOut){let click;const redirects=[],errors=[],button={disabled:false};bindSignOut({auth:{signOut}},{addEventListener:(name,fn)=>{click=fn;}},{navigate:p=>redirects.push(p),onFailure:s=>errors.push(s)});const event={target:{closest:()=>button},preventDefault(){}};return {click:()=>click(event),button,redirects,errors};}
+test('普通退出明确使用local，只有成功后才跳到登录页',async()=>{let options;const f=fixture(async o=>{options=o;return {};});await f.click();assert.deepEqual(options,{scope:'local'});assert.deepEqual(f.redirects,['/login.html']);assert.equal(f.errors.length,0);assert.equal(f.button.disabled,false);});
+test('接口返回错误时不伪装退出，提示后可以重试',async()=>{let attempt=0;const f=fixture(async()=>++attempt===1?{error:Error('network')}:{});await f.click();assert.equal(f.redirects.length,0);assert.match(f.errors[0],/尚未确认退出/);assert.equal(f.button.disabled,false);await f.click();assert.equal(f.redirects.length,1);});
+test('网络异常不跳转，错误提示不暴露底层认证详情',async()=>{const f=fixture(async()=>{throw Error('private-auth-detail');});await f.click();assert.equal(f.redirects.length,0);assert.equal(f.errors.length,1);assert(!f.errors[0].includes('private-auth-detail'));});
+test('双击退出只提交一次请求',async()=>{let release,calls=0;const f=fixture(()=>{calls++;return new Promise(r=>release=r);});const first=f.click();assert.equal(f.button.disabled,true);await f.click();assert.equal(calls,1);release({});await first;assert.equal(f.redirects.length,1);});

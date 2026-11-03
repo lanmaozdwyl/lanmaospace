@@ -65,7 +65,7 @@ for (const [path, markers] of [
 for (const path of [
     'memo.js', 'memo-core.mjs', 'memo.css', 'login.js', 'guestbook-admin.js',
     'lib/supabase-client.js', 'store.js', 'lib/catalog.mjs', 'tools/tools.js', 'tools/tools.css',
-    'guestbook.js', 'auth-guard.js', 'profile.js', 'profile.css', 'lib/avatar.mjs', 'faq.css', 'store.css', 'space.js', 'space.css', 'lib/space.mjs', 'lib/space-export.mjs', 'lib/account-security.mjs', 'account.js', 'script.js','style.css','mobile.css','mobile-nav.js','focus.js','lib/focus.mjs','sw.js','manifest.json',
+    'guestbook.js', 'auth-guard.js', 'profile.js', 'profile.css', 'lib/avatar.mjs', 'faq.css', 'store.css', 'space.js', 'space.css', 'lib/space.mjs', 'lib/space-export.mjs', 'lib/account-security.mjs','lib/signout.mjs', 'account.js', 'script.js','style.css','mobile.css','mobile-nav.js','focus.js','lib/focus.mjs','sw.js','manifest.json',
 ]) await checkHash(path);
 
 // 商品目录：结构比对（名称、分类、价格顺序一致），不把字节差异当成内容不一致。

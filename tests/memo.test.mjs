@@ -238,3 +238,17 @@ test('清除搜索不会清除未保存草稿；取消刷新也不读取或丢�
  const h=context({confirm:false});h.run('openEditor(null)');h.get('note-body').value='keep draft';h.get('memo-search').value='filter';h.get('clear-search-button').onclick();
  assert.equal(h.get('note-body').value,'keep draft');const n=h.calls.length;h.get('refresh-button').onclick();assert.equal(h.calls.length,n);assert.equal(h.get('note-body').value,'keep draft');
 });
+
+
+test('搜索后的同步失败仍报告实际显示条数，不用全部条数冒充',async()=>{
+ const h=context(),good=await core.seal(testKey,{title:'keep',body:'body'});h.tables.memos.push({id:'n1',user_id:'owner',...good,updated_at:'2026'});await h.run('reload()');
+ h.get('memo-search').value='no match';h.run('render()');h.run("allRows=async()=>{throw Error('offline')};");await assert.rejects(h.run('reload()'));assert.match(h.get('memo-sync-status').textContent,/读取到 1 条/);assert.match(h.get('memo-sync-status').textContent,/当前显示 0 条/);
+});
+test('备忘录普通退出仅本会话，失败时先锁定并明确告知未确认退出',async()=>{
+ const h=context();h.run("client.auth={signOut:async options=>{globalThis.scope=options.scope;return {error:Error('offline')}}};");await h.run('signout()');assert.equal(h.run('scope'),'local');assert.equal(h.run('key'),null);assert.match(h.get('login-status').textContent,/已锁定.*退出登录未确认/);
+ const n=context();n.run("client.auth={signOut:async()=>{throw Error('offline')}};");await n.run('signout()');assert.equal(n.run('key'),null);assert.match(n.get('login-status').textContent,/退出登录未确认/);
+});
+test('重新选择备份会撤销上次校验，不能误恢复之前文件',async()=>{
+ const h=context(),file=await archive(records);h.get('backup-file').files=[file];h.get('backup-password').value=password;await h.run('checkBackup()');assert.equal(h.get('restore-button').hidden,false);
+ h.get('backup-file').files=[new Blob(['invalid replacement'])];h.get('backup-file').onchange();assert.equal(h.run('backupManifest'),null);assert.equal(h.run('backupKey'),null);assert.equal(h.get('restore-button').hidden,true);const before=h.calls.length;await h.run('restoreBackup()');assert.equal(h.calls.length,before);
+});

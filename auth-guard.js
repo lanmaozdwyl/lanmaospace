@@ -8,6 +8,7 @@
 
 import { getSupabase, isConfigured } from './lib/supabase-client.js';
 import { avatarDisplay, avatarPublicUrl, fetchProfile } from './lib/avatar.mjs';
+import {bindSignOut} from './lib/signout.mjs';
 
 function loginUrl() {
     const next = encodeURIComponent(
@@ -47,18 +48,11 @@ async function guard() {
     // 已登录：把本人头像填进导航占位（data-header-avatar）；没头像或表还没建好时保持默认 👤。
     fillHeaderAvatar(supabase, sessionUserId).catch((error) => console.error(error));
 
-    // 导航里的退出登录按钮（首页、商店共用 data-signout）。
-    document.addEventListener("click", async (event) => {
-        const trigger = event.target.closest("[data-signout]");
-        if (!trigger) return;
-        event.preventDefault();
-        try {
-            await supabase.auth.signOut();
-        } catch (error) {
-            console.error(error);
-        }
-        window.location.replace("/login.html");
+    bindSignOut(supabase,document,{
+        navigate:path=>window.location.replace(path),
+        onFailure:text=>window.alert(text),
     });
+
 }
 
 async function fillHeaderAvatar(client, userId) {

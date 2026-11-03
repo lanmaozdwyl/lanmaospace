@@ -181,7 +181,7 @@ async function reload() {
  const epoch=generation;let rawNotes;
  $('memo-sync-status').textContent='正在读取本账号的云端内容…';
  try{rawNotes=await allRows('memos','id,ciphertext,iv,created_at,updated_at');}
- catch(e){if(epoch===generation&&key){syncProblem='云端正文读取失败，已有列表未清除。';syncStatus(notes.length);}throw e;}
+ catch(e){if(epoch===generation&&key){syncProblem='云端正文读取失败，已有列表未清除。';syncStatus($('memo-list').children.length);}throw e;}
  let rawFiles=[],fileError=false;
  try{rawFiles=await allRows('memo_files','id,note_id,file_path,name_ciphertext,name_iv,file_iv,mime_type,size_bytes');}
  catch{fileError=true;}
@@ -544,7 +544,8 @@ $('backup-file').onchange=()=>{clearRestoreState();$('backup-summary').textConte
 async function signout() {
     if(!canLeave())return;
     sealedDraft=null;wipe();show('login-panel');
-    const {error}=await client.auth.signOut();if(error)message('login-status','退出登录未确认，请检查网络。');
+    try{const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;}
+    catch{message('login-status','当前备忘录已锁定，但退出登录未确认，请检查网络后重试。');}
 }
 $('signout-button').onclick=signout;$('owner-signout-button').onclick=signout;
 $('login-form').onsubmit=async e=>{
