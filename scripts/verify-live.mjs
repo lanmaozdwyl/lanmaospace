@@ -54,7 +54,7 @@ for (const [path, markers] of [
     ['memo.html', ['backup-panel', 'conflict-panel', 'preview-dialog', 'memo-sync-status', 'clear-search-button']],
     ['store.html', ['catalog-error', 'catalog-retry', 'detail-metadata', 'id="search"', 'id="products"']],
     ['reader.html', ['reader-audio-panel','reader-audio-select','reader-audio.js']],
-    ['index.html', ['guestbookStatus', 'home-simple', 'home-account', 'home-primary-action', 'data-paused-section="books"', 'data-paused-section="music"', 'data-paused-section="links"', 'data-paused-section="toolbox"', 'ambient-credits', 'data-sound="forest"', 'ambient.js']],
+    ['index.html', ['spotlight-close', 'guestbookStatus', 'home-simple', 'home-account', 'home-primary-action', 'data-paused-section="books"', 'data-paused-section="music"', 'data-paused-section="links"', 'data-paused-section="toolbox"', 'ambient-credits', 'data-sound="forest"', 'ambient.js']],
     ['login.html', ['login-form', 'login-panel', 'recovery-form']],
     ['faq.html', ['faq-purchase','faq-warranty','faq-account','faq-contact']],
     ['account.html', ['account-reset-password','account-signout-all','account-actions']],
@@ -66,7 +66,7 @@ for (const [path, markers] of [
 for (const path of [
     'memo.js', 'memo-core.mjs', 'memo.css', 'login.js', 'guestbook-admin.js',
     'lib/supabase-client.js', 'store.js', 'lib/catalog.mjs', 'tools/tools.js', 'tools/tools.css',
-    'guestbook.js', 'auth-guard.js', 'profile.js', 'profile.css', 'lib/avatar.mjs', 'faq.css', 'store.css', 'space.js', 'space.css', 'lib/space.mjs', 'lib/space-export.mjs', 'lib/account-security.mjs','lib/signout.mjs', 'account.js', 'script.js','style.css','mobile.css','mobile-nav.js','focus.js','lib/focus.mjs','ambient.js','reader-audio.js','reader.js','reader.css','lib/ambient.mjs','audio/manifest.json','sw.js','manifest.json',
+    'guestbook.js', 'auth-guard.js', 'profile.js', 'profile.css', 'lib/avatar.mjs', 'faq.css', 'store.css', 'space.js', 'space.css', 'lib/space.mjs', 'lib/space-export.mjs', 'lib/account-security.mjs','lib/signout.mjs', 'account.js', 'script.js','style.css','mobile.css','mobile-nav.js','lib/theme.mjs','lib/viewport.mjs','motion.css','focus.js','lib/focus.mjs','ambient.js','reader-audio.js','reader.js','reader.css','lib/ambient.mjs','audio/manifest.json','sw.js','manifest.json',
 ]) await checkHash(path);
 
 // 自托管声音逐字节验收，避免只有按钮上线而音频漏发或返回 HTML。

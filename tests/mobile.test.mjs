@@ -1,9 +1,10 @@
+import {initTheme} from '../lib/theme.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
-const code=fs.readFileSync(new URL('../mobile-nav.js',import.meta.url),'utf8');
+const code=fs.readFileSync(new URL('../mobile-nav.js',import.meta.url),'utf8').replace(/^import .*;\s*/gm,'');
 function fixture(path='/',hash=''){
  class El{constructor(tag){this.tag=tag;this.children=[];this.attrs={};this.events={};this.dataset={};this.open=false;this.classes=new Set();this.classList={add:k=>this.classes.add(k),toggle:(k,v)=>v?this.classes.add(k):this.classes.delete(k)};}append(...v){this.children.push(...v);}setAttribute(k,v){this.attrs[k]=v;}removeAttribute(k){delete this.attrs[k];}addEventListener(k,fn){this.events[k]=fn;}showModal(){this.open=true;}close(){this.open=false;this.events.close?.();}focus(){this.focused=true;}}
- const body=new El('body'),events={},viewport={height:800,addEventListener:(k,fn)=>events[k]=fn},document={body,createElement:tag=>new El(tag),addEventListener:(k,fn)=>events[k]=fn,activeElement:null,getElementById:()=>null};
- vm.runInNewContext(code,{document,location:{pathname:path,hash},window:{visualViewport:viewport,innerHeight:800},innerHeight:800,matchMedia:()=>({matches:true,addEventListener(){}}),localStorage:{getItem:()=>null,setItem(){}},setTimeout:fn=>fn()});
+ const body=new El('body'),root=new El('html'),events={},viewport={height:800,addEventListener:(k,fn)=>events[k]=fn},document={body,documentElement:root,querySelector:()=>null,createElement:tag=>new El(tag),addEventListener:(k,fn)=>events[k]=fn,activeElement:null,getElementById:()=>null};
+ vm.runInNewContext(code,{initTheme,installViewport(){},document,location:{pathname:path,hash},window:{visualViewport:viewport,innerHeight:800},innerHeight:800,matchMedia:()=>({matches:true,addEventListener(){}}),localStorage:{getItem:()=>null,setItem(){}},setTimeout:fn=>fn()});
  return {body,nav:body.children[0],sheet:body.children[1],events,viewport,document};
 }
 test('手机导航从任何子目录都使用网站根路径，首页别名能正确高亮',()=>{for(const path of ['/','/index.html','/index']){const f=fixture(path);assert.equal(f.nav.children[0].attrs['aria-current'],'page');assert.deepEqual(f.nav.children.slice(0,4).map(a=>a.href),['/','/reader.html','/#focus','/space.html']);}});

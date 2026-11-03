@@ -1,3 +1,6 @@
+import {initTheme} from './lib/theme.mjs';
+import {installViewport} from './lib/viewport.mjs';
+installViewport();
 const nav=document.createElement('nav');nav.className='mobile-dock';nav.setAttribute('aria-label','手机主要功能');
 const items=[['/','首页','⌂'],['/reader.html','阅读','▤'],['/#focus','专注','◷'],['/space.html','我的','♙']];
 const dockLinks=[];
@@ -16,11 +19,12 @@ const sheet=document.createElement('dialog');sheet.className='mobile-sheet';shee
 const header=document.createElement('div');header.className='mobile-sheet-header';const title=document.createElement('h2');title.id='mobile-menu-title';title.textContent='常用功能';const close=document.createElement('button');close.type='button';close.textContent='关闭';header.append(title,close);sheet.append(header);
 for(const [href,label,note] of [['/#ambient','自然声音','溪流、雨声与柔和伴读'],['/#contact','留言板','交流与反馈'],['/account.html','账号安全','改密与全设备退出'],['/profile.html','设置头像','预设与图片上传'],['/memo.html','店主备忘录','需要店主身份和独立口令']]){const a=document.createElement('a');a.href=href;const name=document.createElement('strong'),detail=document.createElement('span');name.textContent=label;detail.textContent=note;a.append(name,detail);a.addEventListener('click',()=>sheet.close());sheet.append(a);}
 function action(label,fn){const b=document.createElement('button');b.type='button';b.className='mobile-sheet-action';b.textContent=label;b.addEventListener('click',fn);sheet.append(b);return b;}
-try{const saved=localStorage.getItem('lanmao_theme');if(saved==='dark'||saved==='light')document.body.dataset.theme=saved;}catch{}
+let themeStorage;try{themeStorage=localStorage;}catch{}
+const theme=initTheme({root:document.documentElement,body:document.body,button:document.getElementById('theme-toggle'),storage:themeStorage,media:matchMedia('(prefers-color-scheme:dark)')});
 if(document.getElementById('spotlight-trigger'))action('搜索本站',()=>{sheet.close();document.getElementById('spotlight-trigger').click();});
-action('切换明暗外观',()=>{const dark=document.body.dataset.theme==='dark'||(!document.body.dataset.theme&&matchMedia('(prefers-color-scheme:dark)').matches);document.body.dataset.theme=dark?'light':'dark';try{localStorage.setItem('lanmao_theme',document.body.dataset.theme);}catch{}});
+action('切换明暗外观',()=>theme.toggle());
 const signout=action('退出当前登录',()=>sheet.close());signout.setAttribute('data-signout','');
-more.addEventListener('click',()=>{sheet.showModal();more.setAttribute('aria-expanded','true');});close.addEventListener('click',()=>sheet.close());sheet.addEventListener('close',()=>{more.setAttribute('aria-expanded','false');more.focus();});
+more.addEventListener('click',()=>{sheet.showModal();more.setAttribute('aria-expanded','true');});close.addEventListener('click',()=>sheet.close());sheet.addEventListener('close',()=>{more.setAttribute('aria-expanded','false');if(!document.querySelector('dialog[open]'))more.focus({preventScroll:true});});
 sheet.addEventListener('click',e=>{if(e.target===sheet){const r=sheet.getBoundingClientRect();if(e.clientY<r.top||e.clientX<r.left||e.clientX>r.right)sheet.close();}});
 document.body.append(nav,sheet);document.body.classList.add('mobile-enabled');
 const media=matchMedia('(max-width: 820px)');media.addEventListener('change',()=>{if(!media.matches&&sheet.open)sheet.close();});

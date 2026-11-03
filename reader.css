@@ -1788,3 +1788,36 @@ body.reader-visual-fullscreen .reader-footer {
 body.reader-visual-fullscreen .reader-footer:hover {
     opacity: 1;
 }
+
+/* 声音面板遵守阅读器主题，不能被全站自动深色规则覆盖。 */
+body.reader-body dialog.reader-audio-panel { background: var(--r-bg); color: var(--r-text); }
+.reader-audio-heading { gap: 12px; }
+.reader-audio-heading h2 { min-width: 0; }
+.reader-audio-heading button { flex-shrink: 0; }
+@media (max-width: 820px) {
+    html body dialog.reader-audio-panel[open] {
+        position: fixed; inset: auto;
+        top: calc(var(--ui-top) + var(--ui-height) - 12px - env(safe-area-inset-bottom, 0px));
+        left: calc(var(--ui-left) + var(--ui-width) / 2);
+        transform: translate(-50%, -100%); margin: 0;
+        width: min(480px, calc(var(--ui-width) - 24px));
+        max-width: calc(var(--ui-width) - 24px);
+        max-height: calc(var(--ui-height) - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        padding: 20px; overscroll-behavior: contain;
+    }
+    .reader-body .reader-drawer.drawer-left:not([hidden]), .reader-body .reader-drawer.drawer-right:not([hidden]) {
+        top: calc(var(--ui-top) + env(safe-area-inset-top, 0px)); bottom: auto;
+        height: calc(var(--ui-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        max-height: calc(var(--ui-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    }
+    .reader-body .reader-drawer.drawer-bottom:not([hidden]) {
+        top: calc(var(--ui-top) + var(--ui-height) - env(safe-area-inset-bottom, 0px));
+        bottom: auto; transform: translateY(-100%);
+        max-height: calc(var(--ui-height) - 12px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    }
+    .reader-drawer .settings-body, .reader-drawer .toc-list { min-height: 0; overscroll-behavior: contain; }
+    .drawer-header { gap: 8px; padding: 0 16px; }
+    .drawer-header h3 { min-width: 0; font-size: 16px; }
+    .drawer-close { flex-shrink: 0; min-width: 44px; min-height: 44px; }
+    .reader-tool-btn, .reader-nav-step, .reader-tool-btn-icon { min-height: 44px; }
+}

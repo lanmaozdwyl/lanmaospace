@@ -39,3 +39,16 @@
 @media(prefers-reduced-motion:reduce){.mobile-dock *,.mobile-sheet *{transition:none!important;animation:none!important}}
 
 .focus-storage-note{font-size:12px;line-height:1.6;color:#86868b;text-align:center;margin:0 0 16px;max-width:420px}
+
+@media(max-width:820px){
+ .mobile-enabled .mobile-sheet[open]{
+  top:calc(var(--ui-top,0px) + var(--ui-height,100dvh) - 12px - env(safe-area-inset-bottom,0px));
+  bottom:auto;left:calc(var(--ui-left,0px) + var(--ui-width,100vw)/2);right:auto;
+  transform:translate(-50%,-100%);margin:0;width:calc(var(--ui-width,100vw) - 24px);max-width:620px;
+  max-height:calc(var(--ui-height,100dvh) - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  box-sizing:border-box;border-radius:24px;padding:16px 18px;overscroll-behavior:contain;
+ }
+ .mobile-sheet-header{position:sticky;top:0;background:inherit;z-index:1;padding-bottom:8px}
+ .mobile-sheet>a strong,.mobile-sheet>a span{overflow-wrap:anywhere}
+ .mobile-sheet-action{white-space:normal;text-align:left}
+}

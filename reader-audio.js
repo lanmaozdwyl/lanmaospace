@@ -1,3 +1,5 @@
+import {installViewport} from './lib/viewport.mjs';
+installViewport();
 import {AMBIENT_SOUNDS, AmbientPlayer} from './lib/ambient.mjs';
 const byId = id => document.getElementById(id);
 const trigger = byId('reader-toggle-noise');

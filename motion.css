@@ -16,7 +16,8 @@
 .shop-button:hover{box-shadow:0 8px 24px #0071e32b;transform:translateY(-2px)}
 dialog[open]{animation:dialog-arrival .32s cubic-bezier(.22,1,.36,1) both}
 dialog[open]::backdrop{animation:veil-arrival .25s ease both}
-@keyframes dialog-arrival{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+/* 定位用的 transform 属于组件；入场动画不能覆盖它，否则居中的弹窗会跑出屏幕。 */
+@keyframes dialog-arrival{from{opacity:0}to{opacity:1}}
 @keyframes veil-arrival{from{opacity:0}to{opacity:1}}
 @keyframes gradient-arrival{from{background-position:100% 50%}to{background-position:0% 50%}}
 @keyframes ambient-arrival{from{opacity:0;transform:translate(24px,12px) scale(.94)}to{opacity:1;transform:none}}

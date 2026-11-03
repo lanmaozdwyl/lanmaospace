@@ -148,50 +148,7 @@ mediaTabs.forEach((tab, index) => {
     });
 });
 
-// ===== Apple-Style Dark/Light Mode Switcher =====
-(function initTheme() {
-    const themeToggle = document.getElementById('theme-toggle');
-    function applyTheme(theme) {
-        if (theme === 'dark' || theme === 'light') {
-            document.documentElement.setAttribute('data-theme', theme);
-            document.body.setAttribute('data-theme', theme);
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-            document.body.removeAttribute('data-theme');
-        }
-        if (themeToggle) {
-            const isDark = theme === 'dark' || (!theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            themeToggle.setAttribute('aria-label', isDark ? '切换至亮色模式' : '切换至暗色模式');
-            themeToggle.title = isDark ? '切换至亮色模式' : '切换至暗色模式';
-            themeToggle.innerHTML = isDark ? '<span aria-hidden="true">☀️</span>' : '<span aria-hidden="true">🌙</span>';
-        }
-    }
-
-    try {
-        const savedTheme = localStorage.getItem('lanmao_theme');
-        if (savedTheme) applyTheme(savedTheme);
-    } catch (_) {}
-
-    if (themeToggle) {
-        themeToggle.addEventListener('click', () => {
-            const current = document.documentElement.getAttribute('data-theme') || 
-                (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            const next = current === 'dark' ? 'light' : 'dark';
-            try { localStorage.setItem('lanmao_theme', next); } catch (_) {}
-            applyTheme(next);
-        });
-    }
-
-    if (window.matchMedia) {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-            try {
-                if (!localStorage.getItem('lanmao_theme')) {
-                    applyTheme('');
-                }
-            } catch (_) {}
-        });
-    }
-})();
+// 明暗主题由 mobile-nav.js 使用 lib/theme.mjs 统一管理。
 
 // ===== Apple-Style Spotlight Search (Cmd/Ctrl + K) =====
 (function initSpotlight() {
@@ -215,6 +172,8 @@ mediaTabs.forEach((tab, index) => {
         { title: '下载安卓客户端', category: '客户端', url: 'lanmaospace.apk', icon: '📱' },
     ];
 
+    const closeButton = document.getElementById('spotlight-close');
+    let returnFocus = null;
     let selectedIndex = 0;
     let currentResults = [];
 
@@ -248,6 +207,7 @@ mediaTabs.forEach((tab, index) => {
     }
 
     function search(kw) {
+        selectedIndex = 0;
         kw = kw.trim().toLowerCase();
         if (!kw) {
             renderResults(searchIndex.slice(0, 7));
@@ -261,15 +221,26 @@ mediaTabs.forEach((tab, index) => {
     }
 
     function openSpotlight() {
+        if (dialog.open) return;
+        const focused = document.activeElement;
+        const mobileTrigger = document.querySelector('.mobile-dock button[aria-controls="mobile-menu"]');
+        returnFocus = focused && focused !== document.body && !focused.closest('dialog') && focused.getClientRects().length
+            ? focused : (mobileTrigger?.getClientRects().length ? mobileTrigger : trigger);
         dialog.showModal();
         input.value = '';
         search('');
-        input.focus();
+        input.focus({preventScroll:true});
     }
 
     function closeSpotlight() {
         dialog.close();
     }
+
+    closeButton?.addEventListener('click', closeSpotlight);
+    dialog.addEventListener('close', () => {
+        const target = returnFocus?.getClientRects().length ? returnFocus : trigger;
+        target?.focus({preventScroll:true});
+    });
 
     if (trigger) {
         trigger.addEventListener('click', openSpotlight);
@@ -280,18 +251,20 @@ mediaTabs.forEach((tab, index) => {
             e.preventDefault();
             if (dialog.open) closeSpotlight();
             else openSpotlight();
-        } else if (dialog.open) {
+        } else if (dialog.open && e.target === input) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 if (currentResults.length > 0) {
                     selectedIndex = (selectedIndex + 1) % currentResults.length;
                     renderResults(currentResults);
+                    list.querySelector('.spotlight-item.active')?.scrollIntoView({block:'nearest'});
                 }
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 if (currentResults.length > 0) {
                     selectedIndex = (selectedIndex - 1 + currentResults.length) % currentResults.length;
                     renderResults(currentResults);
+                    list.querySelector('.spotlight-item.active')?.scrollIntoView({block:'nearest'});
                 }
             } else if (e.key === 'Enter') {
                 if (currentResults.length > 0 && currentResults[selectedIndex]) {
@@ -312,7 +285,9 @@ mediaTabs.forEach((tab, index) => {
 
     input.addEventListener('input', e => search(e.target.value));
     dialog.addEventListener('click', e => {
-        if (e.target === dialog) closeSpotlight();
+        if (e.target !== dialog) return;
+        const box = dialog.getBoundingClientRect();
+        if (e.clientX < box.left || e.clientX > box.right || e.clientY < box.top || e.clientY > box.bottom) closeSpotlight();
     });
 })();
 

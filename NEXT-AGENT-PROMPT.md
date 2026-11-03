@@ -1,5 +1,7 @@
 你现在接手维护我的个人网站 Lanmao Space。请用中文，先核对仓库现状，再按优先级继续完成任务，不要重复开发已完成的功能。
 
+最新补充（2026-11-03）：手机搜索越界已修复，使用 lib/viewport.mjs 适配可见视口，lib/theme.mjs 统一手机/桌面主题。181 项测试通过。继续保留本地 reader.js 草稿，隐藏功能不恢复；具体边界与真机限制先读 HANDOFF.md 顶部。
+
 一、先读与核验
 1. 先读 README.md、HANDOFF.md 顶部“当前权威状态”、TASKS.md、MEMO-GUIDE.md、STORE-GUIDE.md，以及实际存在的 AGENTS.md。
 2. 实际仓库 D:\ANTIgravity-dataspace\lanmaospace；当前 Codex 工作目录 C:\Users\29784\OneDrive\文档\ChatGPT\lanmaospace 是辅助工作区，不要误当仓库。其他电脑先 clone https://github.com/lanmaozdwyl/lanmaospace 。

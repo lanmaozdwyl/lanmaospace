@@ -759,11 +759,12 @@
         <div class="spotlight-shell">
             <div class="spotlight-searchbox">
                 <span class="spotlight-icon" aria-hidden="true">🔍</span>
-                <input type="text" id="spotlight-input" placeholder="搜索阅读器、声音、专注或个人空间…" autocomplete="off" spellcheck="false">
-                <kbd class="spotlight-esc-tip">ESC</kbd>
+                <input type="search" id="spotlight-input" placeholder="搜索本站功能…" aria-label="搜索本站" aria-controls="spotlight-results" enterkeyhint="search" autocomplete="off" spellcheck="false">
+                <button type="button" class="spotlight-close" id="spotlight-close" aria-label="关闭搜索">关闭</button>
             </div>
-            <div class="spotlight-results" id="spotlight-results" role="listbox"></div>
+            <nav class="spotlight-results" id="spotlight-results" aria-label="搜索结果"></nav>
             <div class="spotlight-footer">
+                <span class="spotlight-touch-hint">点击结果前往，或关闭返回</span>
                 <span><kbd>↑</kbd> <kbd>↓</kbd> 切换</span>
                 <span><kbd>↵</kbd> 跳转</span>
                 <span><kbd>ESC</kbd> 关闭</span>
