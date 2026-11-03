@@ -1,3 +1,4 @@
+import {exportOwnSpace,readSpaceUsage} from './lib/space-export.mjs';
 import {getSupabase} from './lib/supabase-client.js';
 import {avatarDisplay,avatarPublicUrl,fallbackAvatarDisplay} from './lib/avatar.mjs';
 import {cleanSpace,cleanPost,memberId} from './lib/space.mjs';
@@ -23,6 +24,22 @@ async function loadSpace(){
  $('member-permalink').href=`space.html?user=${target}`;
  if(own){$('space-name').value=row?.display_name||'';$('space-bio').value=row?.bio||'';linkInputs.forEach((fields,i)=>{fields.label.value=row?.links?.[i]?.label||'';fields.url.value=row?.links?.[i]?.url||'';});}
 }
+async function loadUsage(){
+ if(!own||ended)return;
+ try{const usage=await readSpaceUsage(client,user.id,assertSession);$('space-usage').textContent=`已使用 ${usage.used} / ${usage.limit} 条动态，还可保存 ${usage.remaining} 条（包括隐藏记录）。`;$('space-capacity').max=usage.limit;$('space-capacity').value=Math.min(usage.used,usage.limit);$('space-capacity').hidden=false;$('space-capacity-note').textContent=usage.remaining===0?'已达到容量上限。导出不会删除动态或释放容量；如需调整容量请联系店主。':usage.remaining<=50?'接近容量上限，建议先导出保存自己的内容。':'导出只生成文件，不会删除云端内容或释放容量。';}
+ catch(e){if(!ended){$('space-usage').textContent='用量读取失败：'+e.message;$('space-capacity').hidden=true;$('space-capacity-note').textContent='可以点击“刷新用量”重试。';}}
+}
+async function downloadSpace(){
+ if(!own)return;let writable=null;
+ try{
+  if(window.showSaveFilePicker){try{const handle=await window.showSaveFilePicker({suggestedName:`lanmao-space-${new Date().toISOString().slice(0,10)}.json`,types:[{description:'个人空间 JSON',accept:{'application/json':['.json']}}]});assertSession();writable=await handle.createWritable();}catch(e){if(e.name==='AbortError'){$('space-export-status').textContent='已取消导出。';return;}throw e;}}
+  $('space-export-status').textContent='正在读取云端内容并检查一致性…';
+  const data=await exportOwnSpace(client,user.id,assertSession),text=JSON.stringify(data,null,2);assertSession();
+  if(writable){await writable.write(text);assertSession();await writable.close();writable=null;assertSession();$('space-export-status').textContent=`已写入所选文件：${data.posts.length} 条动态。请妥善保存。`;}
+  else{const blob=new Blob([text],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob);try{const a=node('a');a.href=url;a.download=`lanmao-space-${new Date().toISOString().slice(0,10)}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){URL.revokeObjectURL(url);throw e;}$('space-export-status').textContent=`已发起下载（${data.posts.length} 条动态），请在浏览器中确认文件已保存。`;}
+ }catch(e){if(writable)await writable.abort().catch(()=>{});if(!ended)$('space-export-status').textContent='导出失败：'+e.message;throw e;}
+}
+$('export-space').onclick=()=>task(downloadSpace);$('refresh-space-usage').onclick=()=>task(loadUsage);
 async function loadMembers(){
  const rows=await result(client.rpc('search_member_spaces',{p_query:$('member-search').value.trim(),p_offset:memberOffset}));const list=$('member-list');list.replaceChildren();
  for(const item of rows||[]){const a=node('a',item.display_name);a.href=`space.html?user=${item.user_id}`;list.append(a);}
@@ -69,7 +86,7 @@ $('post-form').onsubmit=e=>{e.preventDefault();task(async()=>{
  postAttempt??={id:crypto.randomUUID(),body};
  const existing=await result(client.from('space_posts').select('id').eq('id',postAttempt.id).eq('user_id',user.id));
  if(!existing?.length){const {error}=await client.from('space_posts').insert({id:postAttempt.id,user_id:user.id,body});assertSession();if(error){const confirmed=await result(client.from('space_posts').select('id').eq('id',postAttempt.id).eq('user_id',user.id));if(!confirmed?.length)throw error;}}
- postAttempt=null;$('post-body').value='';updateDirty();postOffset=0;$('show-archived').checked=false;await loadPosts();message('动态已发布，登录成员可见。');
+ postAttempt=null;$('post-body').value='';updateDirty();postOffset=0;$('show-archived').checked=false;await loadPosts();await loadUsage();message('动态已发布，登录成员可见。');
  // 简介表单可能仍有未保存修改，保守保留离开提醒。
 });};
 $('edit-post-form').onsubmit=e=>{e.preventDefault();task(async()=>{
@@ -98,7 +115,7 @@ async function init(){try{
  user=data.user;client.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){ended=true;dirty=false;$('space-app').replaceChildren();$('space-app').hidden=true;message('已退出登录。');}});
  const raw=new URLSearchParams(location.search).get('user');if(raw&&!memberId(raw))throw Error('个人主页地址不正确。');target=raw||user.id;own=target===user.id;
  const isOwner=window.LANMAO_MEMO_CONFIG?.ownerUid===user.id;$('reports-panel').hidden=!isOwner;
- makeLinkEditor();$('space-editor').hidden=!own;$('post-form').hidden=!own;$('archive-control').hidden=!own;
- await loadSpace();await loadPosts();await loadMembers();if(isOwner)await loadReports();assertSession();$('space-app').hidden=false;message(own?'欢迎来到你的个人空间。填写昵称并保存后，会出现在成员列表。':'正在查看成员主页。');
+ makeLinkEditor();$('space-data-panel').hidden=!own;$('space-editor').hidden=!own;$('post-form').hidden=!own;$('archive-control').hidden=!own;
+ await loadSpace();await loadPosts();await loadMembers();await loadUsage();if(isOwner)await loadReports();assertSession();$('space-app').hidden=false;message(own?'欢迎来到你的个人空间。填写昵称并保存后，会出现在成员列表。':'正在查看成员主页。');
 }catch(e){if(!ended)message(`个人空间暂不可用：${e.message}。需店主执行 user-spaces.sql 和 space-community.sql，可执行后刷新本页。`);}}
 init();
