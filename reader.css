@@ -782,6 +782,8 @@ html, body.reader-body {
 }
 
 .reader-content {
+    will-change: transform; /* GPU 加速 */
+    contain: layout style;
     height: 100%;
     -webkit-column-width: calc(100vw - 48px);
     -moz-column-width: calc(100vw - 48px);
