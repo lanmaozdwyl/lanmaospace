@@ -198,3 +198,43 @@ test('没有新编辑时再次自动锁定不会清除尚未恢复的加密草�
     h.run("sealedDraft=savedDraft;prepareUnlock=async()=>{};");await h.run('lockVault(true)');
     assert.equal(h.run('sealedDraft'),h.ctx.savedDraft);assert.equal(h.run('key'),null);
 });
+
+
+test('一条损坏密文不会隐藏其他正常备忘录，且不改写云端',async()=>{
+ const h=context();const good=await core.seal(testKey,{title:'legacy',body:'old body'});
+ h.tables.memos.push({id:'valid',user_id:'owner',...good,created_at:'2026-11-01',updated_at:'2026-11-01'},{id:'broken',user_id:'owner',ciphertext:'AA==',iv:core.b64(new Uint8Array(12)),updated_at:'2026-11-01'});
+ await h.run('reload()');assert.equal(h.get('memo-list').children.length,1);assert.match(h.get('memo-sync-status').textContent,/读取到 2 条/);assert.match(h.get('memo-sync-status').textContent,/1 条暂未能解密/);assert(h.calls.every(c=>c.action==='select'));assert.equal(h.tables.memos.length,2);
+});
+test('附件名称解不开时正文仍显示，完整备份严格解码继续拒绝',async()=>{
+ const h=context();const good=await core.seal(testKey,{title:'note',body:'body'});
+ h.tables.memos.push({id:'n1',user_id:'owner',...good,updated_at:'2026-11-01'});
+ h.tables.memo_files.push({id:'f1',user_id:'owner',note_id:'n1',name_ciphertext:'AA==',name_iv:core.b64(new Uint8Array(12)),size_bytes:5});
+ await h.run('reload()');assert.equal(h.get('memo-list').children.length,1);assert.match(h.get('memo-sync-status').textContent,/1 个附件名称暂未能解密/);
+ h.ctx.rawFiles=h.tables.memo_files;h.ctx.rawNotes=h.tables.memos;await assert.rejects(h.run('decodeRows(rawNotes,rawFiles)'));assert(h.calls.every(c=>c.action==='select'));
+});
+test('列表容错不改变完整备份对损坏正文的拒绝规则',async()=>{
+ const h=context();h.ctx.raw=[{id:'broken',ciphertext:'AA==',iv:core.b64(new Uint8Array(12))}];
+ await assert.rejects(h.run('decodeRows(raw,[])'));const result=await h.run('decodeListing(raw,[])');assert.equal(result.unreadableNotes,1);
+});
+test('云端空列表、回收站与搜索过滤有不同的数量提示',async()=>{
+ const h=context();await h.run('reload()');assert.match(h.get('memo-sync-status').textContent,/云端读取到 0 条/);
+ const active=await core.seal(testKey,{title:'keep',body:'body'}),trash=await core.seal(testKey,{title:'trash',body:'body',trashedAt:'2026-11-01'});
+ h.tables.memos.push({id:'n1',user_id:'owner',...active,updated_at:'2026'},{id:'n2',user_id:'owner',...trash,updated_at:'2026'});await h.run('reload()');
+ assert.match(h.get('memo-sync-status').textContent,/正常 1 条，回收站 1 条/);
+ h.get('memo-search').value='not found';h.run('render()');assert.match(h.get('memo-sync-status').textContent,/当前显示 0 条/);
+ h.get('clear-search-button').onclick();assert.equal(h.get('memo-list').children.length,1);h.run('viewTrash=true;render()');assert.equal(h.get('memo-list').children.length,1);
+});
+test('读取失败保留已有列表，并明确显示失败而不是云端零条',async()=>{
+ const h=context(),good=await core.seal(testKey,{title:'keep',body:'body'});h.tables.memos.push({id:'n1',user_id:'owner',...good,updated_at:'2026'});await h.run('reload()');
+ h.run("allRows=async()=>{throw Error('offline')};");await assert.rejects(h.run('reload()'));
+ assert.equal(h.get('memo-list').children.length,1);assert.match(h.get('memo-sync-status').textContent,/读取失败/);assert.match(h.get('memo-sync-status').textContent,/读取到 1 条/);
+});
+test('旧Netlify校验串和仅标题正文的密文可在新版解锁读取',async()=>{
+ const h=context();h.ctx.check=await core.seal(testKey,{title:'',body:'lanmao-memo-check-v1'});const good=await core.seal(testKey,{title:'legacy',body:'legacy body'});
+ h.tables.memos.push({id:'old',user_id:'owner',...good,updated_at:'2026'});h.run('vault={salt:fixtureSalt,check_ciphertext:check.ciphertext,check_iv:check.iv};key=null;');
+ await h.run("unlock('local-fixture-only')");assert.equal(h.get('memo-list').children.length,1);assert.equal(h.run('notes[0].note.body'),'legacy body');
+});
+test('清除搜索不会清除未保存草稿；取消刷新也不读取或丢弃草稿',()=>{
+ const h=context({confirm:false});h.run('openEditor(null)');h.get('note-body').value='keep draft';h.get('memo-search').value='filter';h.get('clear-search-button').onclick();
+ assert.equal(h.get('note-body').value,'keep draft');const n=h.calls.length;h.get('refresh-button').onclick();assert.equal(h.calls.length,n);assert.equal(h.get('note-body').value,'keep draft');
+});

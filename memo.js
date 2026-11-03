@@ -10,6 +10,7 @@ let lastActivity=Date.now(), lockRequested=false, sealedDraft=null, previewUrl=n
 let backupFile=null, backupKey=null, backupInfo=null, backupManifest=null;
 const requests=new Set();
 let operationEpoch=0;
+let syncSummary=null,syncProblem='';
 let uploadAttempts=new WeakMap();
 let creationAttempt=null;
 function assertActive() { if(!key || operationEpoch!==generation) throw Error('备忘录已锁定，操作已停止。'); }
@@ -56,6 +57,7 @@ function wipe() {
     clearEditor(); clearPreview(); clearBackup();
     $('memo-list').replaceChildren(); $('memo-empty').hidden=true; progress(null);
     $('memo-search').value=''; $('memo-usage').textContent=''; $('memo-status').textContent='';
+    syncSummary=null;syncProblem='';$('memo-sync-status').textContent='';
     $('backup-panel').hidden=true; $('memo-passphrase').value=''; $('memo-passphrase-confirm').value='';
 }
 async function lockVault(automatic=false) {
@@ -156,19 +158,42 @@ async function decodeRows(rawNotes,rawFiles) {
     }
     return {decodedNotes,decodedFiles};
 }
-async function reload() {
-    const epoch=generation;
-    const rawNotes=await allRows('memos','id,ciphertext,iv,created_at,updated_at');
-    let rawFiles=[]; let fileError=false;
-    try { rawFiles=await allRows('memo_files','id,note_id,file_path,name_ciphertext,name_iv,file_iv,mime_type,size_bytes'); }
-    catch(e) { console.error(e); fileError=true; }
-    if(epoch!==generation||!key) return;
-    const result=await decodeRows(rawNotes,rawFiles);
-    if(epoch!==generation||!key) return;
-    notes=result.decodedNotes; files=result.decodedFiles;
-    $('memo-usage').textContent=fileError?'附件列表暂不可用；正文仍可编辑。':`附件 ${size(files.reduce((n,f)=>n+f.size_bytes,0))} · 闲置 10 分钟自动锁定`;
-    render(); renderPending();
+// 列表允许显示可解密记录，完整备份仍使用上方严格的 decodeRows。
+async function decodeListing(rawNotes,rawFiles) {
+ const decodedNotes=[],decodedFiles=[];let unreadableNotes=0,unreadableFiles=0;
+ for(const row of rawNotes){try{decodedNotes.push({...row,note:normalizeNote(await open(key,row))});}catch{unreadableNotes++;}}
+ for(const row of rawFiles){try{const name=await open(key,{ciphertext:row.name_ciphertext,iv:row.name_iv});if(typeof name.body!=='string')throw Error('附件名称格式错误');decodedFiles.push({...row,name:name.body});}catch{unreadableFiles++;}}
+ return {decodedNotes,decodedFiles,unreadableNotes,unreadableFiles};
 }
+function syncStatus(visible) {
+ let text=syncProblem;
+ if(syncSummary){
+  const s=syncSummary,trash=notes.filter(r=>r.note.trashedAt).length;
+  text+=(text?' ':'')+'本账号云端读取到 '+s.total+' 条：正常 '+(notes.length-trash)+' 条，回收站 '+trash+' 条，'+s.unreadableNotes+' 条暂未能解密。当前显示 '+visible+' 条。';
+  if(s.unreadableNotes||s.unreadableFiles)text+=' '+s.unreadableFiles+' 个附件名称暂未能解密；相关云端内容未删除、未改写。完整备份会继续严格校验。';
+  if(s.fileError)text+=' 附件列表读取失败，正文仍可查看；请稍后重试同步。';
+  if(!s.total)text+=' 这是当前账号的读取结果，不代表其他账号或旧页面缓存已被删除。';
+  text+=' 最近读取：'+new Date(s.at).toLocaleTimeString('zh-CN')+'。';
+ }
+ $('memo-sync-status').textContent=text||'尚未完成云端读取，请点击“同步云端”。';
+}
+async function reload() {
+ const epoch=generation;let rawNotes;
+ $('memo-sync-status').textContent='正在读取本账号的云端内容…';
+ try{rawNotes=await allRows('memos','id,ciphertext,iv,created_at,updated_at');}
+ catch(e){if(epoch===generation&&key){syncProblem='云端正文读取失败，已有列表未清除。';syncStatus(notes.length);}throw e;}
+ let rawFiles=[],fileError=false;
+ try{rawFiles=await allRows('memo_files','id,note_id,file_path,name_ciphertext,name_iv,file_iv,mime_type,size_bytes');}
+ catch{fileError=true;}
+ if(epoch!==generation||!key)return;
+ const result=await decodeListing(rawNotes,rawFiles);
+ if(epoch!==generation||!key)return;
+ notes=result.decodedNotes;files=result.decodedFiles;
+ syncProblem='';syncSummary={total:rawNotes.length,unreadableNotes:result.unreadableNotes,unreadableFiles:result.unreadableFiles,fileError,at:Date.now()};
+ $('memo-usage').textContent=fileError?'附件列表暂不可用；正文仍可编辑。': '附件 '+size(files.reduce((n,f)=>n+f.size_bytes,0))+' · 闲置 10 分钟自动锁定';
+ render();renderPending();
+}
+
 function button(text,fn) {
     const el=document.createElement('button'); el.type='button'; el.textContent=text;
     el.addEventListener('click',fn); return el;
@@ -177,7 +202,7 @@ function render() {
     const q=$('memo-search').value.trim().toLowerCase(); $('memo-list').replaceChildren();
     const list=notes.filter(r=>!!r.note.trashedAt===viewTrash).filter(r=>
         [r.note.title,r.note.body,...r.note.tags,...files.filter(f=>f.note_id===r.id).map(f=>f.name)].join('\n').toLowerCase().includes(q))
-        .sort((a,b)=>Number(b.note.pinned)-Number(a.note.pinned)||b.updated_at.localeCompare(a.updated_at));
+        .sort((a,b)=>Number(b.note.pinned)-Number(a.note.pinned)||String(b.updated_at||b.created_at||'').localeCompare(String(a.updated_at||a.created_at||'')));
     $('trash-button').textContent=viewTrash?'返回备忘录':`回收站（${notes.filter(n=>n.note.trashedAt).length}）`;
     $('memo-empty').hidden=!!list.length; $('memo-empty').textContent=viewTrash?'回收站为空。':'没有匹配的备忘录。';
     for(const row of list) {
@@ -200,6 +225,7 @@ function render() {
         }
         $('memo-list').append(card);
     }
+    syncStatus(list.length);
     if(busy) controls(true);
 }
 function setEditor(note,row) {
@@ -498,6 +524,7 @@ $('cancel-edit-button').onclick=()=>{if(canLeave())clearEditor();};
 $('editor-form').onsubmit=e=>{e.preventDefault();save();};
 $('save-copy-button').onclick=()=>save(true);
 $('refresh-button').onclick=()=>{if(canLeave())task(async()=>{clearEditor();await reload();status('已刷新。');});};
+$('clear-search-button').onclick=()=>{$('memo-search').value='';render();};
 $('trash-button').onclick=()=>{if(canLeave()){clearEditor();viewTrash=!viewTrash;render();}};
 let searchTimer;
 $('memo-search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(render,200);};

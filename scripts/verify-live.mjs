@@ -51,7 +51,7 @@ async function checkHash(path) {
 }
 
 for (const [path, markers] of [
-    ['memo.html', ['backup-panel', 'conflict-panel', 'preview-dialog']],
+    ['memo.html', ['backup-panel', 'conflict-panel', 'preview-dialog', 'memo-sync-status', 'clear-search-button']],
     ['store.html', ['catalog-error', 'catalog-retry', 'detail-metadata', 'id="search"', 'id="products"']],
     ['index.html', ['guestbookStatus', 'id="toolbox"', 'tools/']],
     ['login.html', ['login-form', 'login-panel', 'recovery-form']],

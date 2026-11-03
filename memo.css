@@ -272,3 +272,6 @@
  .memo-shell button { min-height: 44px; }
  .memo-preview { padding: 16px; max-height: 85dvh; }
 }
+
+.memo-sync-summary{padding:14px 16px;border:1px solid #b9d5f5;border-radius:12px;background:#eff6ff;color:#174a7c;line-height:1.7;overflow-wrap:anywhere}
+.memo-sync-hint{font-size:13px;color:#6e6e73;line-height:1.7;margin:12px 0}
