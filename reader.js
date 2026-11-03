@@ -766,9 +766,28 @@
         if (!file) return;
         const reader = new FileReader();
         reader.onload = function (e) {
-            const text = e.target.result;
-            if (typeof text !== 'string' || !text.trim()) {
+            const buffer = e.target.result;
+            if (!buffer || buffer.byteLength === 0) {
                 showToast('文件内容为空，请重新选择');
+                return;
+            }
+            let text = '';
+            try {
+                // 优先使用严格 UTF-8 解码，遇到非法序列抛错
+                const utf8 = new TextDecoder('utf-8', { fatal: true });
+                text = utf8.decode(buffer);
+            } catch (_) {
+                // 兼容中文电子书广泛使用的 GBK / GB2312 / GB18030 编码格式
+                try {
+                    const gbk = new TextDecoder('gb18030');
+                    text = gbk.decode(buffer);
+                } catch (err) {
+                    const fallback = new TextDecoder('utf-8');
+                    text = fallback.decode(buffer);
+                }
+            }
+            if (!text || !text.trim()) {
+                showToast('文件解析为空，请重新选择');
                 return;
             }
             const bookObj = parseUploadedFile(file.name, text);
@@ -780,7 +799,7 @@
         reader.onerror = function () {
             showToast('读取文件失败，请检查文件格式');
         };
-        reader.readAsText(file, 'utf-8');
+        reader.readAsArrayBuffer(file);
     }
 
     // ===== 10. Web Audio 程序化伴读白噪声 (纯代码合成，免流量) =====
@@ -951,13 +970,29 @@
 
     // ===== 12. 全屏沉浸切换 =====
     function toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {
+        const doc = document;
+        const docEl = document.documentElement;
+        const isFull = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
+
+        if (!isFull) {
+            const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+            if (req) {
+                try {
+                    const res = req.call(docEl);
+                    if (res && res.catch) res.catch(() => showToast('当前环境不支持全屏'));
+                } catch (_) {
+                    showToast('当前环境不支持全屏');
+                }
+            } else {
                 showToast('当前环境不支持全屏');
-            });
+            }
         } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
+            const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
+            if (exit) {
+                try {
+                    const res = exit.call(doc);
+                    if (res && res.catch) res.catch(() => {});
+                } catch (_) {}
             }
         }
     }

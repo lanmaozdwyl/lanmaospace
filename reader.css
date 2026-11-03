@@ -263,7 +263,7 @@ html, body.reader-body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 24px 0 20px;
+    padding: env(safe-area-inset-top, 24px) 0 env(safe-area-inset-bottom, 20px);
     box-sizing: border-box;
 }
 
@@ -307,8 +307,14 @@ html, body.reader-body {
 
 .reader-content {
     height: 100%;
+    -webkit-column-width: calc(100vw - 48px);
+    -moz-column-width: calc(100vw - 48px);
     column-width: calc(100vw - 48px);
+    -webkit-column-gap: 48px;
+    -moz-column-gap: 48px;
     column-gap: 48px;
+    -webkit-column-fill: auto;
+    -moz-column-fill: auto;
     column-fill: auto;
     font-size: var(--r-font-size);
     line-height: var(--r-line-height);
@@ -321,7 +327,11 @@ html, body.reader-body {
 }
 @media (min-width: 900px) {
     .reader-content {
-        column-width: calc(var(--r-max-width));
+        -webkit-column-width: 820px;
+        -moz-column-width: 820px;
+        column-width: 820px;
+        -webkit-column-gap: 60px;
+        -moz-column-gap: 60px;
         column-gap: 60px;
     }
 }

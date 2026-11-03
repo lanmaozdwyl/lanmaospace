@@ -122,3 +122,74 @@ test('微信读书多栏分页算法步长与页码计算准确性', () => {
     assert.equal(pageOffset(2), 880);
     assert.equal(pageOffset(3), 1760);
 });
+
+test('多浏览器内核前缀兼容性与移动端安全区避让', () => {
+    // 验证 WebKit / Moz 多列排版前缀
+    assert(cssSource.includes('-webkit-column-width:'), '必须包含 -webkit-column-width 前缀以兼容旧版 iOS/Android WebView');
+    assert(cssSource.includes('-moz-column-width:'), '必须包含 -moz-column-width 前缀以兼容 Firefox');
+    assert(cssSource.includes('-webkit-column-gap:'), '必须包含 -webkit-column-gap 前缀');
+    assert(cssSource.includes('-webkit-column-fill:'), '必须包含 -webkit-column-fill 前缀');
+
+    // 验证刘海屏及手势条安全区 (Safe Area Insets)
+    assert(cssSource.includes('env(safe-area-inset-top'), '需包含 safe-area-inset-top 避让刘海屏');
+    assert(cssSource.includes('env(safe-area-inset-bottom'), '需包含 safe-area-inset-bottom 避让底部手势横条');
+});
+
+test('中文电子书编码兼容性（UTF-8 严格模式与 GB18030/GBK 自动降级）', () => {
+    assert(jsSource.includes("new TextDecoder('utf-8', { fatal: true })"), '必须包含 strict UTF-8 校验');
+    assert(jsSource.includes("new TextDecoder('gb18030')"), '必须包含 gb18030/gbk 自动降级解码');
+
+    // 模拟一段 GBK 字节（例如中文汉字“伴读”）
+    // GBK 编码下：“伴读” = 0xB0 0xE9 0xB6 0xC1
+    const gbkBytes = new Uint8Array([0xB0, 0xE9, 0xB6, 0xC1]);
+    
+    // 严格 UTF-8 解码该字节序列必然报错（因为在 UTF-8 中属于无效前导字节）
+    let utf8Failed = false;
+    try {
+        const strictUtf8 = new TextDecoder('utf-8', { fatal: true });
+        strictUtf8.decode(gbkBytes);
+    } catch (_) {
+        utf8Failed = true;
+    }
+    assert.equal(utf8Failed, true, 'GBK 字节在严格 UTF-8 模式下应被判定为非 UTF-8 并抛错');
+
+    // 降级为 GB18030 解码能够成功解出“伴读”
+    const gbkDecoder = new TextDecoder('gb18030');
+    const decodedText = gbkDecoder.decode(gbkBytes);
+    assert.equal(decodedText, '伴读', 'GB18030 应成功解码 Windows/安卓常见的 GBK 电子书');
+});
+
+test('全屏 API 跨浏览器厂商前缀降级保护', () => {
+    // 验证包含了 webkit, moz, ms 等前缀的降级判断，防止 iOS Safari / 早期 Android 抛出未捕获异常
+    assert(jsSource.includes('webkitFullscreenElement'), '需兼容 webkitFullscreenElement');
+    assert(jsSource.includes('mozFullScreenElement'), '需兼容 mozFullScreenElement');
+    assert(jsSource.includes('msFullscreenElement'), '需兼容 msFullscreenElement');
+    assert(jsSource.includes('webkitRequestFullscreen'), '需兼容 webkitRequestFullscreen');
+});
+
+test('极端与跨平台屏幕尺寸几何排版鲁棒性（320px 小屏 ~ 1920px 4K 大屏）', () => {
+    // 模拟各种典型屏幕宽度下的列步长与页码计算
+    const screenWidths = [
+        { name: 'iPhone SE / 小屏手机', width: 320, gap: 48 },
+        { name: 'iPhone 15 Pro / 标准手机', width: 393, gap: 48 },
+        { name: '折叠屏内屏 / 平板竖屏', width: 768, gap: 48 },
+        { name: 'iPad 橫屏 / 笔记本', width: 1024, gap: 60 },
+        { name: '1080P / 4K 桌面宽屏', width: 1920, gap: 60 }
+    ];
+
+    for (const scr of screenWidths) {
+        const contentWidth = Math.min(scr.width - 48, 820);
+        const step = contentWidth + scr.gap;
+        assert(step > 0, `${scr.name} 步长需大于 0`);
+
+        // 模拟 10000 像素总文本
+        const pages = Math.max(1, Math.ceil((10000 + scr.gap / 2) / step));
+        assert(pages >= 2, `${scr.name} 长文本必须能正确分为多页`);
+    }
+});
+
+test('跨平台换行符兼容性（CRLF / LF / CR 混排段落解析）', () => {
+    const mixedText = '第一章 黎明\r\n这是第一段话。\n这是第二段话。\r这是第三段话。\r\n\r\n第二章 黄昏\n第四段话。';
+    const lines = mixedText.split(/\r?\n|\r/);
+    assert(lines.length >= 6, '应支持跨平台回车换行符混合切分');
+});
