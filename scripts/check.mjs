@@ -18,5 +18,5 @@ function scan(dir) {
   }
 }
 scan(root);
-run(['--test','tests/memo.test.mjs','tests/guestbook-admin.test.mjs','tests/catalog.test.mjs','tests/store.test.mjs','tests/avatar.test.mjs','tests/tools.test.mjs','tests/login-next.test.mjs']);
+run(['--test','tests/memo.test.mjs','tests/guestbook-admin.test.mjs','tests/catalog.test.mjs','tests/store.test.mjs','tests/avatar.test.mjs','tests/tools.test.mjs','tests/login-next.test.mjs','tests/space.test.mjs']);
 console.log('PASS: JavaScript syntax, product JSON and memo regression tests');
