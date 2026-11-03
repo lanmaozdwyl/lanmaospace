@@ -332,3 +332,156 @@ mediaTabs.forEach((tab, index) => {
         if (e.target === dialog) closeSpotlight();
     });
 })();
+
+// ===== Reading Progress Bar Driver =====
+(function initReadingProgress() {
+    const progressBar = document.getElementById('reading-progress');
+    if (!progressBar) return;
+    function updateProgress() {
+        const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = totalHeight > 0 ? window.scrollY / totalHeight : 0;
+        progressBar.style.transform = 'scaleX(' + Math.min(1, Math.max(0, progress)) + ')';
+    }
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
+    updateProgress();
+})();
+
+// ===== Academic Pomodoro Focus Widget Driver =====
+(function initPomodoro() {
+    const widget = document.getElementById('pomodoro-widget');
+    const toggle = document.getElementById('pomodoro-toggle');
+    const panel = document.getElementById('pomodoro-panel');
+    const closeBtn = document.getElementById('pomodoro-close');
+    const timerDisplay = document.getElementById('pomodoro-timer');
+    const miniTimeDisplay = document.getElementById('pomodoro-mini-time');
+    const statusDisplay = document.getElementById('pomodoro-status');
+    const startBtn = document.getElementById('pomodoro-start');
+    const resetBtn = document.getElementById('pomodoro-reset');
+    const modeBtns = document.querySelectorAll('.pomodoro-mode-btn');
+
+    if (!widget || !toggle || !panel || !timerDisplay) return;
+
+    let totalSeconds = 1500;
+    let remainingSeconds = 1500;
+    let timerId = null;
+    let isRunning = false;
+    let currentMode = 'focus';
+
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function updateDisplay() {
+        const str = formatTime(remainingSeconds);
+        timerDisplay.textContent = str;
+        if (miniTimeDisplay) miniTimeDisplay.textContent = str;
+        if (isRunning) {
+            document.title = '(' + str + ') 蓝昴空间 · 专注中';
+        } else {
+            document.title = 'Lanmao Space | 蓝昴空间';
+        }
+    }
+
+    function playChime() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const now = ctx.currentTime;
+            
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(587.33, now);
+            gain1.gain.setValueAtTime(0.15, now);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.6);
+
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(880, now + 0.2);
+            gain2.gain.setValueAtTime(0.15, now + 0.2);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.2);
+            osc2.stop(now + 1.2);
+        } catch (_) {}
+    }
+
+    function tick() {
+        if (remainingSeconds > 0) {
+            remainingSeconds--;
+            updateDisplay();
+        } else {
+            clearInterval(timerId);
+            timerId = null;
+            isRunning = false;
+            startBtn.textContent = '开始专注';
+            statusDisplay.textContent = currentMode === 'focus' ? '🎉 专注完成！休息 5 分钟吧' : '☕ 休息结束，准备好投入了吗？';
+            playChime();
+            updateDisplay();
+        }
+    }
+
+    function startTimer() {
+        if (isRunning) {
+            clearInterval(timerId);
+            timerId = null;
+            isRunning = false;
+            startBtn.textContent = '继续专注';
+            statusDisplay.textContent = '已暂停，随时恢复';
+        } else {
+            isRunning = true;
+            startBtn.textContent = '暂停';
+            statusDisplay.textContent = currentMode === 'focus' ? '深度专注中，排除干扰' : '小憩一下，眺望远方';
+            timerId = setInterval(tick, 1000);
+        }
+        updateDisplay();
+    }
+
+    function resetTimer() {
+        clearInterval(timerId);
+        timerId = null;
+        isRunning = false;
+        remainingSeconds = totalSeconds;
+        startBtn.textContent = '开始专注';
+        statusDisplay.textContent = currentMode === 'focus' ? '专注时间，保持独立思考' : '短暂小憩，放松身心';
+        updateDisplay();
+    }
+
+    function setMode(seconds, modeName) {
+        modeBtns.forEach(b => b.classList.toggle('active', Number(b.dataset.time) === seconds));
+        currentMode = modeName;
+        totalSeconds = seconds;
+        resetTimer();
+    }
+
+    toggle.addEventListener('click', () => {
+        const isHidden = panel.hidden;
+        panel.hidden = !isHidden;
+        toggle.setAttribute('aria-expanded', String(isHidden));
+    });
+
+    closeBtn.addEventListener('click', () => {
+        panel.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+    });
+
+    startBtn.addEventListener('click', startTimer);
+    resetBtn.addEventListener('click', resetTimer);
+
+    modeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const time = Number(btn.dataset.time);
+            setMode(time, time === 1500 ? 'focus' : 'break');
+        });
+    });
+
+    updateDisplay();
+})();

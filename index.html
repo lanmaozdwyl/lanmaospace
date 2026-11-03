@@ -26,6 +26,7 @@
     <meta name="twitter:image" content="https://lanmaospace.pages.dev/images/og-cover.png">
 </head>
 <body>
+    <div class="reading-progress" id="reading-progress" aria-hidden="true"></div>
     <a href="#main-content" class="skip-link">跳到主要内容</a>
     <nav class="navbar" id="navbar">
         <div class="nav-container">
@@ -36,15 +37,12 @@
             <div class="nav-links" id="nav-links">
                 <a href="#home" class="nav-link active">首页</a>
                 <a href="#books" class="nav-link">书单</a>
-                <a href="store.html" class="nav-link">我的商店</a>
-                <a href="faq.html" class="nav-link">常见问题</a>
                 <a href="#music" class="nav-link">音乐影视</a>
-                <a href="#links" class="nav-link">友链</a>
+                <a href="#links" class="nav-link">精选导航</a>
                 <a href="tools/" class="nav-link">工具站</a>
                 <a href="memo.html" class="nav-link">备忘录</a>
-                <a href="#contact" class="nav-link">留言</a>
-                <a href="account.html" class="nav-link">账号安全</a>
                 <a href="space.html" class="nav-link">成员空间</a>
+                <a href="#contact" class="nav-link">留言</a>
                 <a href="profile.html" class="nav-link header-avatar-link" data-header-avatar title="我的头像" aria-label="我的头像"><span aria-hidden="true">👤</span></a>
                 <button type="button" class="nav-link nav-signout" data-signout>退出登录</button>
                 <button type="button" class="nav-link spotlight-trigger-btn" id="spotlight-trigger" aria-label="全局搜索 (Ctrl+K)" title="全局搜索 (Ctrl+K)"><span aria-hidden="true">🔍</span><span class="spotlight-kbd">⌘K</span></button>
@@ -498,8 +496,15 @@
                     <a href="memo.html">备忘录</a>
                 </nav>
                 <p class="footer-text">
-                    © 2026 蓝昴空间 | 用 ❤️ 和 ☕ 建造
+                    © 2026 蓝昴空间 · 保持专注与好奇
                 </p>
+                <div class="footer-sublinks">
+                    <a href="store.html" class="footer-sublink">服务与支持</a>
+                    <span class="footer-sep">·</span>
+                    <a href="faq.html" class="footer-sublink">常见问题</a>
+                    <span class="footer-sep">·</span>
+                    <a href="account.html" class="footer-sublink">账号安全</a>
+                </div>
                 <p class="footer-quote">
                     "生活不止眼前的代码，还有诗和远方。" ✨
                 </p>
@@ -534,5 +539,32 @@
             </div>
         </div>
     </dialog>
+
+    <!-- Academic Pomodoro Focus Widget -->
+    <aside class="pomodoro-widget" id="pomodoro-widget" aria-label="学术专注计时器">
+        <button type="button" class="pomodoro-toggle-btn" id="pomodoro-toggle" aria-expanded="false" title="学术专注番茄钟">
+            <span class="pomodoro-icon" aria-hidden="true">🍅</span>
+            <span class="pomodoro-badge" id="pomodoro-mini-time">25:00</span>
+        </button>
+        <div class="pomodoro-panel" id="pomodoro-panel" hidden>
+            <div class="pomodoro-panel-header">
+                <span class="pomodoro-panel-title">🍅 学术专注钟</span>
+                <button type="button" class="pomodoro-panel-close" id="pomodoro-close" aria-label="收起面板">✕</button>
+            </div>
+            <div class="pomodoro-modes">
+                <button type="button" class="pomodoro-mode-btn active" data-time="1500" id="mode-focus">25m 深度专注</button>
+                <button type="button" class="pomodoro-mode-btn" data-time="300" id="mode-break">5m 短暂小憩</button>
+            </div>
+            <div class="pomodoro-clock">
+                <span class="pomodoro-timer" id="pomodoro-timer">25:00</span>
+                <span class="pomodoro-status" id="pomodoro-status">专注时间，保持独立思考</span>
+            </div>
+            <div class="pomodoro-controls">
+                <button type="button" class="pomodoro-act-btn pomodoro-act-primary" id="pomodoro-start">开始专注</button>
+                <button type="button" class="pomodoro-act-btn" id="pomodoro-reset">重置</button>
+            </div>
+        </div>
+    </aside>
+
 </body>
 </html>
