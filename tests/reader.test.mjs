@@ -250,3 +250,23 @@ test('全屏手势引擎支持从右往左与从左往右滑动翻页', () => {
     assert(jsSource.includes('hasSwiped'), '滑动后必须防误触点击菜单');
 });
 
+test('手机硬件音量键翻页设置与物理键拦截映射验证', () => {
+    // 1. HTML 设置抽屉包含音量键开关组件
+    assert(htmlSource.includes('id="btn-toggle-volume-flip"'), '设置抽屉中必须提供手机音量键翻页开关按钮');
+    assert(htmlSource.includes('id="volume-flip-status-text"'), '设置抽屉中必须提供音量键翻页状态文本');
+
+    // 2. JS 默认设置与持久化配置
+    assert(jsSource.includes('volumeKeyEnabled: false'), '默认音量键翻页应为关闭状态（避免劫持用户系统音量调节）');
+    assert(jsSource.includes('parsed.volumeKeyEnabled'), 'loadSavedSettings 必须支持 volumeKeyEnabled 本地记忆读取');
+    assert(jsSource.includes("btnVolume.classList.toggle('active'"), 'applySettings 必须同步按钮激活高亮样式');
+
+    // 3. 硬件音量键事件拦截与按键码降级支持
+    assert(jsSource.includes('AudioVolumeDown'), '需支持现代标准 AudioVolumeDown 键名');
+    assert(jsSource.includes('VolumeDown'), '需兼容移动端 WebView VolumeDown 键名');
+    assert(jsSource.includes('AudioVolumeUp'), '需支持现代标准 AudioVolumeUp 键名');
+    assert(jsSource.includes('VolumeUp'), '需兼容移动端 WebView VolumeUp 键名');
+    assert(jsSource.includes('174') && jsSource.includes('175'), '需支持 keyCode 174/175 传统硬件键码降级');
+
+    // 4. 事件静默阻止冒泡与翻页调度
+    assert(jsSource.includes('e.preventDefault()') && jsSource.includes('e.stopPropagation()'), '按音量键翻页时需阻止原生系统 HUD 与事件冒泡');
+});

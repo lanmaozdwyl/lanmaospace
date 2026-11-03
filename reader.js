@@ -552,7 +552,8 @@
             fontFamily: 'system',// system | serif | kaiti
             mode: 'flip',        // flip | scroll
             animMode: 'slide',    // curl | slide | cover | scroll
-            soundEnabled: true   // 拟真纸张沙沙声
+            soundEnabled: true,   // 拟真纸张沙沙声
+            volumeKeyEnabled: false // 手机硬件音量键翻页（默认关闭，需用户主动开启）
         }
     };
 
@@ -613,6 +614,9 @@
                     }
                     if (typeof parsed.soundEnabled === 'boolean') {
                         state.settings.soundEnabled = parsed.soundEnabled;
+                    }
+                    if (typeof parsed.volumeKeyEnabled === 'boolean') {
+                        state.settings.volumeKeyEnabled = parsed.volumeKeyEnabled;
                     }
                 }
             }
@@ -686,6 +690,20 @@
             btnSound.classList.toggle('active', state.settings.soundEnabled);
             btnSound.setAttribute('aria-pressed', String(state.settings.soundEnabled));
             soundText.textContent = state.settings.soundEnabled ? '已开启' : '已静音';
+        }
+
+        // 手机音量键翻页状态
+        const btnVolume = document.getElementById('btn-toggle-volume-flip');
+        const volumeText = document.getElementById('volume-flip-status-text');
+        if (btnVolume && volumeText) {
+            const isVolActive = !!state.settings.volumeKeyEnabled;
+            btnVolume.classList.toggle('active', isVolActive);
+            btnVolume.setAttribute('aria-pressed', String(isVolActive));
+            volumeText.textContent = isVolActive ? '已开启' : '已关闭';
+            const icon = btnVolume.querySelector('.sound-status-icon');
+            if (icon) {
+                icon.textContent = isVolActive ? '📱' : '🔘';
+            }
         }
 
         // 重新计算分页
@@ -1620,6 +1638,26 @@
         document.addEventListener('keydown', (e) => {
             if (document.querySelector('dialog[open]')) return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // 手机硬件音量键翻页（用户在设置抽屉中主动开启）
+            if (state.settings.volumeKeyEnabled) {
+                const isVolDown = e.key === 'AudioVolumeDown' || e.key === 'VolumeDown' || e.code === 'AudioVolumeDown' || e.keyCode === 174;
+                const isVolUp = e.key === 'AudioVolumeUp' || e.key === 'VolumeUp' || e.code === 'AudioVolumeUp' || e.keyCode === 175;
+
+                if (isVolDown) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    nextPage();
+                    return;
+                }
+                if (isVolUp) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    prevPage();
+                    return;
+                }
+            }
+
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
                 e.preventDefault();
                 nextPage();
@@ -1885,6 +1923,21 @@
                     showToast('🔊 翻页纸张沙沙声已开启');
                 } else {
                     showToast('🔇 翻页音效已静音');
+                }
+            });
+        }
+
+        // 手机硬件音量键翻页切换
+        const btnVolumeFlip = document.getElementById('btn-toggle-volume-flip');
+        if (btnVolumeFlip) {
+            btnVolumeFlip.addEventListener('click', () => {
+                state.settings.volumeKeyEnabled = !state.settings.volumeKeyEnabled;
+                applySettings();
+                saveSettings();
+                if (state.settings.volumeKeyEnabled) {
+                    showToast('📱 已开启音量键翻页（音量减下一页 / 音量加上一页）');
+                } else {
+                    showToast('已关闭音量键翻页');
                 }
             });
         }
