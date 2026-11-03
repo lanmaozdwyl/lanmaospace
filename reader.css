@@ -1,5 +1,4 @@
-/* ===================================================================
-   Lanmao Space — WeChat Read Style Immersive E-Reader System
+/* ============================================================   Lanmao Space — WeChat Read Style Immersive E-Reader System
    =================================================================== */
 
 :root {
@@ -752,3 +751,183 @@ html, body.reader-body {
 .reader-audio-panel a { color: var(--r-active); overflow-wrap: anywhere; }
 .reader-audio-panel :focus-visible { outline: 3px solid var(--r-active); outline-offset: 3px; }
 @media (max-width: 600px) { .reader-audio-panel { margin: auto auto max(16px, env(safe-area-inset-bottom)); } }
+=======
+/* 拟真精装书书脊装订阴影与内凹边缘 */
+.reader-book-spine {
+    position: absolute;
+    top: 40px;
+    bottom: 40px;
+    left: 8px;
+    width: 22px;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.02) 40%, transparent 100%);
+    pointer-events: none;
+    z-index: 45;
+    border-radius: 4px 0 0 4px;
+    opacity: 0.85;
+}
+[data-reader-theme="dark"] .reader-book-spine {
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.12) 40%, transparent 100%);
+}
+.reader-book-edge {
+    position: absolute;
+    inset: 12px;
+    border-radius: 14px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.03), 0 1px 4px rgba(0, 0, 0, 0.04);
+    pointer-events: none;
+    z-index: 10;
+}
+[data-reader-theme="dark"] .reader-book-edge {
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.22), 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* 3D 拟真书卷翻页图层 (3D Realistic Page Curl) */
+.reader-curl-layer {
+    position: absolute;
+    inset: 0;
+    perspective: 2000px;
+    -webkit-perspective: 2000px;
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    pointer-events: none;
+    z-index: 150;
+    display: none;
+    overflow: visible;
+}
+.reader-curl-layer.active {
+    display: block;
+}
+.curl-sheet {
+    position: absolute;
+    inset: 0;
+    transform-origin: left center;
+    -webkit-transform-origin: left center;
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    will-change: transform;
+}
+.curl-front, .curl-back {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    background: var(--r-bg);
+    overflow: hidden;
+    box-sizing: border-box;
+}
+.curl-front {
+    z-index: 2;
+    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.2);
+}
+.curl-back {
+    transform: rotateY(180deg);
+    -webkit-transform: rotateY(180deg);
+    z-index: 1;
+    background: linear-gradient(135deg, var(--r-bg) 0%, rgba(0, 0, 0, 0.04) 100%);
+    box-shadow: 8px 0 28px rgba(0, 0, 0, 0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.curl-back::after {
+    content: "📖";
+    font-size: 42px;
+    opacity: 0.15;
+}
+.curl-shadow {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.25) 80%, rgba(0, 0, 0, 0.5) 100%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.06s linear;
+    z-index: 3;
+}
+[data-reader-theme="dark"] .curl-shadow {
+    background: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.55) 80%, rgba(0, 0, 0, 0.85) 100%);
+}
+
+/* 翻页模式四宫格与拟真动效切换 */
+.flip-effects-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+.flip-anim-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 4px;
+    border-radius: 12px;
+    border: 1px solid var(--r-bar-border);
+    background: var(--r-card-bg);
+    color: var(--r-text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.flip-anim-chip:hover {
+    border-color: var(--r-accent);
+}
+.flip-anim-chip.active {
+    border-color: var(--r-accent);
+    background: var(--r-accent);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.flip-anim-chip .anim-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+.flip-anim-chip .anim-label {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* 伴读纸张音效开关行 */
+.setting-row-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 4px;
+}
+.setting-title-inline {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--r-text);
+    display: block;
+}
+.setting-desc-inline {
+    font-size: 11px;
+    color: var(--r-text-muted);
+}
+.sound-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--r-bar-border);
+    background: var(--r-card-bg);
+    color: var(--r-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.sound-toggle-btn.active {
+    background: rgba(52, 199, 89, 0.15);
+    color: #2e7d32;
+    border-color: rgba(52, 199, 89, 0.35);
+}
+[data-reader-theme="dark"] .sound-toggle-btn.active {
+    background: rgba(52, 199, 89, 0.22);
+    color: #34c759;
+}
+
+/* 覆盖翻页模式与平滑跟手样式 */
+.reader-content.anim-cover {
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.14);
+}
+[data-reader-theme="dark"] .reader-content.anim-cover {
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
+}

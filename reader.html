@@ -41,6 +41,10 @@
 
     <!-- 核心阅读视口 -->
     <main class="reader-stage" id="reader-stage">
+        <!-- 拟真精装书书脊装订阴影与纸质边缘线 -->
+        <div class="reader-book-spine" aria-hidden="true"></div>
+        <div class="reader-book-edge" aria-hidden="true"></div>
+
         <!-- 页面页眉（小字显示章节） -->
         <div class="reader-page-header">
             <span id="reader-header-chapter">第一章</span>
@@ -51,6 +55,15 @@
             <article class="reader-content" id="reader-content">
                 <!-- 动态解析渲染的书籍正文 -->
             </article>
+
+            <!-- 3D 拟真书卷翻页图层 -->
+            <div class="reader-curl-layer" id="reader-curl-layer" aria-hidden="true">
+                <div class="curl-sheet" id="curl-sheet">
+                    <div class="curl-front" id="curl-front"></div>
+                    <div class="curl-back" id="curl-back"></div>
+                    <div class="curl-shadow" id="curl-shadow"></div>
+                </div>
+            </div>
         </div>
 
         <!-- 页面页脚（页码与电量/时间风格的进度） -->
@@ -160,13 +173,39 @@
                 </div>
             </div>
 
-            <!-- 翻页模式 -->
+            <!-- 翻页动效模式 (微信读书 & 仿真书卷) -->
             <div class="setting-group">
-                <span class="setting-title">翻页模式</span>
-                <div class="font-family-chips">
-                    <button type="button" class="flip-mode-chip active" data-mode="flip">左右分页翻页</button>
-                    <button type="button" class="flip-mode-chip" data-mode="scroll">上下连续滚动</button>
+                <span class="setting-title">翻页动效模式</span>
+                <div class="flip-effects-grid" role="radiogroup" aria-label="翻页动效选择">
+                    <button type="button" class="flip-anim-chip active" data-anim="curl" title="3D 拟真书卷立体折角翻页">
+                        <span class="anim-icon" aria-hidden="true">🍃</span>
+                        <span class="anim-label">拟真书卷</span>
+                    </button>
+                    <button type="button" class="flip-anim-chip" data-anim="slide" title="微信读书平滑跟手滑动">
+                        <span class="anim-icon" aria-hidden="true">📱</span>
+                        <span class="anim-label">平滑滑动</span>
+                    </button>
+                    <button type="button" class="flip-anim-chip" data-anim="cover" title="仿真纸张层叠覆盖翻阅">
+                        <span class="anim-icon" aria-hidden="true">📖</span>
+                        <span class="anim-label">仿真覆盖</span>
+                    </button>
+                    <button type="button" class="flip-anim-chip" data-anim="scroll" title="上下连续纵向长卷滚动">
+                        <span class="anim-icon" aria-hidden="true">📜</span>
+                        <span class="anim-label">连续长卷</span>
+                    </button>
                 </div>
+            </div>
+
+            <!-- 伴读拟真音效 -->
+            <div class="setting-group setting-row-between">
+                <div>
+                    <span class="setting-title-inline">翻页纸张沙沙声</span>
+                    <span class="setting-desc-inline">纯代码程序化声学合成</span>
+                </div>
+                <button type="button" class="sound-toggle-btn active" id="btn-toggle-sound" aria-pressed="true">
+                    <span class="sound-status-icon" aria-hidden="true">🔊</span>
+                    <span id="sound-status-text">已开启</span>
+                </button>
             </div>
         </div>
     </aside>

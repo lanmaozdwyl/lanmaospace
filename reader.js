@@ -278,7 +278,9 @@
             theme: 'parchment', // parchment | green | white | dark
             fontSize: 18,        // 14 ~ 28
             fontFamily: 'system',// system | serif | kaiti
-            mode: 'flip'         // flip | scroll
+            mode: 'flip',        // flip | scroll
+            animMode: 'curl',    // curl | slide | cover | scroll
+            soundEnabled: true   // 拟真纸张沙沙声
         }
     };
 
@@ -332,6 +334,13 @@
                     }
                     if (['flip', 'scroll'].includes(parsed.mode)) {
                         state.settings.mode = parsed.mode;
+                    }
+                    if (['curl', 'slide', 'cover', 'scroll'].includes(parsed.animMode)) {
+                        state.settings.animMode = parsed.animMode;
+                        state.settings.mode = parsed.animMode === 'scroll' ? 'scroll' : 'flip';
+                    }
+                    if (typeof parsed.soundEnabled === 'boolean') {
+                        state.settings.soundEnabled = parsed.soundEnabled;
                     }
                 }
             }
@@ -389,14 +398,23 @@
             chip.classList.toggle('active', chip.dataset.font === state.settings.fontFamily);
         });
 
-        // 翻页模式
+        // 翻页模式与 3D 书卷动效
         const stage = document.getElementById('reader-stage');
         if (stage) {
             stage.classList.toggle('mode-scroll', state.settings.mode === 'scroll');
         }
-        document.querySelectorAll('.flip-mode-chip').forEach(chip => {
-            chip.classList.toggle('active', chip.dataset.mode === state.settings.mode);
+        document.querySelectorAll('.flip-anim-chip').forEach(chip => {
+            chip.classList.toggle('active', chip.dataset.anim === state.settings.animMode);
         });
+
+        // 翻页纸张音效状态
+        const btnSound = document.getElementById('btn-toggle-sound');
+        const soundText = document.getElementById('sound-status-text');
+        if (btnSound && soundText) {
+            btnSound.classList.toggle('active', state.settings.soundEnabled);
+            btnSound.setAttribute('aria-pressed', String(state.settings.soundEnabled));
+            soundText.textContent = state.settings.soundEnabled ? '已开启' : '已静音';
+        }
 
         // 重新计算分页
         requestAnimationFrame(() => {
@@ -561,6 +579,194 @@
         }
     }
 
+
+    // ===== 拟真纸张翻页声学合成 (Web Audio 程序化合成，0 音频文件) =====
+    let paperAudioCtx = null;
+    function playPaperRustleSound() {
+        if (!state.settings.soundEnabled) return;
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            paperAudioCtx = paperAudioCtx || new AudioCtx();
+            if (paperAudioCtx.state === 'suspended') {
+                paperAudioCtx.resume();
+            }
+
+            const sampleRate = paperAudioCtx.sampleRate;
+            const duration = 0.15;
+            const bufferSize = Math.floor(sampleRate * duration);
+            const buffer = paperAudioCtx.createBuffer(1, bufferSize, sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                const p = i / bufferSize;
+                const env = Math.sin(p * Math.PI) * Math.exp(-p * 2.6);
+                data[i] = white * env;
+            }
+
+            const source = paperAudioCtx.createBufferSource();
+            source.buffer = buffer;
+
+            const filter = paperAudioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(2200, paperAudioCtx.currentTime);
+            filter.Q.setValueAtTime(1.4, paperAudioCtx.currentTime);
+
+            const gain = paperAudioCtx.createGain();
+            gain.gain.setValueAtTime(0.001, paperAudioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.24, paperAudioCtx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, paperAudioCtx.currentTime + duration);
+
+            source.connect(filter);
+            filter.connect(gain);
+            gain.connect(paperAudioCtx.destination);
+
+            source.start();
+        } catch (_) {}
+    }
+
+    let isFlipping = false;
+
+    function executePageTurn(targetPage, direction = 'next') {
+        if (state.settings.mode === 'scroll') return;
+        if (isFlipping) return;
+
+        targetPage = Math.max(1, Math.min(state.totalPages, targetPage));
+        if (targetPage === state.currentPage) return;
+
+        const viewport = document.getElementById('reader-viewport');
+        const content = document.getElementById('reader-content');
+        if (!viewport || !content) {
+            state.currentPage = targetPage;
+            applyPageTransform();
+            updateFooterInfo();
+            updateSlider();
+            saveProgress();
+            return;
+        }
+
+        const colWidth = viewport.clientWidth;
+        const colGap = window.innerWidth >= 900 ? 60 : 48;
+        const step = colWidth + colGap;
+
+        const fromPage = state.currentPage;
+        const toPage = targetPage;
+
+        // 1. 拟真书卷翻页 (3D Realistic Page Curl)
+        if (state.settings.animMode === 'curl') {
+            const curlLayer = document.getElementById('reader-curl-layer');
+            const curlSheet = document.getElementById('curl-sheet');
+            const curlFront = document.getElementById('curl-front');
+            const curlShadow = document.getElementById('curl-shadow');
+
+            if (curlLayer && curlSheet && curlFront && curlShadow) {
+                isFlipping = true;
+
+                curlFront.innerHTML = content.innerHTML;
+                curlFront.className = 'curl-front ' + content.className;
+                curlFront.style.transform = `translateX(-${(fromPage - 1) * step}px)`;
+
+                content.style.transition = 'none';
+                content.style.transform = `translateX(-${(toPage - 1) * step}px)`;
+
+                curlLayer.classList.add('active');
+
+                if (direction === 'next') {
+                    curlSheet.style.transformOrigin = 'left center';
+                    curlSheet.style.transform = 'perspective(2000px) rotateY(0deg)';
+                    curlShadow.style.opacity = '0';
+
+                    playPaperRustleSound();
+
+                    requestAnimationFrame(() => {
+                        curlSheet.style.transition = 'transform 0.38s cubic-bezier(0.22, 1, 0.36, 1)';
+                        curlSheet.style.transform = 'perspective(2000px) rotateY(-180deg)';
+
+                        curlShadow.style.transition = 'opacity 0.18s ease';
+                        curlShadow.style.opacity = '0.65';
+                        setTimeout(() => {
+                            curlShadow.style.opacity = '0';
+                        }, 180);
+
+                        setTimeout(() => {
+                            curlLayer.classList.remove('active');
+                            curlSheet.style.transform = 'none';
+                            curlSheet.style.transition = 'none';
+                            state.currentPage = toPage;
+                            updateFooterInfo();
+                            updateSlider();
+                            saveProgress();
+                            isFlipping = false;
+                        }, 400);
+                    });
+                } else {
+                    curlSheet.style.transformOrigin = 'left center';
+                    curlSheet.style.transform = 'perspective(2000px) rotateY(-180deg)';
+                    curlShadow.style.opacity = '0';
+
+                    playPaperRustleSound();
+
+                    requestAnimationFrame(() => {
+                        curlSheet.style.transition = 'transform 0.38s cubic-bezier(0.22, 1, 0.36, 1)';
+                        curlSheet.style.transform = 'perspective(2000px) rotateY(0deg)';
+
+                        curlShadow.style.transition = 'opacity 0.18s ease';
+                        curlShadow.style.opacity = '0.65';
+                        setTimeout(() => {
+                            curlShadow.style.opacity = '0';
+                        }, 180);
+
+                        setTimeout(() => {
+                            curlLayer.classList.remove('active');
+                            curlSheet.style.transform = 'none';
+                            curlSheet.style.transition = 'none';
+                            state.currentPage = toPage;
+                            updateFooterInfo();
+                            updateSlider();
+                            saveProgress();
+                            isFlipping = false;
+                        }, 400);
+                    });
+                }
+                return;
+            }
+        }
+
+        // 2. 仿真覆盖模式 (Cover Overlay)
+        if (state.settings.animMode === 'cover') {
+            isFlipping = true;
+            playPaperRustleSound();
+            content.classList.add('anim-cover');
+            content.style.transition = 'transform 0.34s cubic-bezier(0.22, 1, 0.36, 1)';
+            content.style.transform = `translateX(-${(toPage - 1) * step}px)`;
+
+            setTimeout(() => {
+                content.classList.remove('anim-cover');
+                state.currentPage = toPage;
+                updateFooterInfo();
+                updateSlider();
+                saveProgress();
+                isFlipping = false;
+            }, 360);
+            return;
+        }
+
+        // 3. 经典平滑滑动模式 (Smooth Slide)
+        isFlipping = true;
+        playPaperRustleSound();
+        content.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
+        content.style.transform = `translateX(-${(toPage - 1) * step}px)`;
+
+        setTimeout(() => {
+            state.currentPage = toPage;
+            updateFooterInfo();
+            updateSlider();
+            saveProgress();
+            isFlipping = false;
+        }, 340);
+    }
+
     // ===== 8. 微信读书左右分页核心算法 =====
     function updatePaginationMetrics() {
         if (state.settings.mode === 'scroll') {
@@ -620,7 +826,7 @@
     function nextPage() {
         if (state.settings.mode === 'scroll') return;
         if (state.currentPage < state.totalPages) {
-            goToPage(state.currentPage + 1);
+            executePageTurn(state.currentPage + 1, 'next');
         } else {
             // 当前章节最后一页 -> 翻入下一章第一页
             if (state.currentBook && state.currentChapterIndex < state.currentBook.chapters.length - 1) {
@@ -635,7 +841,7 @@
     function prevPage() {
         if (state.settings.mode === 'scroll') return;
         if (state.currentPage > 1) {
-            goToPage(state.currentPage - 1);
+            executePageTurn(state.currentPage - 1, 'prev');
         } else {
             // 当前章节第一页 -> 翻入上一章最后一页
             if (state.currentChapterIndex > 0) {
@@ -919,37 +1125,185 @@
         if (zoneMenu) zoneMenu.addEventListener('click', toggleMenu);
         if (zoneNext) zoneNext.addEventListener('click', nextPage);
 
-        // 触控滑动手势支持 (在视口上左右滑动)
+        // ===== 实时跟手拖拽与 3D 书卷交互引擎 =====
         const viewport = document.getElementById('reader-viewport');
-        if (viewport) {
-            let touchStartX = 0;
-            let touchStartY = 0;
-            let touchStartTime = 0;
+        const content = document.getElementById('reader-content');
+        if (viewport && content) {
+            let isDown = false;
+            let startX = 0;
+            let startY = 0;
+            let deltaX = 0;
+            let deltaY = 0;
+            let isHorizontalDrag = false;
+            let initialBaseOffset = 0;
+            const curlLayer = document.getElementById('reader-curl-layer');
+            const curlSheet = document.getElementById('curl-sheet');
+            const curlFront = document.getElementById('curl-front');
+            const curlShadow = document.getElementById('curl-shadow');
+
+            function onStart(x, y, target) {
+                if (state.settings.mode === 'scroll') return;
+                if (isFlipping) return;
+                if (target && (target.closest('button') || target.closest('a') || target.closest('input'))) return;
+
+                isDown = true;
+                startX = x;
+                startY = y;
+                deltaX = 0;
+                deltaY = 0;
+                isHorizontalDrag = false;
+
+                const colWidth = viewport.clientWidth;
+                const colGap = window.innerWidth >= 900 ? 60 : 48;
+                const step = colWidth + colGap;
+                initialBaseOffset = (state.currentPage - 1) * step;
+            }
+
+            function onMove(x, y, e) {
+                if (!isDown) return;
+                deltaX = x - startX;
+                deltaY = y - startY;
+
+                if (!isHorizontalDrag) {
+                    if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+                        isHorizontalDrag = true;
+                    } else if (Math.abs(deltaY) > 15) {
+                        isDown = false;
+                        return;
+                    }
+                }
+
+                if (!isHorizontalDrag) return;
+                if (e && e.cancelable) e.preventDefault();
+
+                const colWidth = viewport.clientWidth;
+                const colGap = window.innerWidth >= 900 ? 60 : 48;
+                const step = colWidth + colGap;
+
+                // 边缘阻尼弹性效果
+                let effectiveDelta = deltaX;
+                if (state.currentPage === 1 && deltaX > 0 && state.currentChapterIndex === 0) {
+                    effectiveDelta = deltaX * 0.3;
+                } else if (state.currentPage === state.totalPages && deltaX < 0 && state.currentChapterIndex >= (state.currentBook?.chapters.length || 1) - 1) {
+                    effectiveDelta = deltaX * 0.3;
+                }
+
+                // 1. 拟真书卷翻页实时跟随角度渲染
+                if (state.settings.animMode === 'curl' && curlLayer && curlSheet && curlFront && curlShadow) {
+                    if (effectiveDelta < 0) {
+                        if (!curlLayer.classList.contains('active')) {
+                            curlFront.innerHTML = content.innerHTML;
+                            curlFront.className = 'curl-front ' + content.className;
+                            curlFront.style.transform = `translateX(-${initialBaseOffset}px)`;
+                            curlSheet.style.transformOrigin = 'left center';
+                            curlLayer.classList.add('active');
+
+                            content.style.transition = 'none';
+                            const nextOffset = Math.min(initialBaseOffset + step, (state.totalPages - 1) * step);
+                            content.style.transform = `translateX(-${nextOffset}px)`;
+                        }
+
+                        const progress = Math.min(1, Math.max(0, -effectiveDelta / colWidth));
+                        const angle = progress * 180;
+                        curlSheet.style.transition = 'none';
+                        curlSheet.style.transform = `perspective(2000px) rotateY(-${angle}deg)`;
+                        curlShadow.style.opacity = String(Math.sin(progress * Math.PI) * 0.7);
+                        return;
+                    }
+                }
+
+                // 2. 平滑滑动与仿真覆盖实时跟手移动
+                content.style.transition = 'none';
+                content.style.transform = `translateX(-${initialBaseOffset - effectiveDelta}px)`;
+                if (state.settings.animMode === 'cover') {
+                    content.classList.add('anim-cover');
+                }
+            }
+
+            function onEnd() {
+                if (!isDown) return;
+                isDown = false;
+
+                if (!isHorizontalDrag) return;
+                isHorizontalDrag = false;
+
+                const colWidth = viewport.clientWidth;
+                const threshold = colWidth * 0.16;
+
+                // 1. 拟真书卷释放
+                if (state.settings.animMode === 'curl' && curlLayer && curlLayer.classList.contains('active')) {
+                    if (deltaX < -threshold) {
+                        playPaperRustleSound();
+                        curlSheet.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+                        curlSheet.style.transform = 'perspective(2000px) rotateY(-180deg)';
+                        curlShadow.style.transition = 'opacity 0.2s ease';
+                        curlShadow.style.opacity = '0';
+
+                        setTimeout(() => {
+                            curlLayer.classList.remove('active');
+                            curlSheet.style.transform = 'none';
+                            curlSheet.style.transition = 'none';
+                            if (state.currentPage < state.totalPages) {
+                                state.currentPage++;
+                                updateFooterInfo();
+                                updateSlider();
+                                saveProgress();
+                            } else if (state.currentChapterIndex < (state.currentBook?.chapters.length || 1) - 1) {
+                                goToChapter(state.currentChapterIndex + 1, 1);
+                            }
+                        }, 300);
+                    } else {
+                        curlSheet.style.transition = 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)';
+                        curlSheet.style.transform = 'perspective(2000px) rotateY(0deg)';
+                        curlShadow.style.transition = 'opacity 0.15s ease';
+                        curlShadow.style.opacity = '0';
+
+                        setTimeout(() => {
+                            curlLayer.classList.remove('active');
+                            curlSheet.style.transform = 'none';
+                            curlSheet.style.transition = 'none';
+                            content.style.transform = `translateX(-${initialBaseOffset}px)`;
+                        }, 260);
+                    }
+                    return;
+                }
+
+                // 2. 平滑滑动与覆盖释放
+                content.classList.remove('anim-cover');
+                content.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
+
+                if (deltaX < -threshold) {
+                    nextPage();
+                } else if (deltaX > threshold) {
+                    prevPage();
+                } else {
+                    content.style.transform = `translateX(-${initialBaseOffset}px)`;
+                }
+            }
 
             viewport.addEventListener('touchstart', (e) => {
                 if (e.touches.length !== 1) return;
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-                touchStartTime = Date.now();
+                onStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
             }, { passive: true });
 
-            viewport.addEventListener('touchend', (e) => {
-                if (e.changedTouches.length !== 1) return;
-                const deltaX = e.changedTouches[0].clientX - touchStartX;
-                const deltaY = e.changedTouches[0].clientY - touchStartY;
-                const elapsed = Date.now() - touchStartTime;
+            viewport.addEventListener('touchmove', (e) => {
+                if (e.touches.length !== 1) return;
+                onMove(e.touches[0].clientX, e.touches[0].clientY, e);
+            }, { passive: false });
 
-                // 水平滑动位移超过 38px 且水平位移显著大于垂直位移
-                if (Math.abs(deltaX) > 38 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4 && elapsed < 650) {
-                    if (deltaX < 0) {
-                        nextPage();
-                    } else {
-                        prevPage();
-                    }
-                }
-            }, { passive: true });
+            viewport.addEventListener('touchend', onEnd, { passive: true });
+            viewport.addEventListener('touchcancel', onEnd, { passive: true });
 
-            // 滚动模式下的进度更新
+            // 电脑端鼠标拖拽支持
+            viewport.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                onStart(e.clientX, e.clientY, e.target);
+            });
+            window.addEventListener('mousemove', (e) => {
+                onMove(e.clientX, e.clientY, e);
+            });
+            window.addEventListener('mouseup', onEnd);
+
             viewport.addEventListener('scroll', () => {
                 if (state.settings.mode === 'scroll') {
                     updateFooterInfo();
@@ -1090,18 +1444,41 @@
             });
         });
 
-        // 翻页模式切换
-        document.querySelectorAll('.flip-mode-chip').forEach(chip => {
+        // 翻页动效模式切换
+        document.querySelectorAll('.flip-anim-chip').forEach(chip => {
             chip.addEventListener('click', () => {
-                const mode = chip.dataset.mode;
-                if (mode) {
-                    state.settings.mode = mode;
+                const anim = chip.dataset.anim;
+                if (anim) {
+                    state.settings.animMode = anim;
+                    state.settings.mode = anim === 'scroll' ? 'scroll' : 'flip';
                     applySettings();
                     saveSettings();
-                    showToast(mode === 'flip' ? '已切换为左右分页翻页' : '已切换为上下连续滚动');
+                    const descMap = {
+                        curl: '🍃 已开启 3D 拟真书卷翻页',
+                        slide: '📱 已开启微信读书平滑滑动',
+                        cover: '📖 已开启仿真纸张覆盖滑页',
+                        scroll: '📜 已开启连续长卷滚动'
+                    };
+                    showToast(descMap[anim] || '已更新翻页动效');
                 }
             });
         });
+
+        // 翻页纸张音效切换
+        const btnSound = document.getElementById('btn-toggle-sound');
+        if (btnSound) {
+            btnSound.addEventListener('click', () => {
+                state.settings.soundEnabled = !state.settings.soundEnabled;
+                applySettings();
+                saveSettings();
+                if (state.settings.soundEnabled) {
+                    playPaperRustleSound();
+                    showToast('🔊 翻页纸张沙沙声已开启');
+                } else {
+                    showToast('🔇 翻页音效已静音');
+                }
+            });
+        }
 
         // 内置书籍选择
         document.querySelectorAll('.shelf-book-item').forEach(item => {

@@ -22,6 +22,11 @@ test('reader.html 结构完整且严格符合 CSP 无内联代码', () => {
     assert(htmlSource.includes('id="reader-page-slider"'), '缺少翻页进度条');
     assert(htmlSource.includes('id="reader-toggle-noise"'), '缺少伴读白噪声开关');
     assert(htmlSource.includes('id="reader-toggle-pomodoro"'), '缺少番茄钟开关');
+    assert(htmlSource.includes('id="reader-curl-layer"'), '缺少 3D 拟真书卷翻页图层');
+    assert(htmlSource.includes('id="curl-sheet"'), '缺少立体折角翻页纸张容器');
+    assert(htmlSource.includes('class="reader-book-spine"'), '缺少拟真精装书书脊装订线');
+    assert(htmlSource.includes('class="reader-book-edge"'), '缺少纸质边缘质感阴影');
+    assert(htmlSource.includes('id="btn-toggle-sound"'), '缺少翻页纸张音效切换按钮');
 
     // CSP 校验：无 inline on* 属性及 inline script
     assert(!/\son[a-z]+\s*=/i.test(htmlSource), '检测到内联事件处理程序');
@@ -41,6 +46,10 @@ test('reader.css 包含微信读书四大主题色与自适应列分页样式', 
     assert(cssSource.includes('column-gap'), '缺少列间距样式');
     assert(cssSource.includes('mode-scroll'), '缺少连续垂直滚动模式');
     assert(cssSource.includes('.reader-touch-zones'), '缺少手势触控热区样式');
+    assert(cssSource.includes('.reader-curl-layer'), '缺少 3D 拟真卷页图层样式');
+    assert(cssSource.includes('perspective: 2000px'), '缺少 3D 立体透视深度设置');
+    assert(cssSource.includes('.reader-book-spine'), '缺少精装书书脊装订线样式');
+    assert(cssSource.includes('.flip-effects-grid'), '缺少翻页动效四宫格样式');
 });
 
 test('reader.js 内置伴读名著完整且无任何外部网络依赖', () => {
