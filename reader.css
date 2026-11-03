@@ -874,23 +874,29 @@ html, body.reader-body {
     -webkit-user-select: none !important;
     outline: none !important;
 }
-.touch-prev {
+.touch-prev,
+.touch-zone-prev {
     width: 25%;
     cursor: w-resize;
     -webkit-tap-highlight-color: transparent !important;
     -webkit-touch-callout: none !important;
 }
-.touch-menu {
+.touch-menu,
+.touch-zone-menu {
     width: 50%;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent !important;
     -webkit-touch-callout: none !important;
 }
-.touch-next {
+.touch-next,
+.touch-zone-next {
     width: 25%;
     cursor: e-resize;
     -webkit-tap-highlight-color: transparent !important;
     -webkit-touch-callout: none !important;
+}
+.reader-stage.drawer-opened {
+    pointer-events: none;
 }
 
 /* 抽屉基础样式 */

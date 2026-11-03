@@ -737,8 +737,10 @@
         closeAllDrawers();
         const drawer = document.getElementById(drawerId);
         const backdrop = document.getElementById('reader-backdrop');
+        const stage = document.getElementById('reader-stage');
         if (drawer) drawer.hidden = false;
         if (backdrop) backdrop.hidden = false;
+        if (stage) stage.classList.add('drawer-opened');
     }
 
     function closeAllDrawers() {
@@ -748,12 +750,14 @@
             if (el) el.hidden = true;
         });
         const backdrop = document.getElementById('reader-backdrop');
+        const stage = document.getElementById('reader-stage');
         if (backdrop) backdrop.hidden = true;
+        if (stage) stage.classList.remove('drawer-opened');
     }
 
     
     // ===== 6.5 双视图切换与书架大厅管理 =====
-    function switchView(viewName, bookId, chapterIndex, page) {
+    function switchView(viewName, bookId, chapterIndex, page, pushHistory = true) {
         const shelfView = document.getElementById('view-bookshelf');
         const readerView = document.getElementById('view-reader');
         if (!shelfView || !readerView) return;
@@ -773,7 +777,12 @@
             try {
                 const url = new URL(window.location.href);
                 url.searchParams.set('book', targetBookId);
-                window.history.replaceState({ view: 'reader', book: targetBookId }, '', url.toString());
+                const historyState = { view: 'reader', bookId: targetBookId };
+                if (pushHistory) {
+                    window.history.pushState(historyState, '', url.toString());
+                } else {
+                    window.history.replaceState(historyState, '', url.toString());
+                }
             } catch (_) {}
         } else {
             readerView.hidden = true;
@@ -786,7 +795,12 @@
             try {
                 const url = new URL(window.location.href);
                 url.searchParams.delete('book');
-                window.history.replaceState({ view: 'bookshelf' }, '', url.toString());
+                const historyState = { view: 'bookshelf' };
+                if (pushHistory) {
+                    window.history.pushState(historyState, '', url.toString());
+                } else {
+                    window.history.replaceState(historyState, '', url.toString());
+                }
             } catch (_) {}
         }
     }
@@ -999,8 +1013,27 @@
     }
 
 
-    // ===== 拟真纸张翻页声学合成 (Web Audio 程序化合成，0 音频文件) =====
+    // ===== 拟真纸张翻页声学合成 (Web Audio 程序化合成，0 音频文件，预渲染缓存 0ms 零延迟) =====
     let paperAudioCtx = null;
+    let cachedPaperBuffer = null;
+
+    function getOrCreatePaperBuffer(ctx) {
+        if (cachedPaperBuffer) return cachedPaperBuffer;
+        const sampleRate = ctx.sampleRate || 44100;
+        const duration = 0.14;
+        const bufferSize = Math.floor(sampleRate * duration);
+        cachedPaperBuffer = ctx.createBuffer(1, bufferSize, sampleRate);
+        const data = cachedPaperBuffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            const p = i / bufferSize;
+            const env = Math.sin(p * Math.PI) * Math.exp(-p * 2.6);
+            data[i] = white * env;
+        }
+        return cachedPaperBuffer;
+    }
+
     function playPaperRustleSound() {
         if (!state.settings.soundEnabled) return;
         try {
@@ -1011,19 +1044,7 @@
                 paperAudioCtx.resume();
             }
 
-            const sampleRate = paperAudioCtx.sampleRate;
-            const duration = 0.15;
-            const bufferSize = Math.floor(sampleRate * duration);
-            const buffer = paperAudioCtx.createBuffer(1, bufferSize, sampleRate);
-            const data = buffer.getChannelData(0);
-
-            for (let i = 0; i < bufferSize; i++) {
-                const white = Math.random() * 2 - 1;
-                const p = i / bufferSize;
-                const env = Math.sin(p * Math.PI) * Math.exp(-p * 2.6);
-                data[i] = white * env;
-            }
-
+            const buffer = getOrCreatePaperBuffer(paperAudioCtx);
             const source = paperAudioCtx.createBufferSource();
             source.buffer = buffer;
 
@@ -1034,8 +1055,8 @@
 
             const gain = paperAudioCtx.createGain();
             gain.gain.setValueAtTime(0.001, paperAudioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0.24, paperAudioCtx.currentTime + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, paperAudioCtx.currentTime + duration);
+            gain.gain.linearRampToValueAtTime(0.22, paperAudioCtx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, paperAudioCtx.currentTime + 0.14);
 
             source.connect(filter);
             filter.connect(gain);
@@ -1117,8 +1138,8 @@
             }
         }
 
-        // 微信读书标志性 60/120 FPS 极速平滑滑动 (GPU 硬件加速)
-        content.style.transition = 'transform 0.22s cubic-bezier(0.25, 1, 0.5, 1)';
+        // 微信读书标志性 60/120 FPS 极速平滑滑动 (GPU 硬件加速，毫秒级响应)
+        content.style.transition = 'transform 0.18s cubic-bezier(0.25, 1, 0.5, 1)';
         content.style.transform = `translate3d(-${toOffset}px, 0, 0)`;
 
         setTimeout(() => {
@@ -1128,7 +1149,7 @@
             updateSlider();
             saveProgress();
             isFlipping = false;
-        }, 230);
+        }, 190);
     }
 
     // ===== 8. 微信读书左右分页核心算法 =====
@@ -1528,6 +1549,10 @@
             let deltaY = 0;
             let isHorizontalDrag = false;
             let initialBaseOffset = 0;
+            let cachedColWidth = 360;
+            let cachedStep = 408;
+            let rafPending = false;
+            let currentEffectiveDelta = 0;
 
             function onStart(x, y, target) {
                 if (state.settings.mode === 'scroll') return;
@@ -1544,10 +1569,11 @@
                 deltaY = 0;
                 isHorizontalDrag = false;
 
-                const colWidth = viewport.clientWidth || 360;
+                // 在 touchstart 时一次性获取并缓存几何数据，严禁在 touchmove 高频事件中重复查询 clientWidth 导致 Forced Layout Thrashing
+                cachedColWidth = viewport.clientWidth || 360;
                 const colGap = window.innerWidth >= 900 ? 60 : 48;
-                const step = colWidth + colGap;
-                initialBaseOffset = (state.currentPage - 1) * step;
+                cachedStep = cachedColWidth + colGap;
+                initialBaseOffset = (state.currentPage - 1) * cachedStep;
             }
 
             function onMove(x, y, e) {
@@ -1556,9 +1582,10 @@
                 deltaY = y - startY;
 
                 if (!isHorizontalDrag) {
-                    if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+                    // 提高防手抖死区至 12px，消除微小位移误触
+                    if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
                         isHorizontalDrag = true;
-                    } else if (Math.abs(deltaY) > 15) {
+                    } else if (Math.abs(deltaY) > 16) {
                         isDown = false;
                         return;
                     }
@@ -1567,19 +1594,28 @@
                 if (!isHorizontalDrag) return;
                 if (e && e.cancelable) e.preventDefault();
 
-                const colWidth = viewport.clientWidth || 360;
                 let effectiveDelta = deltaX;
 
                 // 边界阻尼
                 if (state.currentPage === 1 && deltaX > 0 && state.currentChapterIndex === 0) {
-                    effectiveDelta = deltaX * 0.25;
+                    effectiveDelta = deltaX * 0.22;
                 } else if (state.currentPage === state.totalPages && deltaX < 0 && state.currentChapterIndex >= (state.currentBook?.chapters.length || 1) - 1) {
-                    effectiveDelta = deltaX * 0.25;
+                    effectiveDelta = deltaX * 0.22;
                 }
 
-                // 跟手滑动视觉反馈
-                content.style.transition = 'none';
-                content.style.transform = `translate3d(-${initialBaseOffset - effectiveDelta}px, 0, 0)`;
+                currentEffectiveDelta = effectiveDelta;
+
+                // 通过 requestAnimationFrame 对齐屏幕高刷周期（60/90/120Hz）批量合并样式提交
+                if (!rafPending) {
+                    rafPending = true;
+                    requestAnimationFrame(() => {
+                        if (isDown && isHorizontalDrag) {
+                            content.style.transition = 'none';
+                            content.style.transform = `translate3d(-${initialBaseOffset - currentEffectiveDelta}px, 0, 0)`;
+                        }
+                        rafPending = false;
+                    });
+                }
             }
 
             function onEnd() {
@@ -1591,10 +1627,9 @@
 
                 // 标记已滑动，防止触发点击事件误开菜单
                 hasSwiped = true;
-                setTimeout(() => { hasSwiped = false; }, 260);
+                setTimeout(() => { hasSwiped = false; }, 240);
 
-                const colWidth = viewport.clientWidth || 360;
-                const threshold = Math.min(55, Math.max(30, colWidth * 0.12));
+                const threshold = Math.min(50, Math.max(28, cachedColWidth * 0.1));
 
                 if (deltaX < -threshold) {
                     // 从右往左滑动 -> 翻入下一页
@@ -1604,7 +1639,7 @@
                     prevPage();
                 } else {
                     // 未达到阈值，弹回当前页
-                    content.style.transition = 'transform 0.22s cubic-bezier(0.25, 1, 0.5, 1)';
+                    content.style.transition = 'transform 0.18s cubic-bezier(0.25, 1, 0.5, 1)';
                     content.style.transform = `translate3d(-${initialBaseOffset}px, 0, 0)`;
                 }
             }
@@ -1721,13 +1756,28 @@
         const btnThemes = document.getElementById('reader-btn-themes');
         if (btnThemes) btnThemes.addEventListener('click', () => openDrawer('drawer-settings'));
 
+        // 底部 Dock 中的书架入口按钮
         const btnBookshelf = document.getElementById('reader-btn-bookshelf');
-        if (btnBookshelf) btnBookshelf.addEventListener('click', () => switchView('bookshelf'));
+        if (btnBookshelf) {
+            btnBookshelf.addEventListener('click', () => {
+                if (window.history.state && window.history.state.view === 'reader') {
+                    window.history.back();
+                } else {
+                    switchView('bookshelf');
+                }
+            });
+        }
 
-        // 返回书架主厅按钮
+        // 顶部控制栏返回书架主厅按钮
         const btnBackToShelf = document.getElementById('btn-back-to-shelf');
         if (btnBackToShelf) {
-            btnBackToShelf.addEventListener('click', () => switchView('bookshelf'));
+            btnBackToShelf.addEventListener('click', () => {
+                if (window.history.state && window.history.state.view === 'reader') {
+                    window.history.back();
+                } else {
+                    switchView('bookshelf');
+                }
+            });
         }
 
         // 消除移动端长按选区及触控蓝块
@@ -2001,6 +2051,34 @@
         });
     }
 
+    // ===== 13.5 浏览器历史与手机侧滑返回手势监听 (SPA 核心路由回退支持) =====
+    window.addEventListener('popstate', (e) => {
+        // 1. 若当前有任何抽屉打开（目录/排版设置/导入），系统返回优先收起抽屉，不退出书籍
+        const openDrawerEl = document.querySelector('.reader-drawer:not([hidden])');
+        if (openDrawerEl) {
+            closeAllDrawers();
+            return;
+        }
+
+        // 2. 若顶部/底部控制栏当前处于显示状态，顺带关闭控制栏
+        if (state.menuVisible) {
+            hideMenu();
+        }
+
+        // 3. 根据历史栈状态切换视图
+        const hist = e.state;
+        if (hist && hist.view === 'reader' && hist.bookId) {
+            switchView('reader', hist.bookId, undefined, undefined, false);
+        } else if (hist && hist.view === 'bookshelf') {
+            switchView('bookshelf', null, null, null, false);
+        } else {
+            // 兜底：退到初始根页面时，如果在阅读界面，平滑回退至书架大厅，避免直接跳转外部网站首页
+            if (state.activeView === 'reader') {
+                switchView('bookshelf', null, null, null, false);
+            }
+        }
+    });
+
     // ===== 14. 初始化流程 =====
     function init() {
         loadSavedSettings();
@@ -2015,17 +2093,31 @@
         const viewParam = params.get('view');
 
         if (bookParam && state.books[bookParam]) {
-            switchView('reader', bookParam, 0, 1);
+            // 直达模式：先把书架历史底栈压入，再推入书籍，保证手机侧滑返回时退至我的书架
+            try {
+                const shelfUrl = new URL(window.location.href);
+                shelfUrl.searchParams.delete('book');
+                window.history.replaceState({ view: 'bookshelf' }, '', shelfUrl.toString());
+            } catch (_) {}
+            switchView('reader', bookParam, 0, 1, true);
         } else if (viewParam === 'read') {
+            try {
+                const shelfUrl = new URL(window.location.href);
+                shelfUrl.searchParams.delete('view');
+                window.history.replaceState({ view: 'bookshelf' }, '', shelfUrl.toString());
+            } catch (_) {}
             const saved = loadSavedProgress();
             if (saved && saved.bookId && state.books[saved.bookId]) {
-                switchView('reader', saved.bookId, saved.chapterIndex || 0, saved.page || 1);
+                switchView('reader', saved.bookId, saved.chapterIndex || 0, saved.page || 1, true);
             } else {
-                switchView('reader', 'prince', 0, 1);
+                switchView('reader', 'prince', 0, 1, true);
             }
         } else {
             // 默认展现“我的书架”总览大厅，书籍需从书架点击进入
-            switchView('bookshelf');
+            try {
+                window.history.replaceState({ view: 'bookshelf' }, '', window.location.href);
+            } catch (_) {}
+            switchView('bookshelf', null, null, null, false);
         }
 
         // 默认将控制栏隐藏，营造微信读书纯净沉浸感

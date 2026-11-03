@@ -270,3 +270,33 @@ test('手机硬件音量键翻页设置与物理键拦截映射验证', () => {
     // 4. 事件静默阻止冒泡与翻页调度
     assert(jsSource.includes('e.preventDefault()') && jsSource.includes('e.stopPropagation()'), '按音量键翻页时需阻止原生系统 HUD 与事件冒泡');
 });
+
+test('SPA 路由历史栈与移动端侧滑/物理返回键平滑退至我的书架', () => {
+    // 1. pushState / popstate 路由历史栈支持
+    assert(jsSource.includes("window.history.pushState(historyState"), '打开书籍时必须将阅读状态压入历史栈');
+    assert(jsSource.includes("window.addEventListener('popstate'"), '必须监听 popstate 拦截手机侧滑返回与物理返回键');
+    assert(jsSource.includes("switchView('bookshelf', null, null, null, false)"), '在阅读器中触发 popstate 时必须平滑切回书架大厅而非直接跳出');
+
+    // 2. 抽屉开启状态下的返回键优先关闭抽屉
+    assert(jsSource.includes("const openDrawerEl = document.querySelector('.reader-drawer:not([hidden])')"), '必须支持检测打开中的抽屉');
+    assert(jsSource.includes('closeAllDrawers()'), '抽屉开启时后退优先关闭抽屉保持当前书籍');
+
+    // 3. UI 按钮协同历史栈
+    assert(jsSource.includes("window.history.back()"), '顶部返回与底栏书架按钮在阅读时优先调用 history.back() 保持栈整洁');
+    assert(htmlSource.includes('<span>我的书架</span>'), '底栏 Dock 按钮需明确标识为“我的书架”');
+});
+
+test('翻页音效全局预渲染与 120 FPS 极速手势渲染引擎验证', () => {
+    // 1. 音频预渲染缓存
+    assert(jsSource.includes('cachedPaperBuffer'), '必须全局预渲染并缓存 paperAudio 缓冲区');
+    assert(jsSource.includes('getOrCreatePaperBuffer'), '翻页时必须复用预渲染好的 AudioBuffer 杜绝主线程重算');
+
+    // 2. 触控热区选择器严谨对齐
+    assert(cssSource.includes('.touch-zone-prev'), 'CSS 必须包含 .touch-zone-prev 类选择器以对齐 HTML 结构');
+    assert(cssSource.includes('.touch-zone-menu'), 'CSS 必须包含 .touch-zone-menu 类选择器以对齐 HTML 结构');
+    assert(cssSource.includes('.touch-zone-next'), 'CSS 必须包含 .touch-zone-next 类选择器以对齐 HTML 结构');
+
+    // 3. rAF 手势批处理与几何缓存
+    assert(jsSource.includes('cachedColWidth = viewport.clientWidth'), '必须在 touchstart 缓存几何尺寸，严禁在 touchmove 中频繁读取');
+    assert(jsSource.includes('requestAnimationFrame'), '跟手滑动必须通过 rAF 进行节流与高刷对齐');
+});
