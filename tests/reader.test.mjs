@@ -773,3 +773,20 @@ test('划线笔记接入：标签页、浮动按钮、脚本顺序、模式开�
     const buildSource = readFileSync(new URL('../scripts/build.mjs', import.meta.url), 'utf8');
     assert(buildSource.includes("'reader-highlight.js'"), 'build.mjs 白名单需包含 reader-highlight.js');
 });
+
+test('划线笔记进阶：支持全书 Markdown 导出与单条书摘卡片复制', () => {
+    // 1. JS 导出与复制函数定义
+    assert(jsSource.includes('function exportHighlightsMarkdown('), '必须包含全书划线 Markdown 导出函数');
+    assert(jsSource.includes('function copyHighlightCard('), '必须包含单条书摘卡片复制函数');
+    assert(jsSource.includes('btn-export-highlights'), '划线笔记列表顶部需包含 Markdown 导出按钮');
+    assert(jsSource.includes('bookmark-copy-btn'), '每条划线笔记需包含书摘卡片复制按钮');
+
+    // 2. 导出内容结构验证
+    assert(jsSource.includes('读书划线与笔记'), 'Markdown 标题格式需规范');
+    assert(jsSource.includes('text/markdown;charset=utf-8'), '需采用 UTF-8 编码的 Markdown MIME 类型');
+
+    // 3. CSS 样式规范
+    assert(cssSource.includes('.btn-export-hl'), '需包含导出按钮样式');
+    assert(cssSource.includes('.bookmark-copy-btn'), '需包含书摘复制按钮样式');
+    assert(cssSource.includes('.highlights-toolbar'), '需包含划线顶部工具栏样式');
+});

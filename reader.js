@@ -1336,6 +1336,94 @@
         return el;
     }
 
+    function exportHighlightsMarkdown() {
+        const list = getBookHighlights();
+        if (!list || list.length === 0) {
+            showToast('当前书籍暂无划线笔记可供导出');
+            return;
+        }
+        const bookTitle = state.currentBook?.title || '读书笔记';
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const timeStr = new Date().toLocaleString('zh-CN');
+
+        const mdLines = [
+            `# 《${bookTitle}》读书划线与笔记`,
+            '',
+            `> 导出时间：${timeStr}`,
+            `> 划线总数：共 ${list.length} 条`,
+            `> 来源平台：蓝昴空间 · 在线阅读器`,
+            '',
+            '---',
+            ''
+        ];
+
+        // 按章节分组
+        const byChapter = new Map();
+        list.forEach(h => {
+            const chIdx = h.chapterIndex || 0;
+            if (!byChapter.has(chIdx)) byChapter.set(chIdx, []);
+            byChapter.get(chIdx).push(h);
+        });
+
+        const sortedChapters = [...byChapter.keys()].sort((a, b) => a - b);
+        sortedChapters.forEach(chIdx => {
+            const chapterItems = byChapter.get(chIdx);
+            const chapterTitle = chapterItems[0]?.chapterTitle || `第 ${chIdx + 1} 章`;
+            mdLines.push(`### ${chapterTitle}`);
+            mdLines.push('');
+            chapterItems.forEach(h => {
+                const text = (h.rawText || h.exact || '').trim();
+                mdLines.push(`> “${text}”`);
+                mdLines.push('');
+            });
+            mdLines.push('---');
+            mdLines.push('');
+        });
+
+        const mdContent = mdLines.join('\n');
+        const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lanmao-notes-${encodeURIComponent(bookTitle)}-${dateStr}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast(`📑 成功导出 ${list.length} 条划线笔记为 Markdown 文件！`);
+    }
+
+    async function copyHighlightCard(h) {
+        const bookTitle = state.currentBook?.title || '图书';
+        const chapterTitle = h.chapterTitle || ('第 ' + ((h.chapterIndex || 0) + 1) + ' 章');
+        const quoteText = (h.rawText || h.exact || '').trim();
+        const cardText = `“${quoteText}”\n\n——《${bookTitle}》· ${chapterTitle}\n（蓝昴空间 · 在线阅读器）`;
+
+        let ok = false;
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(cardText);
+                ok = true;
+            }
+        } catch (_) {}
+
+        if (!ok && typeof document !== 'undefined') {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = cardText;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select?.();
+                ok = document.execCommand?.('copy');
+                document.body.removeChild(ta);
+            } catch (_) {}
+        }
+
+        showToast('✨ 书摘卡片已复制到剪贴板！');
+        return ok;
+    }
+
     function renderHighlightsList() {
         const listEl = document.getElementById('reader-highlights-list');
         if (!listEl) return;
@@ -1353,6 +1441,20 @@
             return;
         }
 
+        // 顶部工具条：划线数量统计与导出 Markdown
+        const toolbar = createHlEl('div', 'highlights-toolbar');
+        toolbar.appendChild(createHlEl('span', 'highlights-stat', `共 ${list.length} 条划线笔记`));
+        const exportBtn = createHlEl('button', 'btn-export-hl', '📥 导出 Markdown');
+        exportBtn.type = 'button';
+        exportBtn.id = 'btn-export-highlights';
+        exportBtn.setAttribute('aria-label', '导出当前书籍所有划线笔记为 Markdown 文件');
+        exportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportHighlightsMarkdown();
+        });
+        toolbar.appendChild(exportBtn);
+        listEl.appendChild(toolbar);
+
         list.forEach(h => {
             const card = createHlEl('div', 'bookmark-card highlight-card');
             card.setAttribute('role', 'button');
@@ -1362,22 +1464,38 @@
             header.appendChild(createHlEl('span', 'bookmark-chapter', h.chapterTitle || ('第 ' + ((h.chapterIndex || 0) + 1) + ' 章')));
             info.appendChild(header);
             info.appendChild(createHlEl('p', 'bookmark-excerpt highlight-excerpt', h.rawText || h.exact || ''));
+
+            const actionsGroup = createHlEl('div', 'highlight-actions-group');
+
+            const copyBtn = createHlEl('button', 'bookmark-copy-btn', '📋');
+            copyBtn.type = 'button';
+            copyBtn.title = '复制书摘卡片';
+            copyBtn.setAttribute('aria-label', '复制书摘卡片');
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                copyHighlightCard(h);
+            });
+
             const del = createHlEl('button', 'bookmark-del-btn', '✕');
             del.type = 'button';
             del.title = '删除此划线';
             del.setAttribute('aria-label', '删除划线');
+            del.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeHighlight(h.id);
+            });
+
+            actionsGroup.appendChild(copyBtn);
+            actionsGroup.appendChild(del);
+
             card.appendChild(info);
-            card.appendChild(del);
+            card.appendChild(actionsGroup);
             card.addEventListener('click', () => jumpToHighlight(h));
             card.addEventListener('keydown', (e) => {
                 if (e.target === card && (e.key === 'Enter' || e.key === ' ')) {
                     e.preventDefault();
                     jumpToHighlight(h);
                 }
-            });
-            del.addEventListener('click', (e) => {
-                e.stopPropagation();
-                removeHighlight(h.id);
             });
             listEl.appendChild(card);
         });
