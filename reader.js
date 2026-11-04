@@ -3134,163 +3134,122 @@
     function bindEvents() {
         // 触控热区感应 (左25%上一页 / 中50%菜单 / 右25%下一页)
         let hasSwiped = false;
+        let lastTouchTapAt = 0;
 
         const zonePrev = document.getElementById('zone-prev');
         const zoneMenu = document.getElementById('zone-menu');
         const zoneNext = document.getElementById('zone-next');
 
-        if (zonePrev) {
-            zonePrev.addEventListener('click', (e) => {
-                if (hasSwiped) return;
-                prevPage();
-            });
-        }
-        if (zoneMenu) {
-            zoneMenu.addEventListener('click', (e) => {
-                if (hasSwiped) return;
-                toggleMenu();
-            });
-        }
-        if (zoneNext) {
-            zoneNext.addEventListener('click', (e) => {
-                if (hasSwiped) return;
-                nextPage();
-            });
-        }
+        // 鼠标点击仍走热区；触屏点按由手势状态机统一处理，随后浏览器补发的 click 在这里去重
+        const onZoneClick = (action) => () => {
+            if (hasSwiped || Date.now() - lastTouchTapAt < 600) return;
+            action();
+        };
+        if (zonePrev) zonePrev.addEventListener('click', onZoneClick(() => prevPage()));
+        if (zoneMenu) zoneMenu.addEventListener('click', onZoneClick(() => toggleMenu()));
+        if (zoneNext) zoneNext.addEventListener('click', onZoneClick(() => nextPage()));
 
-        // ===== 微信读书全屏手势引擎：支持从右往左/从左往右滑动翻页与跟手交互 =====
+        // ===== 触控手势状态机（reader-gesture.js）：IDLE / SWIPING / SELECTING / DRAGGING_ROCKER / MENU_ACTIVE =====
         const stage = document.getElementById('reader-stage');
         const viewport = document.getElementById('reader-viewport');
         const content = document.getElementById('reader-content');
 
         if (stage && viewport && content) {
-            let isDown = false;
-            let startX = 0;
-            let startY = 0;
-            let deltaX = 0;
-            let deltaY = 0;
-            let isHorizontalDrag = false;
+            const gestureEnabled = () => {
+                if (state.settings.mode === 'scroll') return false;
+                if (isFlipping) return false;
+                if (state.isPdfMode || state.openPageFlipInstance) return false;
+                if (state.highlightMode) return false; // 划线模式沿用原生文字选择，暂不介入
+                return true;
+            };
+
             let initialBaseOffset = 0;
             let cachedColWidth = 360;
-            let cachedStep = 408;
             let rafPending = false;
             let currentEffectiveDelta = 0;
+            let swipeActive = false;
 
-            function onStart(x, y, target) {
-                if (state.settings.mode === 'scroll') return;
-                if (isFlipping) return;
-                if (state.isPdfMode || state.openPageFlipInstance) return;
-                // 忽略控制栏按钮与输入框
-                if (state.highlightMode) return; // 划线模式下交还给原生文字选择，不触发滑动翻页
-                if (target && (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('.reader-topbar') || target.closest('.reader-bottombar') || target.closest('.reader-drawer'))) {
-                    return;
-                }
-
-                isDown = true;
-                startX = x;
-                startY = y;
-                deltaX = 0;
-                deltaY = 0;
-                isHorizontalDrag = false;
-
-                // 在 touchstart 时一次性获取并缓存几何数据，严禁在 touchmove 高频事件中重复查询 clientWidth 导致 Forced Layout Thrashing
-                cachedColWidth = viewport.clientWidth || 360;
-                const colGap = window.innerWidth >= 900 ? 60 : 48;
-                cachedStep = cachedColWidth + colGap;
-                initialBaseOffset = (state.currentPage - 1) * cachedStep;
-            }
-
-            function onMove(x, y, e) {
-                if (!isDown) return;
-                deltaX = x - startX;
-                deltaY = y - startY;
-
-                if (!isHorizontalDrag) {
-                    // 提高防手抖死区至 12px，消除微小位移误触
-                    if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
-                        isHorizontalDrag = true;
-                    } else if (Math.abs(deltaY) > 16) {
-                        isDown = false;
-                        return;
-                    }
-                }
-
-                if (!isHorizontalDrag) return;
-                if (e && e.cancelable) e.preventDefault();
-
-                let effectiveDelta = deltaX;
-
-                // 边界阻尼
-                if (state.currentPage === 1 && deltaX > 0 && state.currentChapterIndex === 0) {
-                    effectiveDelta = deltaX * 0.22;
-                } else if (state.currentPage === state.totalPages && deltaX < 0 && state.currentChapterIndex >= (state.currentBook?.chapters.length || 1) - 1) {
-                    effectiveDelta = deltaX * 0.22;
-                }
-
-                currentEffectiveDelta = effectiveDelta;
-
-                // 通过 requestAnimationFrame 对齐屏幕高刷周期（60/90/120Hz）批量合并样式提交
-                if (!rafPending) {
-                    rafPending = true;
-                    requestAnimationFrame(() => {
-                        if (isDown && isHorizontalDrag) {
-                            content.style.transition = 'none';
-                            content.style.transform = `translate3d(-${initialBaseOffset - currentEffectiveDelta}px, 0, 0)`;
+            if (window.ReaderGesture) {
+                const machine = new window.ReaderGesture.GestureMachine({
+                    isEnabled: gestureEnabled,
+                    onTap: (zone) => {
+                        lastTouchTapAt = Date.now();
+                        if (zone === 'prev') prevPage();
+                        else if (zone === 'next') nextPage();
+                        else toggleMenu();
+                    },
+                    onSwipeStart: () => {
+                        swipeActive = true;
+                        // 只在滑动开始时读取一次几何数据，避免 touchmove 中反复触发强制回流
+                        cachedColWidth = viewport.clientWidth || 360;
+                        const colGap = window.innerWidth >= 900 ? 60 : 48;
+                        initialBaseOffset = (state.currentPage - 1) * (cachedColWidth + colGap);
+                        currentEffectiveDelta = 0;
+                    },
+                    onSwipeMove: (dx) => {
+                        let effectiveDelta = dx;
+                        // 边界阻尼
+                        if (state.currentPage === 1 && dx > 0 && state.currentChapterIndex === 0) {
+                            effectiveDelta = dx * 0.22;
+                        } else if (state.currentPage === state.totalPages && dx < 0 && state.currentChapterIndex >= (state.currentBook?.chapters.length || 1) - 1) {
+                            effectiveDelta = dx * 0.22;
                         }
-                        rafPending = false;
-                    });
-                }
+                        currentEffectiveDelta = effectiveDelta;
+                        if (!rafPending) {
+                            rafPending = true;
+                            requestAnimationFrame(() => {
+                                if (swipeActive) {
+                                    content.style.transition = 'none';
+                                    content.style.transform = `translate3d(-${initialBaseOffset - currentEffectiveDelta}px, 0, 0)`;
+                                }
+                                rafPending = false;
+                            });
+                        }
+                    },
+                    onSwipeEnd: (dx, cancelled) => {
+                        swipeActive = false;
+                        // 标记已滑动，防止随后的 click 误开菜单
+                        hasSwiped = true;
+                        setTimeout(() => { hasSwiped = false; }, 240);
+                        const threshold = Math.min(50, Math.max(28, cachedColWidth * 0.1));
+                        if (!cancelled && dx < -threshold) {
+                            nextPage();
+                        } else if (!cancelled && dx > threshold) {
+                            prevPage();
+                        } else {
+                            content.style.transition = 'transform 0.18s cubic-bezier(0.25, 1, 0.5, 1)';
+                            content.style.transform = `translate3d(-${initialBaseOffset}px, 0, 0)`;
+                        }
+                    },
+                    onDismissSelection: () => {
+                        const sel = window.getSelection ? window.getSelection() : null;
+                        if (sel && sel.removeAllRanges) sel.removeAllRanges();
+                    }
+                });
+                window.ReaderGesture.attach(stage, machine, { contentEl: content });
+                state.gestureMachine = machine;
             }
 
-            function onEnd() {
-                if (!isDown) return;
-                isDown = false;
-
-                if (!isHorizontalDrag) return;
-                isHorizontalDrag = false;
-
-                // 标记已滑动，防止触发点击事件误开菜单
-                hasSwiped = true;
-                setTimeout(() => { hasSwiped = false; }, 240);
-
-                const threshold = Math.min(50, Math.max(28, cachedColWidth * 0.1));
-
-                if (deltaX < -threshold) {
-                    // 从右往左滑动 -> 翻入下一页
-                    nextPage();
-                } else if (deltaX > threshold) {
-                    // 从左往右滑动 -> 翻入上一页
-                    prevPage();
-                } else {
-                    // 未达到阈值，弹回当前页
-                    content.style.transition = 'transform 0.18s cubic-bezier(0.25, 1, 0.5, 1)';
-                    content.style.transform = `translate3d(-${initialBaseOffset}px, 0, 0)`;
-                }
-            }
-
-            // 在整个阅读舞台统一捕获触摸事件，保证全屏任意位置滑动皆可翻页
-            stage.addEventListener('touchstart', (e) => {
-                if (e.touches.length !== 1) return;
-                onStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
-            }, { passive: true });
-
-            stage.addEventListener('touchmove', (e) => {
-                if (e.touches.length !== 1) return;
-                onMove(e.touches[0].clientX, e.touches[0].clientY, e);
-            }, { passive: false });
-
-            stage.addEventListener('touchend', onEnd, { passive: true });
-            stage.addEventListener('touchcancel', onEnd, { passive: true });
-
-            // 电脑端鼠标横向拖拽支持
+            // 电脑端鼠标横向拖拽翻页（简化版：松手时判定，无跟手动画）
+            let mouseX = null;
+            let mouseY = 0;
             stage.addEventListener('mousedown', (e) => {
-                if (e.button !== 0) return;
-                onStart(e.clientX, e.clientY, e.target);
+                if (e.button !== 0 || !gestureEnabled()) return;
+                if (e.target && e.target.closest && e.target.closest('button, a, input, .reader-topbar, .reader-bottombar, .reader-drawer')) return;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
             });
-            window.addEventListener('mousemove', (e) => {
-                onMove(e.clientX, e.clientY, e);
+            window.addEventListener('mouseup', (e) => {
+                if (mouseX === null) return;
+                const dx = e.clientX - mouseX;
+                const dy = e.clientY - mouseY;
+                mouseX = null;
+                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+                    hasSwiped = true;
+                    setTimeout(() => { hasSwiped = false; }, 240);
+                    if (dx < 0) nextPage(); else prevPage();
+                }
             });
-            window.addEventListener('mouseup', onEnd);
         }
 
         // 供 Android 原生 WebView 或外部控制器调用的音量键翻页桥梁
@@ -3451,11 +3410,7 @@
             });
         }
 
-        // 消除移动端长按选区及触控蓝块
-        const readingArea = document.getElementById('reader-stage');
-        if (readingArea) {
-            readingArea.addEventListener('contextmenu', (e) => { if (!state.highlightMode) e.preventDefault(); });
-        }
+        // 正文区域不再无条件拦截 contextmenu：Android 长按选区依赖它；滑页与拖动控件时的拦截由 reader-gesture.js 负责
         document.querySelectorAll('.touch-zone').forEach(z => {
             z.addEventListener('contextmenu', (e) => e.preventDefault());
         });

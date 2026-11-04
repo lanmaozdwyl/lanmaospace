@@ -21,4 +21,5 @@ export const TESTS = [
     'tests/reader-audio.test.mjs',
     'tests/ui-layout.test.mjs',
     'tests/reader-highlight.test.mjs',
+    'tests/reader-gesture.test.mjs',
 ];

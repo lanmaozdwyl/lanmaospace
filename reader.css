@@ -2318,6 +2318,24 @@ body.reader-body dialog.reader-audio-panel { background: var(--r-bg); color: var
     background: rgba(41, 151, 255, 0.4);
 }
 
+/* 触屏设备：热区不再拦截触摸，长按才能落到正文上唤起系统选区与放大镜。
+   点按翻页与呼出控制栏由 reader-gesture.js 按坐标判定；鼠标仍然使用热区。 */
+@media (pointer: coarse) {
+    .reader-touch-zones {
+        pointer-events: none;
+    }
+    /* 横向手势交给脚本处理，避免 Android Chrome 在横向移动时抢手势并发 touchcancel */
+    .reader-stage {
+        touch-action: pan-y;
+    }
+}
+
+/* 滑页锁定期间不允许出现选区闪烁 */
+.reader-stage[data-gesture="SWIPING"] .reader-content {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
 .reader-highlight-fab {
     position: fixed;
     left: 50%;

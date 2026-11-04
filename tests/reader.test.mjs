@@ -242,11 +242,12 @@ test('跨平台换行符兼容性（CRLF / LF / CR 混排段落解析）', () =>
 });
 
 test('全屏手势引擎支持从右往左与从左往右滑动翻页', () => {
-    assert(jsSource.includes("stage.addEventListener('touchstart'"), '需在舞台全屏层捕获 touchstart 手势');
-    assert(jsSource.includes("stage.addEventListener('touchmove'"), '需在舞台全屏层捕获 touchmove 手势');
-    assert(jsSource.includes("stage.addEventListener('touchend'"), '需在舞台全屏层捕获 touchend 手势');
-    assert(jsSource.includes('deltaX < -threshold'), '必须包含从右往左滑动下一页逻辑');
-    assert(jsSource.includes('deltaX > threshold'), '必须包含从左往右滑动上一页逻辑');
+    const gestureSource = readFileSync(new URL('../reader-gesture.js', import.meta.url), 'utf8');
+    assert(gestureSource.includes("stage.addEventListener('touchstart'"), '需在舞台全屏层捕获 touchstart 手势');
+    assert(gestureSource.includes("stage.addEventListener('touchmove'"), '需在舞台全屏层捕获 touchmove 手势');
+    assert(gestureSource.includes("stage.addEventListener('touchend'"), '需在舞台全屏层捕获 touchend 手势');
+    assert(jsSource.includes('dx < -threshold'), '必须包含从右往左滑动下一页逻辑');
+    assert(jsSource.includes('dx > threshold'), '必须包含从左往右滑动上一页逻辑');
     assert(jsSource.includes('hasSwiped'), '滑动后必须防误触点击菜单');
 });
 
@@ -756,7 +757,7 @@ test('划线笔记接入：标签页、浮动按钮、脚本顺序、模式开�
     assert(jsSource.includes('function jumpToHighlight('), '需包含笔记列表跳转函数');
     assert(jsSource.includes('function setHighlightMode('), '需包含划线模式开关函数');
     assert(/content\.innerHTML = htmlParts\.join\('\\n'\);\s*applyChapterHighlights\(\);/.test(jsSource), 'renderChapter 渲染正文后必须恢复划线');
-    assert(jsSource.includes('if (state.highlightMode) return;'), '划线模式下必须暂停滑动翻页手势');
+    assert(jsSource.includes('if (state.highlightMode) return false;'), '划线模式下手势状态机必须让出，暂停滑动翻页手势');
     assert(/highlights: state\.highlights,/.test(jsSource), '书架备份必须导出划线');
     assert(jsSource.includes('data.highlights'), '书架备份导入必须合并划线');
     // 列表以 textContent 构建，不把用户选中的原文拼进 innerHTML
