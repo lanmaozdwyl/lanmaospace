@@ -6,3 +6,18 @@ test('重置请求只发给服务端确认的当前账号邮箱',async()=>{let s
 test('退出所有设备明确使用global并传播失败',async()=>{let scope;await signOutEverywhere({auth:{signOut:async args=>{scope=args.scope;return{};}}});assert.equal(scope,'global');await assert.rejects(signOutEverywhere({auth:{signOut:async()=>({error:Error('offline')})}}));});
 test('CSP不允许内联脚本或eval，仍允许本地图片预览',()=>{const s=readFileSync(new URL('../_headers',import.meta.url),'utf8');const scripts=s.match(/script-src ([^;]+)/)[1];assert(!scripts.includes('unsafe-'));assert(s.includes("img-src 'self' data: blob: https:"));});
 test('发布页面无内联脚本及HTML事件处理器',()=>{for(const file of ['index.html','login.html','account.html','store.html','faq.html','memo.html','profile.html','space.html','reader.html','tools/index.html']){const s=readFileSync(new URL('../'+file,import.meta.url),'utf8');assert(!/\son[a-z]+\s*=/i.test(s),file);for(const m of s.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/\bsrc=/.test(m[1]))assert.equal(m[2].trim(),'',file);}});
+test('账号安全：重置密码邮件 60 秒动态倒计时冷却、防刷防重复提交与退出所有设备即时反馈',()=>{
+ const js=readFileSync(new URL('../account.js',import.meta.url),'utf8');
+ const html=readFileSync(new URL('../account.html',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../auth.css',import.meta.url),'utf8');
+ assert(js.includes('startCooldown'),'必须包含动态倒计时冷却逻辑');
+ assert(js.includes('stopCooldown'),'必须包含停止倒计时与复原按钮逻辑');
+ assert(js.includes('restoreCooldown'),'必须包含离页/刷新后自动恢复倒计时逻辑');
+ assert(js.includes('lanmao_account_reset_cooldown_'),'必须使用按用户隔离的本地冷却键名');
+ assert(js.includes('秒后可重新发送'),'按钮需呈现秒级实时递减文案');
+ assert(js.includes('发送修改密码邮件'),'冷却结束后需恢复初始文案');
+ assert(js.includes('正在安全退出所有设备，请稍候…'),'退出所有设备需提供即时视觉反馈');
+ assert(html.includes('id="account-reset-password"'),'页面必须包含重置密码按钮');
+ assert(html.includes('id="account-signout-all"'),'页面必须包含退出所有设备按钮');
+ assert(css.includes('#account-reset-password:disabled'),'样式必须包含按钮禁用置灰态');
+});

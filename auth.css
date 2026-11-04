@@ -102,6 +102,11 @@ body[data-theme="dark"] .password-toggle-btn,
     }
 }
 
+#account-reset-password:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .nav-signout,
     .shop-nav-signout,
