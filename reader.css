@@ -2006,6 +2006,30 @@ body.reader-body dialog.reader-audio-panel { background: var(--r-bg); color: var
     .drawer-header h3 { min-width: 0; font-size: 16px; }
     .drawer-close { flex-shrink: 0; min-width: 44px; min-height: 44px; }
     .reader-tool-btn, .reader-nav-step, .reader-tool-btn-icon { min-height: 44px; }
+
+    /* 移动端 iOS Safari 16px 防缩放人机工程学：输入控件小于 16px 时 iOS 会自动强制放大视口破坏阅读版面 */
+    .reader-body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+    .reader-body select,
+    .reader-body textarea,
+    .shelf-search-input,
+    .shelf-sort-select,
+    .online-search-input,
+    .online-url-input,
+    .inbook-search-input,
+    .reader-audio-panel select {
+        font-size: 16px !important;
+    }
+    .shelf-search-wrap,
+    .inbook-search-box,
+    .online-input-wrap {
+        min-height: 44px;
+        box-sizing: border-box;
+    }
+    .shelf-sort-select,
+    .online-url-input {
+        min-height: 44px;
+        box-sizing: border-box;
+    }
 }
 
 @media (max-width: 600px) {

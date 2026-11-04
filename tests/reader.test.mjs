@@ -962,3 +962,12 @@ test('个人数据主权与备份抗丢书治理：突破 2MB 阈值、IndexedDB
     assert.equal(decoded[2], 0x44); // 'D'
     assert.equal(decoded[3], 0x46); // 'F'
 });
+
+test('阅读器移动端 iOS Safari 16px 防缩放保护：书架/书内/在线书库/伴读下拉控件 16px 规范与触控靶心', () => {
+    const readerCss = readFileSync(new URL('../reader.css', import.meta.url), 'utf8');
+    assert(/@media\s*\([^)]*max-width:\s*820px[^)]*\)[\s\S]*?\.shelf-search-input[\s\S]*?font-size:\s*16px/i.test(readerCss), '书架搜索框在小屏下必须具备 16px 防 iOS 自动放大');
+    assert(/@media\s*\([^)]*max-width:\s*820px[^)]*\)[\s\S]*?\.inbook-search-input[\s\S]*?font-size:\s*16px/i.test(readerCss), '书内正文搜索框在小屏下必须具备 16px 防 iOS 自动放大');
+    assert(/@media\s*\([^)]*max-width:\s*820px[^)]*\)[\s\S]*?\.online-search-input[\s\S]*?font-size:\s*16px/i.test(readerCss), '在线开源书库搜索框在小屏下必须具备 16px 防放大');
+    assert(/@media\s*\([^)]*max-width:\s*820px[^)]*\)[\s\S]*?\.reader-audio-panel select[\s\S]*?font-size:\s*16px/i.test(readerCss), '伴读声音选择下拉框在小屏下必须具备 16px 防放大');
+    assert(/@media\s*\([^)]*max-width:\s*820px[^)]*\)[\s\S]*?\.shelf-sort-select[\s\S]*?min-height:\s*44px/i.test(readerCss), '书架排序下拉框需具备 44px 触控靶心');
+});

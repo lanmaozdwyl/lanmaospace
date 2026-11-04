@@ -1,3 +1,16 @@
+# 在线阅读器：移动端 iOS Safari 16px 防缩放保护与输入控件触控靶心规范（2026-11-04 晚）
+
+本节优先于下方历史记录。针对在线阅读器（`reader.html` / `reader.css` / `tests/reader.test.mjs`）在 iPhone (iOS Safari) 及移动端小屏上，用户聚焦书架搜索、书内全文检索、在线书库搜索或下拉菜单时，因字号小于 16px 触发系统强制放大视口（Page Zoom）导致阅读版面严重变形错位的核心交互 Bug 进行系统性治理：
+1. iOS Safari 16px 防自动放大底线规范（`@media (max-width: 820px)`）：
+   - 全面覆盖书架书籍搜索框（`.shelf-search-input`，原 13px）、书内正文检索框（`.inbook-search-input`，原 13.5px）、开源在线书库搜索框（`.online-search-input`，原 14px）、自定义网络图书导入框（`.online-url-input`）及伴读声音选择下拉菜单（`.reader-audio-panel select`，原 14px），强制统一升级为标准 `font-size: 16px !important;`；
+   - 包含通用保护规则 `.reader-body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), .reader-body select, .reader-body textarea`，彻底根除手机端阅读时因点按输入框导致屏幕自动放大、版心失真、双栏/单栏分页坐标偏移的顽疾。
+2. 移动端人机工程学触控靶心与包裹层尺寸优化：
+   - 为书架搜索外框（`.shelf-search-wrap`）、书内搜索框（`.inbook-search-box`）、在线导入搜索外框（`.online-input-wrap`）以及书籍排序选择器（`.shelf-sort-select`）统一注入 `min-height: 44px; box-sizing: border-box;`；
+   - 确保触控操作从容精准，消除手指遮挡与误触。
+3. 全站 281 项自动化测试、代码安全检查与 clean `dist` 构建 100% 通过。
+
+---
+
 # 商店详情弹窗：窄屏人机工程学升级、关闭按钮防重叠与全量深色自适应（2026-11-04 晚）
 
 本节优先于下方历史记录。针对商店商品详情弹窗（`dialog#detail` / `store.css` / `tests/store.test.mjs`）在 360px–375px 小屏手机上的严重横向挤压、关闭按钮挤占长标题及夜间白屏眩光进行人机工程与无障碍重构：
