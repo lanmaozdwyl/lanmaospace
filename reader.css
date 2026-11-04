@@ -1597,37 +1597,53 @@ html, body.reader-body {
     }
     .shelf-tool-btn {
         padding: 0;
-        width: 36px;
-        height: 36px;
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        min-height: 42px;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
+        font-size: 17px;
         flex-shrink: 0;
+        touch-action: manipulation;
+        background: var(--r-card-bg);
+        border: 0.5px solid var(--r-bar-border);
+        transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    .shelf-tool-btn:active {
+        transform: scale(0.92);
+        background: rgba(0, 113, 227, 0.15);
     }
     .shelf-tool-btn .shelf-badge {
         display: none;
     }
     @media (max-width: 380px) {
+        .shelf-brand-title {
+            display: none;
+        }
         .shelf-back-home span:not([aria-hidden="true"]) {
             display: none;
         }
         .shelf-back-home {
-            padding: 6px 8px;
+            padding: 8px 12px;
+            min-height: 40px;
         }
         .shelf-header {
-            padding: 6px 8px;
+            padding: 6px 10px;
             padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
-            gap: 4px;
+            gap: 6px;
         }
         .shelf-header-right {
-            gap: 4px;
+            gap: 6px;
         }
         .shelf-tool-btn {
-            width: 34px;
-            height: 34px;
-            font-size: 13px;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            min-height: 40px;
+            font-size: 16px;
         }
     }
     .shelf-main {

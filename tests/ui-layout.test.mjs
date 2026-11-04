@@ -61,3 +61,39 @@ test('首页联系方式：一键复制 QQ 号与双通道剪贴板降级支持'
     assert(scriptJs.includes('navigator.clipboard'), '需优先调用系统原生剪贴板 API');
     assert(scriptJs.includes('execCommand'), '需包含 textarea 降级复制机制，保证微信/内嵌视窗兼容性');
 });
+
+test('全站 Spotlight 搜索：快捷清空、深度工具与 FAQ 索引、别名关键词检索及空状态建议胶囊', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const scriptJs = readFileSync(new URL('../script.js', import.meta.url), 'utf8');
+    const styleCss = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+
+    // 1. HTML 节点结构与辅助功能属性
+    assert(indexHtml.includes('id="spotlight-clear"'), '需包含快捷一键清空按钮');
+    assert(indexHtml.includes('id="spotlight-results"'), '需包含结果列表容器');
+    assert(indexHtml.includes('aria-label="清空输入"'), '需配置无障碍属性');
+
+    // 2. CSS 样式定义
+    assert(styleCss.includes('.spotlight-clear'), '需包含一键清空按钮样式');
+    assert(styleCss.includes('.spotlight-suggest-pills'), '需包含无结果推荐胶囊容器样式');
+    assert(styleCss.includes('.spotlight-suggest-btn'), '需包含快捷推荐按钮胶囊样式');
+
+    // 3. JS 逻辑与索引完整性
+    assert(scriptJs.includes('initSpotlight'), '需包含 Spotlight 初始化模块');
+    assert(scriptJs.includes('tools/index.html'), '需深度收录蓝昴工具箱总入口');
+    assert(scriptJs.includes('faq.html'), '需深度收录常见问题 FAQ 帮助入口');
+    assert(scriptJs.includes('deepl.com'), '需包含 DeepL 翻译实用工具');
+    assert(scriptJs.includes('overleaf.com'), '需包含 Overleaf 学术协作工具');
+    assert(scriptJs.includes('zotero.org'), '需包含 Zotero 文献管理工具');
+    assert(scriptJs.includes('notion.so'), '需包含 Notion 知识库工具');
+    assert(scriptJs.includes('github.com'), '需包含 GitHub 代码托管工具');
+    assert(scriptJs.includes('figma.com'), '需包含 Figma 设计工具');
+    assert(scriptJs.includes('excalidraw.com'), '需包含 Excalidraw 手绘白板工具');
+    assert(scriptJs.includes('todoist.com'), '需包含 Todoist 效率工具');
+    assert(scriptJs.includes('keywords:'), '需支持拼音/英文/别名关键字跨维度检索');
+    assert(scriptJs.includes('spotlight-suggest-btn'), '空状态需渲染交互式推荐关键词胶囊');
+
+    // 4. 业务边界安全：未上线的商店页面严禁出现在搜索索引中
+    assert(!scriptJs.includes("url: 'store.html'"), '未上线的商店严禁收录至全站 Spotlight 搜索索引');
+});
+

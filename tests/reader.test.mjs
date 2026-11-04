@@ -996,3 +996,10 @@ test('阅读器移动端 iOS Safari 16px 防缩放保护：书架/书内/在线�
     assert(/@media\s*\([^)]*max-width:\s*820px[^)]*\)[\s\S]*?\.reader-audio-panel select[\s\S]*?font-size:\s*16px/i.test(readerCss), '伴读声音选择下拉框在小屏下必须具备 16px 防放大');
     assert(/@media\s*\([^)]*max-width:\s*820px[^)]*\)[\s\S]*?\.shelf-sort-select[\s\S]*?min-height:\s*44px/i.test(readerCss), '书架排序下拉框需具备 44px 触控靶心');
 });
+
+test('阅读器书架置底工具栏 40-44px 人机工程学靶心与防误按优化', () => {
+    const readerCss = readFileSync(new URL('../reader.css', import.meta.url), 'utf8');
+    assert(/@media\s*\([^)]*max-width:\s*640px[^)]*\)[\s\S]*?\.shelf-tool-btn\s*\{[^}]*min-width:\s*42px/i.test(readerCss), '书架底栏按钮在小屏下需具备不低于 42px 人机工程靶心');
+    assert(/@media\s*\([^)]*max-width:\s*380px[^)]*\)[\s\S]*?\.shelf-brand-title\s*\{[^}]*display:\s*none/i.test(readerCss), '极窄屏下需隐藏书架冗余标题释放横向空间');
+    assert(/@media\s*\([^)]*max-width:\s*380px[^)]*\)[\s\S]*?\.shelf-tool-btn\s*\{[^}]*min-width:\s*40px/i.test(readerCss), '极窄屏下仍必须保持不低于 40px 的大拇指防误触尺寸');
+});

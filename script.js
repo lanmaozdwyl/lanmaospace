@@ -160,28 +160,78 @@ mediaTabs.forEach((tab, index) => {
     if (!dialog || !input || !list) return;
 
     const searchIndex = [
-        { title: '首页 · 蓝昴空间', category: '页面', url: '#home', icon: '🏠' },
-        { title: '阅读器 · 打开书架与本地阅读', category: '阅读', url: 'reader.html', icon: '📖' },
-        { title: '自然声音 · 溪流/小雨/中雨/大雨/木鱼/钟声/海浪/鸟鸣', category: '伴读', url: '#ambient', icon: '🎧' },
-        { title: '专注钟 · 开始一段专注时间', category: '专注', url: '#focus', icon: '🍅' },
-        { title: '成员空间 · 个人主页与动态', category: '个人', url: 'space.html', icon: '🪐' },
-        { title: '店主备忘录 · 加密私人笔记', category: '个人', url: 'memo.html', icon: '📝' },
-        { title: '账号安全 · 密码与登录管理', category: '个人', url: 'account.html', icon: '🛡️' },
-        { title: '留言板 · 交流与反馈', category: '交流', url: '#contact', icon: '💬' },
-        { title: '设置头像', category: '个人', url: 'profile.html', icon: '👤' },
-        { title: '下载安卓客户端', category: '客户端', url: 'lanmaospace.apk', icon: '📱' },
+        { title: '首页 · 蓝昴空间', category: '页面', url: '#home', icon: '🏠', keywords: 'home shouye lanmao' },
+        { title: '阅读器 · 打开书架与本地阅读', category: '阅读', url: 'reader.html', icon: '📖', keywords: 'reader yuedu shujia epub txt pdf mobi 书架' },
+        { title: '蓝昴工具箱 · 15+常用在线工具总入口', category: '工具', url: 'tools/index.html', icon: '🧰', keywords: 'tools gongju 工具箱 工具站 效率' },
+        { title: '自然声音 · 溪流/小雨/中雨/大雨/木鱼/钟声/海浪/鸟鸣', category: '伴读', url: '#ambient', icon: '🎧', keywords: 'ambient baixiaosheng 白噪音 声音 冥想 放松' },
+        { title: '专注钟 · 开始一段专注时间', category: '专注', url: '#focus', icon: '🍅', keywords: 'focus fanqiezhong pomodoro timer 倒计时 计时器' },
+        { title: '成员空间 · 个人主页与动态', category: '个人', url: 'space.html', icon: '🪐', keywords: 'space kongjian 社区 动态 广场' },
+        { title: '店主备忘录 · 加密私人笔记', category: '个人', url: 'memo.html', icon: '📝', keywords: 'memo biji 笔记 备忘录 密码' },
+        { title: '账号安全 · 密码与登录管理', category: '个人', url: 'account.html', icon: '🛡️', keywords: 'account zhanghao mima 密码 安全 邮箱 修改密码' },
+        { title: '常见问题 FAQ · 流程与售后说明', category: '帮助', url: 'faq.html', icon: '❓', keywords: 'faq wenti bangzhu 帮助 疑问 售后 流程' },
+        { title: '留言板 · 交流与反馈', category: '交流', url: '#contact', icon: '💬', keywords: 'contact liuyan 反馈 留言 建议' },
+        { title: '设置头像 · 自定义个人形象', category: '个人', url: 'profile.html', icon: '👤', keywords: 'profile touxiang 头像 资料' },
+        { title: '下载安卓客户端 · 原生轻快体验', category: '客户端', url: 'lanmaospace.apk', icon: '📱', keywords: 'apk app android yingyong 安卓 手机端 下载' },
+        // 15 个实用工具（收录自 tools/index.html）
+        { title: 'DeepL 翻译器 · 高质量 AI 神经网络翻译', category: '工具·翻译', url: 'https://www.deepl.com/translator', icon: '🌐', keywords: 'deepl fanyi 翻译 ai 英文 中文' },
+        { title: 'Google 翻译 · 多语种在线即时互译', category: '工具·翻译', url: 'https://translate.google.com', icon: '🌍', keywords: 'google translate fanyi 谷歌翻译 在线翻译' },
+        { title: '微软翻译 · 微软在线智能多语言翻译', category: '工具·翻译', url: 'https://www.microsoft.com/en-us/translator', icon: '🔷', keywords: 'microsoft bing translator fanyi 微软翻译' },
+        { title: '百度翻译 · 中文与多语种在线翻译词典', category: '工具·翻译', url: 'https://fanyi.baidu.com', icon: '🔵', keywords: 'baidu fanyi 百度翻译 在线翻译 词典' },
+        { title: 'Overleaf · 在线 LaTeX 论文协作编辑器', category: '工具·学术', url: 'https://www.overleaf.com', icon: '📝', keywords: 'overleaf latex paper xueshu 论文 论文写作 排版' },
+        { title: 'Zotero · 开源文献管理与引文收集工具', category: '工具·学术', url: 'https://www.zotero.org', icon: '📎', keywords: 'zotero wenxian yinyong 文献管理 论文 引用' },
+        { title: 'Notion · 全能协同笔记与结构化知识库', category: '工具·效率', url: 'https://www.notion.so', icon: '📋', keywords: 'notion biji zhishiku 笔记 知识库 文档 待办' },
+        { title: 'Google Scholar · 全球海量学术论文与文献搜索', category: '工具·学术', url: 'https://scholar.google.com', icon: '🔍', keywords: 'scholar google xueshu 谷歌学术 学术搜索 论文' },
+        { title: 'VS Code · 强大且现代的代码编辑器', category: '工具·开发', url: 'https://code.visualstudio.com', icon: '💎', keywords: 'vscode code biancheng kaifa 代码编辑器 编程 开发' },
+        { title: 'GitHub · 世界领先的代码托管与开源社区', category: '工具·开发', url: 'https://github.com', icon: '🐙', keywords: 'github git daima kaifa 代码托管 开源 仓库' },
+        { title: 'Google Colab · 免费云端 Jupyter Python 实验室', category: '工具·开发', url: 'https://colab.research.google.com', icon: '🧪', keywords: 'colab jupyter python machine learning 机器学习 在线编程 深度学习' },
+        { title: 'Anaconda · 科学计算与 Python 虚拟环境管理', category: '工具·开发', url: 'https://www.anaconda.com', icon: '🐍', keywords: 'anaconda conda python huanjing 虚拟环境 科学计算 数据分析' },
+        { title: 'Figma · 现代协作式 UI/UX 界面与原型设计', category: '工具·设计', url: 'https://www.figma.com', icon: '🎨', keywords: 'figma sheji ui ux 原型 界面设计 矢量图' },
+        { title: 'Excalidraw · 手绘风格架构图与即时白板', category: '工具·设计', url: 'https://excalidraw.com', icon: '✏️', keywords: 'excalidraw baiban shouhui 白板 手绘 架构图 流程图 涂鸦' },
+        { title: 'Todoist · 清晰优雅的待办清单与日程管理', category: '工具·效率', url: 'https://todoist.com', icon: '✅', keywords: 'todoist daiban rili 任务清单 待办事项 效率 日程' },
     ];
 
     const closeButton = document.getElementById('spotlight-close');
+    const clearButton = document.getElementById('spotlight-clear');
     let returnFocus = null;
     let selectedIndex = 0;
     let currentResults = [];
 
-    function renderResults(results) {
+    function escapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[c] || c));
+    }
+
+    function renderResults(results, queryText) {
         currentResults = results;
         list.innerHTML = '';
         if (results.length === 0) {
-            list.innerHTML = '<div class="spotlight-empty">未找到匹配内容</div>';
+            const safeQuery = escapeHtml(queryText || input.value.trim());
+            const label = safeQuery ? '未找到与 “' + safeQuery + '” 匹配的内容' : '未找到匹配内容';
+            list.innerHTML = '<div class="spotlight-empty">' +
+                '<span class="spotlight-empty-icon" aria-hidden="true">🔍</span>' +
+                '<div>' + label + '</div>' +
+                '<div class="spotlight-suggest-pills" role="group" aria-label="快捷搜索建议">' +
+                '<span style="font-size:12px;opacity:0.75;">推荐搜索：</span>' +
+                '<button type="button" class="spotlight-suggest-btn" data-query="阅读器">阅读器</button>' +
+                '<button type="button" class="spotlight-suggest-btn" data-query="工具">工具箱</button>' +
+                '<button type="button" class="spotlight-suggest-btn" data-query="翻译">翻译</button>' +
+                '<button type="button" class="spotlight-suggest-btn" data-query="白噪音">白噪音</button>' +
+                '<button type="button" class="spotlight-suggest-btn" data-query="账号">账号安全</button>' +
+                '</div>' +
+                '</div>';
+            list.querySelectorAll('.spotlight-suggest-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const q = btn.dataset.query || '';
+                    input.value = q;
+                    search(q);
+                    input.focus({ preventScroll: true });
+                });
+            });
             return;
         }
         results.forEach((item, idx) => {
@@ -197,8 +247,8 @@ mediaTabs.forEach((tab, index) => {
             }
             a.innerHTML = '<span class="spotlight-item-icon" aria-hidden="true">' + item.icon + '</span>' +
                 '<div class="spotlight-item-text">' +
-                '<span class="spotlight-item-title">' + item.title + '</span>' +
-                '<span class="spotlight-item-cat">' + item.category + '</span>' +
+                '<span class="spotlight-item-title">' + escapeHtml(item.title) + '</span>' +
+                '<span class="spotlight-item-cat">' + escapeHtml(item.category) + '</span>' +
                 '</div>' +
                 '<span class="spotlight-item-enter" aria-hidden="true">↵</span>';
             a.addEventListener('click', () => closeSpotlight());
@@ -208,16 +258,21 @@ mediaTabs.forEach((tab, index) => {
 
     function search(kw) {
         selectedIndex = 0;
-        kw = kw.trim().toLowerCase();
-        if (!kw) {
-            renderResults(searchIndex.slice(0, 7));
+        const raw = kw || '';
+        const trimmed = raw.trim();
+        if (clearButton) clearButton.hidden = !trimmed;
+        const normalized = trimmed.toLowerCase();
+        if (!normalized) {
+            renderResults(searchIndex.slice(0, 8), '');
             return;
         }
-        const filtered = searchIndex.filter(item => 
-            item.title.toLowerCase().includes(kw) || item.category.toLowerCase().includes(kw)
-        );
-        selectedIndex = 0;
-        renderResults(filtered);
+        const filtered = searchIndex.filter(item => {
+            const titleMatch = item.title.toLowerCase().includes(normalized);
+            const catMatch = item.category.toLowerCase().includes(normalized);
+            const kwMatch = item.keywords && item.keywords.toLowerCase().includes(normalized);
+            return titleMatch || catMatch || kwMatch;
+        });
+        renderResults(filtered, trimmed);
     }
 
     function openSpotlight() {
@@ -237,6 +292,12 @@ mediaTabs.forEach((tab, index) => {
     }
 
     closeButton?.addEventListener('click', closeSpotlight);
+    clearButton?.addEventListener('click', () => {
+        input.value = '';
+        search('');
+        input.focus({ preventScroll: true });
+    });
+
     dialog.addEventListener('close', () => {
         const target = returnFocus?.getClientRects().length ? returnFocus : trigger;
         target?.focus({preventScroll:true});
@@ -252,18 +313,22 @@ mediaTabs.forEach((tab, index) => {
             if (dialog.open) closeSpotlight();
             else openSpotlight();
         } else if (dialog.open && e.target === input) {
-            if (e.key === 'ArrowDown') {
+            if (e.key === 'Escape' && input.value.trim().length > 0) {
+                e.preventDefault();
+                input.value = '';
+                search('');
+            } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 if (currentResults.length > 0) {
                     selectedIndex = (selectedIndex + 1) % currentResults.length;
-                    renderResults(currentResults);
+                    renderResults(currentResults, input.value.trim());
                     list.querySelector('.spotlight-item.active')?.scrollIntoView({block:'nearest'});
                 }
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 if (currentResults.length > 0) {
                     selectedIndex = (selectedIndex - 1 + currentResults.length) % currentResults.length;
-                    renderResults(currentResults);
+                    renderResults(currentResults, input.value.trim());
                     list.querySelector('.spotlight-item.active')?.scrollIntoView({block:'nearest'});
                 }
             } else if (e.key === 'Enter') {
