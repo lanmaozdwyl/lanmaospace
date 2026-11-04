@@ -3046,16 +3046,32 @@ body[data-theme="dark"] .focus-stat-divider {
 
 @media (max-width: 600px) {
     .focus-card {
-        padding: 30px 20px 24px;
-        border-radius: 22px;
+        padding: 24px 16px 20px;
+        border-radius: 20px;
+    }
+    .focus-modes {
+        display: flex;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        margin-bottom: 20px;
+    }
+    .focus-modes::-webkit-scrollbar {
+        display: none;
+    }
+    .focus-mode-btn {
+        white-space: nowrap;
+        padding: 8px 12px;
+        font-size: 12px;
     }
     .focus-display-wrap {
-        width: 200px;
-        height: 200px;
-        margin-bottom: 24px;
+        width: 190px;
+        height: 190px;
+        margin-bottom: 20px;
     }
     .focus-timer-text {
-        font-size: 44px;
+        font-size: 42px;
     }
     .focus-controls {
         max-width: 100%;
@@ -3064,9 +3080,35 @@ body[data-theme="dark"] .focus-stat-divider {
     .focus-btn {
         padding: 10px 16px;
         font-size: 13px;
+        min-height: 44px;
+        box-sizing: border-box;
     }
     .focus-stat-val {
         font-size: 13px;
+    }
+}
+@media (max-width: 480px) {
+    .focus-stats-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 8px;
+        padding-top: 16px;
+    }
+    .focus-stat-divider {
+        display: none;
+    }
+    .focus-stats-row .focus-stat-item:last-child {
+        grid-column: span 2;
+        padding-top: 8px;
+        border-top: 1px dashed rgba(0, 0, 0, 0.08);
+    }
+    body[data-theme="dark"] .focus-stats-row .focus-stat-item:last-child {
+        border-top-color: rgba(255, 255, 255, 0.08);
+    }
+}
+@media (max-width: 480px) and (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .focus-stats-row .focus-stat-item:last-child {
+        border-top-color: rgba(255, 255, 255, 0.08);
     }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3870,4 +3912,5 @@ dialog.spotlight-modal[open] {
         overflow-y: auto; overscroll-behavior: contain;
     }
     .ambient-timer-pill, .focus-mode-btn { min-height: 44px; }
+    .focus-shortcuts-hint { display: none !important; }
 }

@@ -18,12 +18,13 @@
  .mobile-sheet>a strong{font-size:17px}.mobile-sheet>a span{font-size:13px;color:#6e6e73}
  .mobile-enabled .navbar .nav-links,.mobile-enabled .navbar .nav-toggle{display:none!important}
  .mobile-enabled .space-nav>div,.mobile-enabled .tools-topbar-links{display:none}
- .mobile-enabled .navbar,.mobile-enabled .space-nav{padding-top:env(safe-area-inset-top,0px)}
+ .mobile-enabled .navbar,.mobile-enabled .space-nav,.mobile-enabled .shop-nav{padding-top:env(safe-area-inset-top,0px)}
+ .mobile-enabled .memo-shell{padding-top:calc(36px + env(safe-area-inset-top,0px));padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
  .mobile-enabled .back-to-top{bottom:calc(var(--dock-space) + 12px);left:16px;right:auto}
  .mobile-enabled .pomodoro-widget{bottom:calc(var(--dock-space) + 12px);right:16px}
  .mobile-enabled .pomodoro-panel{max-width:calc(100vw - 32px);max-height:calc(100dvh - var(--dock-space) - 100px);overflow:auto}
  .mobile-enabled:has(.pomodoro-panel:not([hidden])) .back-to-top{visibility:hidden}
- .mobile-enabled .focus-card{padding:24px 16px}.mobile-enabled .focus-stats-row{gap:8px}
+ .mobile-enabled .focus-card{padding:24px 16px}.mobile-enabled .focus-stats-row{gap:8px}.mobile-enabled .focus-shortcuts-hint{display:none!important}
  .mobile-enabled input:not([type=checkbox]):not([type=radio]):not([type=file]),.mobile-enabled textarea,.mobile-enabled select{font-size:16px}
  .mobile-enabled button{touch-action:manipulation}
  .mobile-enabled dialog:not(.mobile-sheet){max-height:calc(100dvh - 24px);overflow:auto}

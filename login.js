@@ -17,9 +17,146 @@ const panels = {
 let supabase = null;
 let pendingConfirmEmail = "";
 
+const STORAGE_PREFIX_FORGOT_COOLDOWN = 'lanmao_auth_forgot_cooldown_';
+const STORAGE_KEY_RESEND_COOLDOWN = 'lanmao_auth_resend_cooldown';
+
+let forgotCooldownTimer = null;
+let resendCooldownTimer = null;
+let forgotBusy = false;
+let resendBusy = false;
+
+function setButtonText(btn, text) {
+    if (!btn) return;
+    const span = btn.querySelector ? btn.querySelector('span') : null;
+    if (span) span.textContent = text;
+    else btn.textContent = text;
+}
+
+function stopForgotCooldown(resetText = true) {
+    if (forgotCooldownTimer) {
+        clearInterval(forgotCooldownTimer);
+        forgotCooldownTimer = null;
+    }
+    const btn = $("forgot-button");
+    if (btn && resetText) {
+        setButtonText(btn, '发送重置邮件');
+        if (!forgotBusy) btn.disabled = false;
+    }
+}
+
+function startForgotCooldown(remainingSec, totalExpireMs, email) {
+    stopForgotCooldown(false);
+    const expireMs = totalExpireMs || (Date.now() + remainingSec * 1000);
+    const storageKey = STORAGE_PREFIX_FORGOT_COOLDOWN + (email ? encodeURIComponent(email) : 'global');
+    try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(storageKey, String(expireMs));
+    } catch {}
+    const btn = $("forgot-button");
+    function tick() {
+        const now = Date.now();
+        const left = Math.max(0, Math.ceil((expireMs - now) / 1000));
+        if (left <= 0) {
+            try {
+                if (typeof localStorage !== 'undefined') localStorage.removeItem(storageKey);
+            } catch {}
+            stopForgotCooldown(true);
+        } else {
+            if (btn) {
+                setButtonText(btn, left + ' 秒后可重新发送');
+                btn.disabled = true;
+            }
+        }
+    }
+    tick();
+    forgotCooldownTimer = setInterval(tick, 1000);
+}
+
+function restoreForgotCooldown() {
+    const inputEmail = $("forgot-email")?.value?.trim()?.toLowerCase() || '';
+    const storageKey = STORAGE_PREFIX_FORGOT_COOLDOWN + (inputEmail ? encodeURIComponent(inputEmail) : 'global');
+    try {
+        if (typeof localStorage === 'undefined') return;
+        const saved = localStorage.getItem(storageKey) || localStorage.getItem(STORAGE_PREFIX_FORGOT_COOLDOWN + 'global');
+        if (saved) {
+            const expireMs = Number(saved);
+            const left = Math.max(0, Math.ceil((expireMs - Date.now()) / 1000));
+            if (left > 0 && left <= 60) {
+                startForgotCooldown(left, expireMs, inputEmail);
+            } else {
+                localStorage.removeItem(storageKey);
+                stopForgotCooldown(true);
+            }
+        } else {
+            stopForgotCooldown(true);
+        }
+    } catch {}
+}
+
+function stopResendCooldown(resetText = true) {
+    if (resendCooldownTimer) {
+        clearInterval(resendCooldownTimer);
+        resendCooldownTimer = null;
+    }
+    const btn = $("resend-confirm");
+    if (btn && resetText) {
+        setButtonText(btn, '重新发送确认邮件');
+        if (!resendBusy) btn.disabled = false;
+    }
+}
+
+function startResendCooldown(remainingSec, totalExpireMs) {
+    stopResendCooldown(false);
+    const expireMs = totalExpireMs || (Date.now() + remainingSec * 1000);
+    try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY_RESEND_COOLDOWN, String(expireMs));
+    } catch {}
+    const btn = $("resend-confirm");
+    function tick() {
+        const now = Date.now();
+        const left = Math.max(0, Math.ceil((expireMs - now) / 1000));
+        if (left <= 0) {
+            try {
+                if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY_RESEND_COOLDOWN);
+            } catch {}
+            stopResendCooldown(true);
+        } else {
+            if (btn) {
+                setButtonText(btn, left + ' 秒后可重新发送');
+                btn.disabled = true;
+            }
+        }
+    }
+    tick();
+    resendCooldownTimer = setInterval(tick, 1000);
+}
+
+function restoreResendCooldown() {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        const saved = localStorage.getItem(STORAGE_KEY_RESEND_COOLDOWN);
+        if (saved) {
+            const expireMs = Number(saved);
+            const left = Math.max(0, Math.ceil((expireMs - Date.now()) / 1000));
+            if (left > 0 && left <= 60) {
+                startResendCooldown(left, expireMs);
+            } else {
+                localStorage.removeItem(STORAGE_KEY_RESEND_COOLDOWN);
+                stopResendCooldown(true);
+            }
+        } else {
+            stopResendCooldown(true);
+        }
+    } catch {}
+}
+
 function showOnly(name) {
     for (const [key, panel] of Object.entries(panels)) {
         panel.hidden = key !== name;
+    }
+    if (name === "forgot") {
+        restoreForgotCooldown();
+    } else if (name === "register") {
+        restoreResendCooldown();
     }
 }
 
@@ -189,8 +326,12 @@ $("register-form").addEventListener("submit", async (event) => {
 });
 
 $("resend-confirm").addEventListener("click", async () => {
-    if (!pendingConfirmEmail) return;
-    $("register-status").textContent = "正在重新发送…";
+    if (!pendingConfirmEmail || resendBusy || resendCooldownTimer) return;
+    const button = $("resend-confirm");
+    resendBusy = true;
+    button.disabled = true;
+    setButtonText(button, '正在重新发送…');
+    $("register-status").textContent = "正在重新发送确认邮件…";
     try {
         const { error } = await supabase.auth.resend({
             type: "signup",
@@ -199,31 +340,51 @@ $("resend-confirm").addEventListener("click", async () => {
         });
         if (error) throw error;
         $("register-status").textContent = "确认邮件已重新发送，请去邮箱里查看。";
+        startResendCooldown(60);
     } catch (error) {
         console.warn("认证请求未完成，请查看页面提示。");
         $("register-status").textContent = authErrorMessage(error);
+        stopResendCooldown(true);
+    } finally {
+        resendBusy = false;
+        if (!resendCooldownTimer) {
+            button.disabled = false;
+            setButtonText(button, '重新发送确认邮件');
+        }
     }
 });
 
 $("forgot-form").addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (forgotBusy || forgotCooldownTimer) return;
     const button = $("forgot-button");
+    const email = $("forgot-email").value.trim().toLowerCase();
+    if (!email) return;
+
+    forgotBusy = true;
     button.disabled = true;
+    setButtonText(button, '正在请求发送…');
     $("forgot-status").textContent = "";
     try {
         const { error } = await supabase.auth.resetPasswordForEmail(
-            $("forgot-email").value.trim(),
+            email,
             { redirectTo: `${window.location.origin}/login.html` }
         );
         if (error) throw error;
         $("forgot-status").textContent =
             "如果这个邮箱注册过，重置密码的邮件已经发出，请去邮箱里点链接回来设置新密码。";
+        startForgotCooldown(60, null, email);
     } catch (error) {
         console.warn("认证请求未完成，请查看页面提示。");
         $("forgot-status").textContent = authErrorMessage(error);
+        stopForgotCooldown(true);
     } finally {
         clearPasswordInputs();
-        button.disabled = false;
+        forgotBusy = false;
+        if (!forgotCooldownTimer) {
+            button.disabled = false;
+            setButtonText(button, '发送重置邮件');
+        }
     }
 });
 
@@ -256,6 +417,19 @@ $("recovery-form").addEventListener("submit", async (event) => {
 
 async function init() {
     initPasswordToggles();
+    if (typeof window !== 'undefined') {
+        window.addEventListener('pagehide', () => {
+            stopForgotCooldown(false);
+            stopResendCooldown(false);
+        });
+    }
+    const forgotEmailInput = $("forgot-email");
+    if (forgotEmailInput) {
+        forgotEmailInput.addEventListener("input", restoreForgotCooldown);
+    }
+    restoreForgotCooldown();
+    restoreResendCooldown();
+
     const isRecovery = /(^|[#&])type=recovery([&]|$)/.test(window.location.hash);
     if (!isConfigured()) {
         $("login-status").textContent = getConfigError();

@@ -61,3 +61,20 @@ test('学术专注钟：专注与小憩无缝轮转进阶胶囊导引与一键�
     assert(focusJs.includes('pomodoro-next-btn'), '需监听悬浮卡片进阶按钮点击');
     assert(focusJs.includes('advanceToNextPhase();'), '当倒计时归零时按空格需无缝进阶下一轮');
 });
+
+test('学术专注钟移动端轻量化与触控人机工程：隐藏无意义物理快捷键提示、窄屏数据行防折行与全触控靶心', () => {
+    const styleCss = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+    const mobileCss = readFileSync(new URL('../mobile.css', import.meta.url), 'utf8');
+
+    // 1. 移动端快捷键提示安全隐藏
+    assert(/@media\s*\([^)]*max-width:\s*820px[^)]*\)[\s\S]*?\.focus-shortcuts-hint\s*\{[^}]*display:\s*none\s*!important/i.test(styleCss), 'style.css 必须在 max-width: 820px 媒体查询中隐藏物理快捷键提示');
+    assert(mobileCss.includes('.focus-shortcuts-hint{display:none!important}'), 'mobile.css 需在移动端启用状态下隐藏快捷键提示');
+
+    // 2. 窄屏统计行自适应与防折行
+    assert(/@media\s*\([^)]*max-width:\s*480px[^)]*\)[\s\S]*?\.focus-stats-row\s*\{[^}]*display:\s*grid/i.test(styleCss), '窄屏下专注数据统计行需采用自适应网格防挤压');
+    assert(/@media\s*\([^)]*max-width:\s*480px[^)]*\)[\s\S]*?\.focus-stat-divider\s*\{[^}]*display:\s*none/i.test(styleCss), '窄屏下需隐藏竖向分割线');
+    assert(styleCss.includes('.focus-stats-row .focus-stat-item:last-child') && styleCss.includes('grid-column: span 2'), '窄屏下保存范围徽章需跨两列全宽显示以防折行');
+
+    // 3. 触控靶心人机工程学
+    assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?\.focus-btn\s*\{[^}]*min-height:\s*44px/i.test(styleCss), '移动端控制按钮需满足最小 44px 触控靶心');
+});

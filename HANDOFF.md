@@ -1,3 +1,55 @@
+# 登录与认证页：移动端人机工程学升级、返回首页入口与 44px 触控靶心（2026-11-04 晚）
+
+本节优先于下方历史记录。针对登录认证页（`login.html` / `auth.css` / `memo.css` / `mobile.css` / `tests/login-security.test.mjs`）在移动端与小屏上的死路导航与触控误触问题进行人机工程与无障碍重构：
+1. 顶栏返回首页防死路由：
+   - 将原顶栏不可点击的纯文本 `<span>🐱 Lanmao Space</span><span>登录后进入</span>` 升级为具备清晰指引与返回能力的超链接组合：`<a href="index.html" class="memo-topbar-link">🐱 Lanmao Space</a>` 与 `<a href="index.html" class="memo-topbar-back">← 返回首页</a>`；
+   - 彻底解决移动端全屏 PWA、微信 Webview 或独立标签页下，用户进入登录页后无法方便返回首页的单向死胡同痛点。
+2. 密码明密文眼睛 44px 人机工程学触控靶心：
+   - 将 `.password-toggle-btn` 从原本仅 28px 易误触的小图标重构为标准 44px×44px 触控靶心（`min-width: 44px; min-height: 44px; right: 2px;`），并配套为输入框扩展右侧避让空间 `padding-right: 48px !important;`；
+   - 支持 `touch-action: manipulation;` 与 `-webkit-tap-highlight-color: transparent;`，确保单手大拇指轻触即可快速切换明密文，绝不误触后方文本框。
+3. 表单切换链接与视口安全区避让：
+   - 模式切换按钮 `.auth-links button` 适配 `min-height: 44px; display: inline-flex; align-items: center;`，避免手指粗大时误触相邻链接；
+   - `.memo-shell` 窄屏全面引入 `padding-top: calc(72px + env(safe-area-inset-top, 0px))` 与 `padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px))`，彻底消除刘海屏与灵动岛切角遮挡。
+4. 全站 276 项自动化测试、语法安全检查与 clean `dist` 构建 100% 通过。
+
+---
+
+# 常见问题 FAQ 页与商店：深色模式全量自适应与刘海安全区避让（2026-11-04 晚）
+
+本节优先于下方历史记录。针对常见问题与帮助页（`faq.html` / `faq.css` / `store.css` / `mobile.css` / `tests/store.test.mjs`）在夜间模式下白屏眩光与导航刘海遮挡问题进行专项治理：
+1. FAQ 页面全链路深色模式双通道闭环（`body[data-theme="dark"]` 与 `@media (prefers-color-scheme: dark)`）：
+   - **Hero 题头区**：光晕自适应为柔和暗蓝径向渐变 `radial-gradient(..., rgba(0, 113, 227, 0.15), transparent)`，副标题文本适配 `#a1a1a6` 舒缓灰；
+   - **折叠问答项（`.faq-item`）**：默认浅色白底全面升级为高质感黑曜石微卡片 `#1c1c1e` 与精致微边框 `rgba(255, 255, 255, 0.12)`；展开激活态边框点缀聚焦蓝光 `rgba(41, 151, 255, 0.45)`；
+   - **手风琴交互指示（`summary::after`）**：默认折叠状态采用低对比度 `#8e8e93`，展开态高亮电光蓝 `#2997ff`，层级一目了然；正文与粗体要点采用 `#f5f5f7` 与 `#a1a1a6` 清晰对比；
+   - **底部咨询联络卡（`.faq-contact-card`）**：适配暗夜深蓝底色 `#182230` 与蓝调边框，咨询按钮 `:hover` 适配亮蓝 `#2997ff`。
+2. 商店导航条与页脚全站深色连贯性：
+   - 适配 `.shop-nav` 为磨砂半透明黑底 `rgba(22, 22, 26, 0.85)` 与弱白分界线，导航链接与退出登录按钮统一自适应浅白与浅灰；
+   - 适配 `.shop-footer` 辅助文案与内链颜色，消除底部文字被深色吞没的问题。
+3. 移动端安全区避让：
+   - 在 `mobile.css` 移动端启用状态中将 `.shop-nav` 纳入 `padding-top: env(safe-area-inset-top, 0px)`，保障 iPhone 灵动岛/刘海屏与安卓打孔屏置顶时零遮挡。
+4. 全站 275 项自动化回归测试、语法安全检查与 clean `dist` 构建 100% 通过。
+
+---
+
+# 登录与注册页：忘记密码与重发确认邮件 60 秒动态倒计时冷却与本地记忆防刷闭环（2026-11-04 晚）
+
+本节优先于下方历史记录。基于 commit 统一全站认证安全体系，对登录与注册页（`login.html` / `login.js` / `auth.css` / `tests/login-security.test.mjs`）的邮件接口进行 60 秒倒计时防刷与状态闭环：
+1. 痛点问题根因（无倒计时置灰与 429 报错风暴）：
+   - 原 `login.js` 在处理「忘记密码」表单时，发送请求完毕后在 `finally` 阶段立即恢复按钮（`button.disabled = false`），缺少任何冷却间隔；用户若短时间内再次点击，直接触发 Supabase 后端 `429: For security purposes, you can only request this once every 60 seconds` 限制，弹出「尝试太频繁了，请稍等一会儿再试。」，严重影响体验；
+   - 注册后的「重新发送确认邮件」（`resend-confirm`）不仅没有 60 秒冷却，甚至在发送请求期间也没有禁用按钮，导致快速连击时并发发送多次请求，极易触发风控或被邮箱服务商标记为垃圾邮件。
+2. 60 秒动态递减倒计时双重冷却系统（`startForgotCooldown` / `startResendCooldown`）：
+   - 点击「发送重置邮件」成功后，按钮进入 60 秒倒计时冷却，按钮文案秒级动态递减（`60 秒后可重新发送` ... `0 秒`），同时强制设置 `disabled = true`；
+   - 点击「重新发送确认邮件」后，按钮立即在请求期间禁用防止连击，发送成功后同样启动 60 秒倒计时冷却；
+   - 在 `auth.css` 中为 `#forgot-button:disabled, #resend-confirm:disabled` 配置统一样式 `cursor: not-allowed; opacity: 0.6;`；
+   - 倒计时归零时自动重置为初始文案并解除禁用。
+3. 隔离化本地持久化记忆与页面刷新无缝接续（`restoreForgotCooldown` / `restoreResendCooldown`）：
+   - 「忘记密码」按输入的邮箱隔离持久化冷却时间戳（`lanmao_auth_forgot_cooldown_<email>`），防止多邮箱相互干扰；
+   - 页面刷新、切换不同面板（如登录、注册、找回密码相互切换）或输入邮箱时，自动无缝接续剩余冷却秒数，杜绝通过刷新页面绕过防刷限制；
+   - 页面卸载或隐藏（`pagehide`）时，自动安全注销计时器避免内存泄漏。
+4. 全站 277 项功能与回归测试、代码语法检查与 clean `dist` 构建 100% 通过。
+
+---
+
 # 阅读器：书架备份导出突破 2MB 阈值、IndexedDB/内存全量提取与 PDF 二进制 Base64 跨机还原（2026-11-04 晚）
 
 本节优先于下方历史记录。针对微信读书风格伴读器（`reader.html` / `reader.js` / `tests/reader.test.mjs`）书架导出备份中严重的数据截断与丢书隐患进行全链路安全治理：
