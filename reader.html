@@ -129,6 +129,10 @@
             <!-- 本地文件拖拽导入与书库扩展 -->
             <section class="shelf-import-section">
                 <div class="shelf-import-card" id="shelf-drop-zone">
+                    <div class="import-loading-overlay" id="shelf-import-overlay" hidden>
+                        <span class="loading-spin-icon" aria-hidden="true">⏳</span>
+                        <span class="loading-text">正在解析本地书籍，请稍候…</span>
+                    </div>
                     <span class="import-big-icon" aria-hidden="true">📥</span>
                     <h4>打开手机 / 电脑中的本地电子书</h4>
                     <p>支持 <b>.txt</b>、<b>.md</b> 文本与 <b>.pdf</b> 文档，支持 3D 拟真翻页与平滑滑动，数据纯本地保存。换浏览器或清除站点数据前，请先“导出书架备份”。</p>
@@ -175,6 +179,9 @@
                 <button type="button" class="reader-tool-btn" id="reader-toggle-pomodoro" title="学术番茄专注钟" aria-label="学术专注钟">
                     <span aria-hidden="true">🍅</span>
                     <span class="reader-tool-badge" id="reader-pomodoro-time">25:00</span>
+                </button>
+                <button type="button" class="reader-tool-btn" id="reader-btn-bookmark" title="收藏或取消当前页书签" aria-label="收藏书签">
+                    <span aria-hidden="true">🔖</span>
                 </button>
                 <button type="button" class="reader-tool-btn" id="reader-import-btn" title="导入本地书籍 (TXT/MD)" aria-label="导入本地书籍">
                     <span aria-hidden="true">📂</span>
@@ -287,14 +294,20 @@
             </div>
         </footer>
 
-        <!-- 目录抽屉 (左侧滑出) -->
-        <aside class="reader-drawer drawer-left" id="drawer-toc" aria-label="书籍目录" hidden>
+        <!-- 目录与书签抽屉 (左侧滑出) -->
+        <aside class="reader-drawer drawer-left" id="drawer-toc" aria-label="书籍目录与书签" hidden>
             <div class="drawer-header">
-                <h3>📑 目录大纲</h3>
-                <button type="button" class="drawer-close-btn" id="close-toc" aria-label="关闭目录">✕</button>
+                <div class="drawer-tabs-segment" role="tablist" aria-label="目录与书签切换">
+                    <button type="button" class="drawer-tab active" id="tab-btn-toc" role="tab" aria-selected="true" aria-controls="reader-toc-list">📑 目录大纲</button>
+                    <button type="button" class="drawer-tab" id="tab-btn-bookmarks" role="tab" aria-selected="false" aria-controls="reader-bookmarks-list">🔖 珍藏书签 <span class="tab-count-badge" id="bookmark-count-badge">0</span></button>
+                </div>
+                <button type="button" class="drawer-close-btn" id="close-toc" aria-label="关闭目录与书签">✕</button>
             </div>
-            <div class="drawer-body toc-list" id="reader-toc-list">
+            <div class="drawer-body toc-list" id="reader-toc-list" role="tabpanel" aria-labelledby="tab-btn-toc">
                 <!-- 章节列表项 -->
+            </div>
+            <div class="drawer-body bookmarks-list" id="reader-bookmarks-list" role="tabpanel" aria-labelledby="tab-btn-bookmarks" hidden>
+                <!-- 书签列表项 -->
             </div>
         </aside>
 
@@ -305,6 +318,12 @@
                 <button type="button" class="drawer-close-btn" id="close-settings" aria-label="收起排版面板">✕</button>
             </div>
             <div class="drawer-body settings-body">
+                <!-- PDF 固定版面画册模式专属防呆与特性提示 -->
+                <div class="pdf-settings-notice" id="pdf-settings-notice" hidden>
+                    <div class="pdf-notice-badge">📑 PDF 3D 画册阅读中</div>
+                    <p>当前文档为固定版面 PDF，字号与版心排版由原始文件呈现。支持直接拖拽手势翻页与双击放大。</p>
+                </div>
+
                 <!-- 主题色系选择 -->
                 <div class="setting-group">
                     <span class="setting-title">背景主题</span>
@@ -328,13 +347,43 @@
                     </div>
                 </div>
 
-                <!-- 字号与行距设置 -->
+                <!-- 字号大小 -->
                 <div class="setting-group">
                     <span class="setting-title">字号大小</span>
                     <div class="font-size-control">
                         <button type="button" class="font-btn" id="btn-font-dec" aria-label="缩小字号">A -</button>
                         <span class="font-current-val" id="val-font-size">18 px</span>
                         <button type="button" class="font-btn" id="btn-font-inc" aria-label="放大字号">A +</button>
+                    </div>
+                </div>
+
+                <!-- 正文行距 -->
+                <div class="setting-group">
+                    <span class="setting-title">正文行距</span>
+                    <div class="setting-chips-row" id="line-height-chips" role="radiogroup" aria-label="正文行距">
+                        <button type="button" class="setting-chip" data-lh="1.5">紧凑 1.5</button>
+                        <button type="button" class="setting-chip active" data-lh="1.8">适中 1.8</button>
+                        <button type="button" class="setting-chip" data-lh="2.1">宽松 2.1</button>
+                    </div>
+                </div>
+
+                <!-- 段落间距 -->
+                <div class="setting-group">
+                    <span class="setting-title">段落间距</span>
+                    <div class="setting-chips-row" id="para-spacing-chips" role="radiogroup" aria-label="段落间距">
+                        <button type="button" class="setting-chip" data-ps="0.6em">紧凑</button>
+                        <button type="button" class="setting-chip active" data-ps="1.0em">标准</button>
+                        <button type="button" class="setting-chip" data-ps="1.4em">宽松</button>
+                    </div>
+                </div>
+
+                <!-- 阅读版心宽度 -->
+                <div class="setting-group">
+                    <span class="setting-title">阅读宽度</span>
+                    <div class="setting-chips-row" id="page-width-chips" role="radiogroup" aria-label="阅读宽度">
+                        <button type="button" class="setting-chip" data-width="680px">窄版 (680)</button>
+                        <button type="button" class="setting-chip active" data-width="840px">舒适 (840)</button>
+                        <button type="button" class="setting-chip" data-width="1020px">沉浸 (1020)</button>
                     </div>
                 </div>
 
@@ -406,6 +455,14 @@
                         <span id="edge-rocker-status-text">已关闭</span>
                     </button>
                 </div>
+
+                <!-- 一键恢复排版默认值 -->
+                <div class="setting-group setting-group-reset">
+                    <button type="button" class="setting-reset-btn" id="btn-reset-typography" title="将字号、行距、段距、版宽恢复至默认状态">
+                        <span aria-hidden="true">🔄</span>
+                        <span>一键恢复默认排版</span>
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -418,6 +475,10 @@
             <div class="drawer-body bookshelf-body">
                 <!-- 本地文件拖入/导入卡片 -->
                 <div class="import-card" id="drop-zone">
+                    <div class="import-loading-overlay" id="drawer-import-overlay" hidden>
+                        <span class="loading-spin-icon" aria-hidden="true">⏳</span>
+                        <span class="loading-text">正在解析本地书籍，请稍候…</span>
+                    </div>
                     <span class="import-icon" aria-hidden="true">📥</span>
                     <h4>打开本地电子书</h4>
                     <p>支持 <b>.txt</b>、<b>.md</b> 与 <b>.pdf</b> 格式 · 本机离线存储</p>

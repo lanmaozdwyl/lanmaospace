@@ -664,3 +664,21 @@ test('缺陷修复：PDF 刷新路由异步竞态防死锁与离线加载平滑�
     // 3. 数据未就绪时展现优雅过渡提示而非直接报错
     assert(jsSource.includes('正在从本机离线数据库加载 PDF'), '需展示离线数据库读取过渡提示，杜绝报错假死');
 });
+
+test('体验优化：大文件导入反馈 Loading 遮罩与防重点击保护及 PDF 排版设置防呆', () => {
+    // 1. 书架与抽屉导入容器包含 Loading 遮罩节点
+    assert(htmlSource.includes('id="shelf-import-overlay"'), '书架导入卡片需配置 Loading 遮罩');
+    assert(htmlSource.includes('id="drawer-import-overlay"'), '抽屉导入卡片需配置 Loading 遮罩');
+    assert(cssSource.includes('.import-loading-overlay'), '需定义导入遮罩样式与毛玻璃过渡');
+    assert(cssSource.includes('.shelf-import-card.is-importing'), '需定义导入进行时防重复点击与等待指针');
+
+    // 2. PDF 排版防呆横幅与置灰
+    assert(htmlSource.includes('id="pdf-settings-notice"'), '排版抽屉需包含 PDF 模式专属提示横幅');
+    assert(cssSource.includes('.pdf-settings-notice'), '需定义 PDF 排版防呆横幅美学样式');
+    assert(cssSource.includes('#drawer-settings.pdf-reading-mode'), '需在 PDF 模式下置灰不适用排版控件');
+
+    // 3. JS 状态流与互斥响应
+    assert(jsSource.includes('function setImportingState('), '必须包含 setImportingState 统筹禁用与遮罩显示');
+    assert(jsSource.includes('pdfNotice.hidden = !state.isPdfMode'), 'applySettings 需实时同步 PDF 提示可见性');
+    assert(jsSource.includes("showToast('📑 PDF 文档固定采用 3D 画册翻页模式"), 'PDF 模式下点击非适用动效需给出友好指引');
+});

@@ -551,9 +551,14 @@
         pdfFlipInstance: null,
         isPdfMode: false,
         dbLoaded: false,
+        bookmarks: {},
+        activeTocTab: 'toc', // 'toc' | 'bookmarks'
         settings: {
             theme: 'parchment', // parchment | green | white | dark
             fontSize: 18,        // 14 ~ 28
+            lineHeight: 1.8,     // 1.5 | 1.8 | 2.1
+            paraSpacing: '1.0em',// 0.6em | 1.0em | 1.4em
+            pageWidth: '840px',  // 680px | 840px | 1020px
             fontFamily: 'system',// system | serif | kaiti
             mode: 'flip',        // flip | scroll
             animMode: 'slide',    // curl | slide | cover | scroll
@@ -568,6 +573,7 @@
     const STORAGE_KEY_PROGRESS = 'lanmao_reader_progress_v1';
     const STORAGE_KEY_BOOK_PROGRESS = 'lanmao_reader_book_progress_v2';
     const STORAGE_KEY_CUSTOM_BOOKS = 'lanmao_reader_custom_books_v1';
+    const STORAGE_KEY_BOOKMARKS = 'lanmao_reader_bookmarks_v1';
 
     let dbInstance = null;
 
@@ -611,6 +617,15 @@
                     }
                     if (typeof parsed.fontSize === 'number' && parsed.fontSize >= 14 && parsed.fontSize <= 28) {
                         state.settings.fontSize = parsed.fontSize;
+                    }
+                    if (typeof parsed.lineHeight === 'number' && parsed.lineHeight >= 1.4 && parsed.lineHeight <= 2.2) {
+                        state.settings.lineHeight = parsed.lineHeight;
+                    }
+                    if (['0.6em', '1.0em', '1.4em'].includes(parsed.paraSpacing)) {
+                        state.settings.paraSpacing = parsed.paraSpacing;
+                    }
+                    if (['680px', '840px', '1020px'].includes(parsed.pageWidth)) {
+                        state.settings.pageWidth = parsed.pageWidth;
                     }
                     if (['system', 'serif', 'kaiti'].includes(parsed.fontFamily)) {
                         state.settings.fontFamily = parsed.fontFamily;
@@ -959,6 +974,179 @@
         showToast('已从本机移除该书');
     }
 
+    // ===== 4.8 珍藏书签管理引擎 =====
+    function loadBookmarks() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_BOOKMARKS);
+            if (raw) {
+                const map = JSON.parse(raw);
+                if (map && typeof map === 'object') {
+                    state.bookmarks = map;
+                }
+            }
+        } catch (_) {}
+    }
+
+    function saveBookmarks() {
+        try {
+            localStorage.setItem(STORAGE_KEY_BOOKMARKS, JSON.stringify(state.bookmarks));
+        } catch (_) {}
+        updateBookmarkCountBadge();
+        updateBookmarkButtonState();
+    }
+
+    function getBookBookmarks(bookId) {
+        bookId = bookId || state.currentBookId || 'prince';
+        if (!state.bookmarks[bookId]) state.bookmarks[bookId] = [];
+        return state.bookmarks[bookId];
+    }
+
+    function isCurrentPageBookmarked() {
+        const list = getBookBookmarks(state.currentBookId);
+        return list.some(b => b.chapterIndex === state.currentChapterIndex && b.page === state.currentPage);
+    }
+
+    function toggleBookmark() {
+        const bookId = state.currentBookId;
+        const list = getBookBookmarks(bookId);
+        const existingIdx = list.findIndex(b => b.chapterIndex === state.currentChapterIndex && b.page === state.currentPage);
+
+        if (existingIdx >= 0) {
+            list.splice(existingIdx, 1);
+            saveBookmarks();
+            renderBookmarksList();
+            showToast('已移除当前页书签');
+        } else {
+            let excerpt = '';
+            const content = document.getElementById('reader-content');
+            if (content) {
+                const text = content.textContent || '';
+                excerpt = text.replace(/\s+/g, ' ').trim().slice(0, 70);
+            }
+            if (!excerpt && state.currentBook && state.currentBook.chapters && state.currentBook.chapters[state.currentChapterIndex]) {
+                const ch = state.currentBook.chapters[state.currentChapterIndex];
+                const raw = Array.isArray(ch.content) ? ch.content[0] : (typeof ch.content === 'string' ? ch.content.slice(0, 70) : '');
+                excerpt = (raw || '').replace(/\s+/g, ' ').trim().slice(0, 70);
+            }
+
+            const chapterTitle = (state.currentBook && state.currentBook.chapters && state.currentBook.chapters[state.currentChapterIndex])
+                ? state.currentBook.chapters[state.currentChapterIndex].title
+                : `第 ${state.currentChapterIndex + 1} 章`;
+            const pct = calculateReadingProgress(state.currentBook, state.currentChapterIndex, state.currentPage, state.totalPages);
+
+            const newBookmark = {
+                id: 'bm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                chapterIndex: state.currentChapterIndex,
+                page: state.currentPage,
+                percent: pct,
+                chapterTitle: chapterTitle,
+                excerpt: excerpt || '无摘要内容',
+                timestamp: Date.now()
+            };
+            list.unshift(newBookmark);
+            saveBookmarks();
+            renderBookmarksList();
+            showToast('🔖 已添加书签');
+        }
+    }
+
+    function removeBookmark(bookmarkId) {
+        const list = getBookBookmarks(state.currentBookId);
+        const idx = list.findIndex(b => b.id === bookmarkId);
+        if (idx >= 0) {
+            list.splice(idx, 1);
+            saveBookmarks();
+            renderBookmarksList();
+            showToast('书签已移除');
+        }
+    }
+
+    function updateBookmarkButtonState() {
+        const btn = document.getElementById('reader-btn-bookmark');
+        if (!btn) return;
+        const bookmarked = isCurrentPageBookmarked();
+        btn.classList.toggle('bookmarked', bookmarked);
+        btn.setAttribute('aria-pressed', String(bookmarked));
+        btn.title = bookmarked ? '当前页已添加书签 (点击移除)' : '收藏当前页书签';
+    }
+
+    function updateBookmarkCountBadge() {
+        const badge = document.getElementById('bookmark-count-badge');
+        if (!badge) return;
+        const list = getBookBookmarks(state.currentBookId);
+        badge.textContent = String(list.length);
+    }
+
+    function renderBookmarksList() {
+        const listEl = document.getElementById('reader-bookmarks-list');
+        if (!listEl) return;
+        const list = getBookBookmarks(state.currentBookId);
+        listEl.innerHTML = '';
+
+        if (list.length === 0) {
+            listEl.innerHTML = `
+                <div class="bookmark-empty">
+                    <span class="bookmark-empty-icon" aria-hidden="true">🔖</span>
+                    <p>本书暂无珍藏书签</p>
+                    <small>阅读时点击顶部控制栏的 🔖 图标即可记录当前位置</small>
+                </div>
+            `;
+            return;
+        }
+
+        list.forEach(bm => {
+            const card = document.createElement('div');
+            card.className = 'bookmark-card';
+            card.innerHTML = `
+                <div class="bookmark-info">
+                    <div class="bookmark-header">
+                        <span class="bookmark-chapter">${escapeHtml(bm.chapterTitle)}</span>
+                        <span class="bookmark-meta">第 ${bm.page} 页 · ${bm.percent}%</span>
+                    </div>
+                    <p class="bookmark-excerpt">${escapeHtml(bm.excerpt)}</p>
+                </div>
+                <button type="button" class="bookmark-del-btn" title="删除此书签" aria-label="删除书签">✕</button>
+            `;
+            card.addEventListener('click', () => {
+                goToChapter(bm.chapterIndex, bm.page);
+                closeAllDrawers();
+            });
+            const delBtn = card.querySelector('.bookmark-del-btn');
+            if (delBtn) {
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeBookmark(bm.id);
+                });
+            }
+            listEl.appendChild(card);
+        });
+    }
+
+    function switchTocTab(tabName) {
+        state.activeTocTab = tabName;
+        const tabBtnToc = document.getElementById('tab-btn-toc');
+        const tabBtnBm = document.getElementById('tab-btn-bookmarks');
+        const listToc = document.getElementById('reader-toc-list');
+        const listBm = document.getElementById('reader-bookmarks-list');
+
+        if (tabBtnToc) {
+            tabBtnToc.classList.toggle('active', tabName === 'toc');
+            tabBtnToc.setAttribute('aria-selected', String(tabName === 'toc'));
+        }
+        if (tabBtnBm) {
+            tabBtnBm.classList.toggle('active', tabName === 'bookmarks');
+            tabBtnBm.setAttribute('aria-selected', String(tabName === 'bookmarks'));
+        }
+        if (listToc) listToc.hidden = tabName !== 'toc';
+        if (listBm) listBm.hidden = tabName !== 'bookmarks';
+
+        if (tabName === 'bookmarks') {
+            renderBookmarksList();
+        } else {
+            highlightActiveToc(true);
+        }
+    }
+
     // ===== 5. UI 应用与主题切换 =====
     function applySettings() {
         // 主题设置
@@ -971,6 +1159,22 @@
         document.documentElement.style.setProperty('--r-font-size', state.settings.fontSize + 'px');
         const valFont = document.getElementById('val-font-size');
         if (valFont) valFont.textContent = state.settings.fontSize + ' px';
+
+        // 行距、段距与阅读版心宽度设置
+        document.documentElement.style.setProperty('--r-line-height', String(state.settings.lineHeight || 1.8));
+        document.querySelectorAll('#line-height-chips .setting-chip').forEach(chip => {
+            chip.classList.toggle('active', Number(chip.dataset.lh) === state.settings.lineHeight);
+        });
+
+        document.documentElement.style.setProperty('--r-para-spacing', state.settings.paraSpacing || '1.0em');
+        document.querySelectorAll('#para-spacing-chips .setting-chip').forEach(chip => {
+            chip.classList.toggle('active', chip.dataset.ps === state.settings.paraSpacing);
+        });
+
+        document.documentElement.style.setProperty('--r-max-width', state.settings.pageWidth || '840px');
+        document.querySelectorAll('#page-width-chips .setting-chip').forEach(chip => {
+            chip.classList.toggle('active', chip.dataset.width === state.settings.pageWidth);
+        });
 
         // 字体风格
         const content = document.getElementById('reader-content');
@@ -998,6 +1202,16 @@
             btnSound.classList.toggle('active', state.settings.soundEnabled);
             btnSound.setAttribute('aria-pressed', String(state.settings.soundEnabled));
             soundText.textContent = state.settings.soundEnabled ? '已开启' : '已静音';
+        }
+
+        // PDF 模式专属排版防呆指示
+        const pdfNotice = document.getElementById('pdf-settings-notice');
+        if (pdfNotice) {
+            pdfNotice.hidden = !state.isPdfMode;
+        }
+        const settingsDrawer = document.getElementById('drawer-settings');
+        if (settingsDrawer) {
+            settingsDrawer.classList.toggle('pdf-reading-mode', Boolean(state.isPdfMode));
         }
 
         // 手机音量键翻页状态
@@ -1282,6 +1496,9 @@
 
         renderChapter(state.currentChapterIndex, page);
         renderToc();
+        updateBookmarkCountBadge();
+        updateBookmarkButtonState();
+        renderBookmarksList();
     }
 
     // ===== 6.8 @openpageflip 与 pageflipopen 3D 翻页引擎 =====
@@ -1306,6 +1523,7 @@
             state.pdfFlipInstance = null;
         }
         state.isPdfMode = false;
+        applySettings();
         const pdfWrap = document.getElementById('pdf-wrap');
         if (pdfWrap) pdfWrap.hidden = true;
         const stage = document.getElementById('reader-stage');
@@ -1454,6 +1672,7 @@
 
     function renderPdfBook(book, pageTarget = 1) {
         state.isPdfMode = true;
+        applySettings();
         const viewport = document.getElementById('reader-viewport');
         const opfWrap = document.getElementById('openpageflip-wrap');
         const pdfWrap = document.getElementById('pdf-wrap');
@@ -2078,6 +2297,7 @@
     function updateFooterInfo() {
         const footerInfo = document.getElementById('reader-footer-info');
         const footerPercent = document.getElementById('reader-footer-percent');
+        updateBookmarkButtonState();
         if (!footerInfo || !footerPercent) return;
 
         if (state.settings.mode === 'scroll') {
@@ -2242,10 +2462,11 @@
 
         const payload = {
             app: 'lanmao-reader-backup',
-            version: 1,
+            version: 2,
             exportedAt: new Date().toISOString(),
             customBooks: customBooks,
             bookProgress: bookProgress,
+            bookmarks: state.bookmarks,
             lastProgress: lastProgress,
             settings: settings
         };
@@ -2299,6 +2520,12 @@
                     applySettings();
                 }
 
+                if (data.bookmarks && typeof data.bookmarks === 'object') {
+                    state.bookmarks = Object.assign({}, state.bookmarks, data.bookmarks);
+                    saveBookmarks();
+                    renderBookmarksList();
+                }
+
                 renderBookshelfGrid();
                 updateBookshelfHero();
                 showToast(`🎉 成功恢复 ${restoredCount} 本图书及阅读进度！`, 3600);
@@ -2307,6 +2534,37 @@
             }
         };
         reader.readAsText(file);
+    }
+
+    function setImportingState(isImporting, message) {
+        const shelfInput = document.getElementById('shelf-file-input');
+        if (shelfInput) shelfInput.disabled = isImporting;
+        const drawerInput = document.getElementById('file-input');
+        if (drawerInput) drawerInput.disabled = isImporting;
+        const shelfDrop = document.getElementById('shelf-drop-zone');
+        if (shelfDrop) {
+            shelfDrop.classList.toggle('is-importing', isImporting);
+        }
+        const drawerDrop = document.getElementById('drop-zone');
+        if (drawerDrop) {
+            drawerDrop.classList.toggle('is-importing', isImporting);
+        }
+        const shelfOverlay = document.getElementById('shelf-import-overlay');
+        if (shelfOverlay) {
+            shelfOverlay.hidden = !isImporting;
+            if (message) {
+                const textEl = shelfOverlay.querySelector('.loading-text');
+                if (textEl) textEl.textContent = message;
+            }
+        }
+        const drawerOverlay = document.getElementById('drawer-import-overlay');
+        if (drawerOverlay) {
+            drawerOverlay.hidden = !isImporting;
+            if (message) {
+                const textEl = drawerOverlay.querySelector('.loading-text');
+                if (textEl) textEl.textContent = message;
+            }
+        }
     }
 
     function resetFileInputs() {
@@ -2321,11 +2579,20 @@
             resetFileInputs();
             return;
         }
+        const cleanName = file.name ? file.name.replace(/\.[^/.]+$/, '').trim() : '本地书籍';
+        setImportingState(true, `正在载入《${cleanName}》，请稍候…`);
+        showToast(`正在载入《${cleanName}》，请稍候…`, 2500);
+
+        const finishImport = () => {
+            setImportingState(false);
+            resetFileInputs();
+        };
+
         const reader = new FileReader();
         reader.onload = function (e) {
-            resetFileInputs();
             const buffer = e.target.result;
             if (!buffer || buffer.byteLength === 0) {
+                finishImport();
                 showToast('文件内容为空，请重新选择');
                 return;
             }
@@ -2336,15 +2603,14 @@
             const isPdfType = file.type === 'application/pdf';
             const isPdfMagic = (uint8[0] === 0x25 && uint8[1] === 0x50 && uint8[2] === 0x44 && uint8[3] === 0x46); // %PDF
             if (isPdfExt || isPdfType || isPdfMagic) {
-                const cleanName = file.name.replace(/\.[^/.]+$/, '').trim() || '本地 PDF 文档';
                 const bookObj = {
                     id: 'custom_pdf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-                    title: cleanName,
+                    title: cleanName || '本地 PDF 文档',
                     author: '本地导入 PDF',
                     coverEmoji: '📑',
                     format: 'pdf',
                     pdfData: buffer,
-                    chapters: [{ title: cleanName, page: 1 }],
+                    chapters: [{ title: cleanName || '本地 PDF 文档', page: 1 }],
                     totalPages: 1
                 };
                 saveCustomBook(bookObj, (success) => {
@@ -2357,6 +2623,7 @@
                 renderBookshelfGrid();
                 switchView('reader', bookObj.id, 0, 1);
                 closeAllDrawers();
+                finishImport();
                 return;
             }
 
@@ -2365,6 +2632,7 @@
             const isEpubExt = file.name.toLowerCase().endsWith('.epub');
 
             if (isZipMagic || isEpubExt) {
+                finishImport();
                 showToast('⚠️ 暂不支持 EPUB 压缩格式，请导入 TXT 或 Markdown (.md) 纯文本书籍', 4000);
                 return;
             }
@@ -2385,6 +2653,7 @@
                 }
             }
             if (!text || !text.trim()) {
+                finishImport();
                 showToast('文件解析为空，请重新选择');
                 return;
             }
@@ -2399,9 +2668,10 @@
             renderBookshelfGrid();
             switchView('reader', bookObj.id, 0, 1);
             closeAllDrawers();
+            finishImport();
         };
         reader.onerror = function () {
-            resetFileInputs();
+            finishImport();
             showToast('读取文件失败，请检查文件格式');
         };
         reader.readAsArrayBuffer(file);
@@ -2808,6 +3078,21 @@
         const pomodoroBtn = document.getElementById('reader-toggle-pomodoro');
         if (pomodoroBtn) pomodoroBtn.addEventListener('click', togglePomodoro);
 
+        const bookmarkTopBtn = document.getElementById('reader-btn-bookmark');
+        if (bookmarkTopBtn) {
+            bookmarkTopBtn.addEventListener('click', toggleBookmark);
+        }
+
+        const tabBtnToc = document.getElementById('tab-btn-toc');
+        if (tabBtnToc) {
+            tabBtnToc.addEventListener('click', () => switchTocTab('toc'));
+        }
+
+        const tabBtnBm = document.getElementById('tab-btn-bookmarks');
+        if (tabBtnBm) {
+            tabBtnBm.addEventListener('click', () => switchTocTab('bookmarks'));
+        }
+
         const importTopBtn = document.getElementById('reader-import-btn');
         if (importTopBtn) {
             importTopBtn.addEventListener('click', () => openDrawer('drawer-bookshelf'));
@@ -3000,6 +3285,10 @@
         const btnFontInc = document.getElementById('btn-font-inc');
         if (btnFontDec) {
             btnFontDec.addEventListener('click', () => {
+                if (state.isPdfMode) {
+                    showToast('📑 PDF 文档为固定画册版式，双击或双指可缩放画面', 2500);
+                    return;
+                }
                 if (state.settings.fontSize > 14) {
                     state.settings.fontSize -= 1;
                     applySettings();
@@ -3012,6 +3301,10 @@
         }
         if (btnFontInc) {
             btnFontInc.addEventListener('click', () => {
+                if (state.isPdfMode) {
+                    showToast('📑 PDF 文档为固定画册版式，双击或双指可缩放画面', 2500);
+                    return;
+                }
                 if (state.settings.fontSize < 28) {
                     state.settings.fontSize += 1;
                     applySettings();
@@ -3023,9 +3316,76 @@
             });
         }
 
+        // 正文行距切换
+        document.querySelectorAll('#line-height-chips .setting-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const lh = Number(chip.dataset.lh);
+                if (lh) {
+                    state.settings.lineHeight = lh;
+                    applySettings();
+                    saveSettings();
+                    if (state.activeView === 'reader') {
+                        renderChapter(state.currentChapterIndex, state.currentPage);
+                    }
+                }
+            });
+        });
+
+        // 段落间距切换
+        document.querySelectorAll('#para-spacing-chips .setting-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const ps = chip.dataset.ps;
+                if (ps) {
+                    state.settings.paraSpacing = ps;
+                    applySettings();
+                    saveSettings();
+                    if (state.activeView === 'reader' && state.openPageFlipInstance) {
+                        renderChapter(state.currentChapterIndex, state.currentPage);
+                    }
+                }
+            });
+        });
+
+        // 版心宽度切换
+        document.querySelectorAll('#page-width-chips .setting-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const width = chip.dataset.width;
+                if (width) {
+                    state.settings.pageWidth = width;
+                    applySettings();
+                    saveSettings();
+                    if (state.activeView === 'reader') {
+                        renderChapter(state.currentChapterIndex, state.currentPage);
+                    }
+                }
+            });
+        });
+
+        // 一键恢复默认排版
+        const btnResetTypo = document.getElementById('btn-reset-typography');
+        if (btnResetTypo) {
+            btnResetTypo.addEventListener('click', () => {
+                state.settings.fontSize = 18;
+                state.settings.lineHeight = 1.8;
+                state.settings.paraSpacing = '1.0em';
+                state.settings.pageWidth = '840px';
+                state.settings.fontFamily = 'system';
+                applySettings();
+                saveSettings();
+                if (state.activeView === 'reader') {
+                    renderChapter(state.currentChapterIndex, state.currentPage);
+                }
+                showToast('🔄 已恢复排版默认值');
+            });
+        }
+
         // 字体风格切换
         document.querySelectorAll('.font-family-chip').forEach(chip => {
             chip.addEventListener('click', () => {
+                if (state.isPdfMode) {
+                    showToast('📑 PDF 文档字体由原文档固化，不支持调整字体', 2500);
+                    return;
+                }
                 const font = chip.dataset.font;
                 if (font) {
                     state.settings.fontFamily = font;
@@ -3041,6 +3401,10 @@
         // 翻页动效模式切换
         document.querySelectorAll('.flip-anim-chip').forEach(chip => {
             chip.addEventListener('click', () => {
+                if (state.isPdfMode) {
+                    showToast('📑 PDF 文档固定采用 3D 画册翻页模式，支持手势翻页与双指缩放', 2800);
+                    return;
+                }
                 const anim = chip.dataset.anim;
                 if (anim) {
                     state.settings.animMode = anim;
@@ -3351,6 +3715,7 @@
     // ===== 14. 初始化流程 =====
     function init() {
         loadSavedSettings();
+        loadBookmarks();
         applySettings();
         bindEvents();
         initFloatingCompanionFAB();
