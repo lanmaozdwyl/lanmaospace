@@ -49,6 +49,64 @@ function size(n) { return n<1048576?`${(n/1024).toFixed(1)} KB`:`${(n/1048576).t
 function state() { return normalizeNote({title:$('note-title').value,body:$('note-body').value,tags:$('note-tags').value.split(/[,，]/),pinned:$('note-pinned').checked,trashedAt:editing?.note.trashedAt}); }
 function dirty() { return !$('editor-form').hidden&&(noteSnapshot(state())!==baseline||pending.length>0); }
 function canLeave() { return !busy && (!dirty()||window.confirm('有未保存的内容，确定放弃这些修改吗？')); }
+function countMetrics(text) {
+    if (!text) return { words: 0, chars: 0 };
+    const chars = text.length;
+    const cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const en = (text.replace(/[\u4e00-\u9fa5]/g, ' ').match(/[a-zA-Z0-9_\-]+/g) || []).length;
+    return { words: cn + en, chars };
+}
+function updateBodyCount() {
+    const badge = $('memo-body-count');
+    if (!badge) return;
+    const text = $('note-body')?.value || '';
+    const { words, chars } = countMetrics(text);
+    badge.textContent = `${words} 字 · ${chars} 字符`;
+}
+let clearDraftTimer = null;
+function resetClearDraftButton() {
+    const btn = $('clear-draft-button');
+    if (!btn) return;
+    if (typeof clearTimeout !== 'undefined' && clearDraftTimer) {
+        clearTimeout(clearDraftTimer);
+    }
+    clearDraftTimer = null;
+    if (btn.classList?.remove) btn.classList.remove('confirming');
+    else btn.className = (btn.className || '').replace(/\bconfirming\b/g, '').trim();
+    btn.textContent = '清空草稿';
+}
+function initClearDraftAction() {
+    const btn = $('clear-draft-button');
+    if (!btn) return;
+    btn.onclick = () => {
+        const title = $('note-title')?.value || '';
+        const body = $('note-body')?.value || '';
+        const tags = $('note-tags')?.value || '';
+        const hasContent = title.trim() || body.trim() || tags.trim() || pending.length > 0;
+        if (!hasContent) {
+            status('当前编辑框已经是空的');
+            return;
+        }
+        const isConfirming = btn.classList?.contains ? btn.classList.contains('confirming') : (btn.className || '').includes('confirming');
+        if (!isConfirming) {
+            if (btn.classList?.add) btn.classList.add('confirming');
+            else btn.className = ((btn.className || '') + ' confirming').trim();
+            btn.textContent = '确认清空？';
+            clearDraftTimer = setTimeout(resetClearDraftButton, 3500);
+            return;
+        }
+        resetClearDraftButton();
+        $('note-title').value = '';
+        $('note-body').value = '';
+        $('note-tags').value = '';
+        $('note-pinned').checked = false;
+        pending = [];
+        renderPending();
+        updateBodyCount();
+        $('note-title').focus?.();
+        status('草稿内容已清空');
+    };
+}
 function controls(disabled) {
     $('app-panel').querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=disabled);
     $('backup-panel').querySelectorAll('button,input').forEach(el=>el.disabled=disabled);
@@ -76,6 +134,7 @@ function clearEditor() {
     editing=null; pending=[]; baseline=''; creationAttempt=null;
     $('editor-form').reset(); $('editor-form').hidden=true; $('selected-files').replaceChildren();
     $('conflict-panel').hidden=true;
+    resetClearDraftButton(); updateBodyCount();
 }
 function wipe() {
     generation++; uploadAttempts=new WeakMap(); key=null; vault=null; notes=[]; files=[];
@@ -264,6 +323,7 @@ function setEditor(note,row) {
     $('note-tags').value=note.tags.join(', '); $('note-pinned').checked=note.pinned;
     $('editor-form').hidden=false; $('conflict-panel').hidden=true;
     baseline=noteSnapshot(note); renderPending();
+    updateBodyCount();
 }
 function openEditor(row) {
     if(!canLeave()) return;
@@ -574,6 +634,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&key&&Date
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('editor-form').hidden&&canLeave())clearEditor();});
 $('new-note-button').onclick=()=>openEditor(null);
 $('cancel-edit-button').onclick=()=>{if(canLeave())clearEditor();};
+initClearDraftAction();
+$('note-body')?.addEventListener('input', updateBodyCount);
 $('editor-form').onsubmit=e=>{e.preventDefault();save();};
 $('save-copy-button').onclick=()=>save(true);
 $('refresh-button').onclick=()=>{if(canLeave())task(async()=>{clearEditor();await reload();status('已刷新。');});};

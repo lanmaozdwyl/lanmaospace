@@ -109,7 +109,10 @@
                     <input type="text" id="note-title" maxlength="120">
                 </div>
                 <div class="form-group">
-                    <label for="note-body">内容</label>
+                    <div class="memo-form-header">
+                        <label for="note-body">内容</label>
+                        <span class="memo-counter-badge" id="memo-body-count" aria-live="polite">0 字 · 0 字符</span>
+                    </div>
                     <textarea id="note-body" rows="6"></textarea>
                 </div>
                 <div class="form-group">
@@ -124,6 +127,7 @@
                 <div class="memo-selected-files" id="selected-files"></div>
                 <div class="memo-actions">
                     <button type="submit" class="submit-btn" id="save-note-button"><span>保存并同步</span></button>
+                    <button type="button" class="memo-btn-secondary" id="clear-draft-button" title="清空当前正在编辑的草稿内容">清空草稿</button>
                     <button type="button" class="memo-btn-secondary" id="cancel-edit-button">取消</button>
                 </div>
             </form>

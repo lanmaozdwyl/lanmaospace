@@ -79,7 +79,7 @@ function context(options={}) {
     },storage:{from(){return{remove:async()=>({error:null})};}}};
     const ctx=vm.createContext({...core,crypto,TextEncoder,TextDecoder,Uint8Array,Blob,File,URL,Map,Set,WeakMap,Date,Error,Number,JSON,Math,console:{error(){}},document,
         window:{LANMAO_MEMO_CONFIG:{ownerUid:'owner'},confirm:()=>options.confirm!==false,addEventListener:(e,fn)=>events[e]=fn},
-        setTimeout:()=>0,setInterval:()=>0,XMLHttpRequest:class{},fixtureKey:testKey,fixtureClient:client,fixtureSalt:core.b64(salt)});
+        setTimeout:()=>0,setInterval:()=>0,clearTimeout:()=>0,clearInterval:()=>0,XMLHttpRequest:class{},fixtureKey:testKey,fixtureClient:client,fixtureSalt:core.b64(salt)});
     let source=readFileSync(root+'/memo.js','utf8').replace(/^import[\s\S]*?from '\.\/memo-core.mjs';/,'').replace(/^import .*from '\.\/lib\/supabase-client\.js';\r?\n/m,'').replace(/\ninit\(\);\s*$/,'');
     vm.runInContext(source,ctx);vm.runInContext("client=fixtureClient;user={id:'owner'};key=fixtureKey;vault={salt:fixtureSalt};operationEpoch=generation;show('app-panel');clearEditor();",ctx);
     return {ctx,get,calls,events,tables,run:code=>vm.runInContext(code,ctx)};
@@ -282,4 +282,60 @@ test('离线暂存模式视觉指示与弱网自动重连同步提示',async()=>
  assert.equal(reloaded,false);
  assert.match(h.get('memo-network-text').textContent,/保存并同步/);
  assert.match(h.get('memo-status').textContent,/未保存草稿/);
+});
+
+test('备忘录：正文实时字数/字符统计条与清空草稿二次确认安全防误触', () => {
+    const memoHtml = readFileSync(root + '/memo.html', 'utf8');
+    const memoCss = readFileSync(root + '/memo.css', 'utf8');
+    const memoJs = readFileSync(root + '/memo.js', 'utf8');
+
+    // 1. HTML 与 CSS 规范
+    assert(memoHtml.includes('id="memo-body-count"'), '需包含正文字数与字符统计徽章');
+    assert(memoHtml.includes('id="clear-draft-button"'), '需包含清空草稿按钮');
+    assert(memoCss.includes('.memo-form-header'), '需包含编辑表单标题弹性排列样式');
+    assert(memoCss.includes('.memo-counter-badge'), '需包含字数统计微徽章样式');
+    assert(memoCss.includes('#clear-draft-button.confirming'), '需包含清空二次确认警示高亮动效');
+
+    // 2. JS 字数统计与指标算法测试
+    const h = context();
+    const metrics1 = h.run("countMetrics('测试中文内容')");
+    assert.equal(metrics1.words, 6);
+    assert.equal(metrics1.chars, 6);
+
+    const metrics2 = h.run("countMetrics('蓝昴空间 Lanmao Space 2026')");
+    assert.equal(metrics2.words, 7); // 4 中文字 + 2 英文词 + 1 数字 = 7
+    assert.equal(metrics2.chars, 22);
+
+    // 3. 打开编辑器与动态计数
+    h.run('openEditor(null)');
+    assert.equal(h.get('memo-body-count').textContent, '0 字 · 0 字符');
+
+    h.get('note-body').value = '你好 Antigravity';
+    h.run('updateBodyCount()');
+    assert.equal(h.get('memo-body-count').textContent, '3 字 · 14 字符');
+
+    // 4. 清空草稿防误触与二次确认
+    const clearBtn = h.get('clear-draft-button');
+    // 4.1 空表单点击提示
+    h.get('note-title').value = '';
+    h.get('note-body').value = '';
+    h.get('note-tags').value = '';
+    clearBtn.onclick();
+    assert.equal(h.get('memo-status').textContent, '当前编辑框已经是空的');
+
+    // 4.2 有内容点击进入 confirming 状态
+    h.get('note-title').value = '测试标题';
+    h.get('note-body').value = '测试内容';
+    clearBtn.onclick();
+    assert.equal(clearBtn.textContent, '确认清空？');
+    assert.match(clearBtn.className, /confirming/);
+
+    // 4.3 再次点击执行清空
+    clearBtn.onclick();
+    assert.equal(clearBtn.textContent, '清空草稿');
+    assert(!clearBtn.className.includes('confirming'));
+    assert.equal(h.get('note-title').value, '');
+    assert.equal(h.get('note-body').value, '');
+    assert.equal(h.get('memo-status').textContent, '草稿内容已清空');
+    assert.equal(h.get('memo-body-count').textContent, '0 字 · 0 字符');
 });
