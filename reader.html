@@ -215,6 +215,9 @@
                     <span aria-hidden="true">📂</span>
                     <span class="reader-tool-text">导入</span>
                 </button>
+                <button type="button" class="reader-tool-btn" id="reader-btn-search" title="全文正文检索 (Ctrl+F)" aria-label="全文正文搜索">
+                    <span aria-hidden="true">🔍</span>
+                </button>
                 <button type="button" class="reader-tool-btn" id="reader-btn-settings" title="排版与主题设置" aria-label="排版与主题">
                     <span aria-hidden="true">Aa</span>
                 </button>
@@ -325,13 +328,14 @@
         <!-- 选区划线浮动按钮：选中正文文字后出现 -->
         <button type="button" class="reader-highlight-fab" id="reader-highlight-fab" aria-label="为选中文字添加划线" hidden>✎ 划线</button>
 
-        <!-- 目录与书签抽屉 (左侧滑出) -->
+        <!-- 目录、书签与正文搜索抽屉 (左侧滑出) -->
         <aside class="reader-drawer drawer-left" id="drawer-toc" aria-label="书籍目录与书签" hidden>
             <div class="drawer-header">
                 <div class="drawer-tabs-segment" role="tablist" aria-label="目录与书签切换">
                     <button type="button" class="drawer-tab active" id="tab-btn-toc" role="tab" aria-selected="true" aria-controls="reader-toc-list">📑 目录大纲</button>
                     <button type="button" class="drawer-tab" id="tab-btn-bookmarks" role="tab" aria-selected="false" aria-controls="reader-bookmarks-list">🔖 珍藏书签 <span class="tab-count-badge" id="bookmark-count-badge">0</span></button>
                     <button type="button" class="drawer-tab" id="tab-btn-highlights" role="tab" aria-selected="false" aria-controls="reader-highlights-list">✎ 划线笔记 <span class="tab-count-badge" id="highlight-count-badge">0</span></button>
+                    <button type="button" class="drawer-tab" id="tab-btn-search" role="tab" aria-selected="false" aria-controls="reader-search-panel">🔍 全文搜索 <span class="tab-count-badge" id="search-count-badge" hidden>0</span></button>
                 </div>
                 <button type="button" class="drawer-close-btn" id="close-toc" aria-label="关闭目录与书签">✕</button>
             </div>
@@ -343,6 +347,37 @@
             </div>
             <div class="drawer-body highlights-list" id="reader-highlights-list" role="tabpanel" aria-labelledby="tab-btn-highlights" hidden>
                 <!-- 划线笔记列表项 -->
+            </div>
+            <div class="drawer-body inbook-search-panel" id="reader-search-panel" role="tabpanel" aria-labelledby="tab-btn-search" hidden>
+                <div class="inbook-search-box">
+                    <span class="inbook-search-icon" aria-hidden="true">🔍</span>
+                    <input type="search" id="reader-inbook-search-input" class="inbook-search-input" placeholder="检索当前书籍正文…" autocomplete="off" aria-label="检索当前书籍正文">
+                    <button type="button" id="reader-inbook-search-clear" class="inbook-search-clear-btn" title="清空搜索内容" aria-label="清空搜索内容" hidden>✕</button>
+                </div>
+                <div class="inbook-search-meta" id="reader-inbook-search-meta" aria-live="polite">
+                    <span class="meta-hint">输入关键词检索全书正文</span>
+                </div>
+                <div class="inbook-search-results" id="reader-inbook-search-results">
+                    <!-- 动态结果挂载 -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- 正文检索上下文快捷浮动导航条 -->
+        <aside class="reader-search-dock" id="reader-search-dock" aria-label="正文检索导航" hidden>
+            <div class="search-dock-pill">
+                <span class="search-dock-badge" id="search-dock-badge" aria-hidden="true">🔍</span>
+                <span class="search-dock-query" id="search-dock-query">关键词</span>
+                <span class="search-dock-counter" id="search-dock-counter">1 / 1</span>
+            </div>
+            <div class="search-dock-nav-btns">
+                <button type="button" class="search-dock-btn" id="btn-search-prev" title="定位到上一处匹配 (Shift+F3)" aria-label="上一处匹配">▲</button>
+                <button type="button" class="search-dock-btn" id="btn-search-next" title="定位到下一处匹配 (F3 / Enter)" aria-label="下一处匹配">▼</button>
+                <button type="button" class="search-dock-btn search-dock-return" id="btn-search-return" title="返回搜索前的阅读位置" aria-label="返回原阅读位置">
+                    <span aria-hidden="true">↩</span>
+                    <span>返回原位</span>
+                </button>
+                <button type="button" class="search-dock-btn search-dock-exit" id="btn-search-exit" title="退出检索高亮 (Esc)" aria-label="退出检索高亮">✕</button>
             </div>
         </aside>
 

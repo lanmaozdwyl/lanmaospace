@@ -554,7 +554,8 @@
         bookmarks: {},
         highlights: {},
         highlightMode: false,
-        activeTocTab: 'toc', // 'toc' | 'bookmarks' | 'highlights'
+        activeTocTab: 'toc', // 'toc' | 'bookmarks' | 'highlights' | 'search'
+        searchSession: null, // { query: string, matches: Array, currentMatchIdx: number, origin: Object }
         shelfViewMode: 'grid', // 'grid' | 'list' | 'shelf'
         shelfSortBy: 'recent', // 'recent' | 'progress' | 'date' | 'title'
         settings: {
@@ -1575,6 +1576,8 @@
         const listBm = document.getElementById('reader-bookmarks-list');
         const tabBtnHl = document.getElementById('tab-btn-highlights');
         const listHl = document.getElementById('reader-highlights-list');
+        const tabBtnSearch = document.getElementById('tab-btn-search');
+        const panelSearch = document.getElementById('reader-search-panel');
 
         if (tabBtnToc) {
             tabBtnToc.classList.toggle('active', tabName === 'toc');
@@ -1592,13 +1595,508 @@
         }
         if (listHl) listHl.hidden = tabName !== 'highlights';
 
+        if (tabBtnSearch) {
+            tabBtnSearch.classList.toggle('active', tabName === 'search');
+            tabBtnSearch.setAttribute('aria-selected', String(tabName === 'search'));
+        }
+        if (panelSearch) panelSearch.hidden = tabName !== 'search';
+
         if (tabName === 'highlights') {
             renderHighlightsList();
         } else if (tabName === 'bookmarks') {
             renderBookmarksList();
+        } else if (tabName === 'search') {
+            const searchInput = document.getElementById('reader-inbook-search-input');
+            if (searchInput) {
+                setTimeout(() => searchInput.focus(), 60);
+                if (!searchInput.value.trim()) {
+                    searchInBook('');
+                }
+            }
         } else {
             highlightActiveToc(true);
         }
+    }
+
+    // ===== 4.6 正文全文检索与上下文跳转系统 (In-Book Search Engine) =====
+    function escapeRegex(str) {
+        return (str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function renderSearchEmptyState(container, type, param) {
+        if (!container) return;
+        container.replaceChildren();
+        const wrap = document.createElement('div');
+        wrap.className = 'inbook-search-empty';
+
+        const icon = document.createElement('span');
+        icon.className = 'empty-icon';
+
+        const title = document.createElement('div');
+        title.className = 'empty-title';
+
+        const desc = document.createElement('div');
+        desc.className = 'empty-desc';
+
+        if (type === 'initial') {
+            icon.textContent = '📖';
+            title.textContent = '正文全文检索';
+            desc.textContent = '毫秒级检索全书各章节正文，支持原位快速跳转与一键返回。';
+            const hint = document.createElement('div');
+            hint.innerHTML = '快捷键：<kbd>Ctrl</kbd> + <kbd>F</kbd>';
+            wrap.appendChild(icon);
+            wrap.appendChild(title);
+            wrap.appendChild(desc);
+            wrap.appendChild(hint);
+        } else if (type === 'no-results') {
+            icon.textContent = '🔍';
+            title.textContent = '未找到相关内容';
+            desc.textContent = `当前书籍中未检索到包含 “${param || ''}” 的段落，请尝试其他关键词。`;
+            wrap.appendChild(icon);
+            wrap.appendChild(title);
+            wrap.appendChild(desc);
+        } else if (type === 'pdf') {
+            icon.textContent = '📑';
+            title.textContent = 'PDF 3D 画册模式';
+            desc.textContent = '当前文档为固定版面 PDF，请使用浏览器原生查找功能。';
+            wrap.appendChild(icon);
+            wrap.appendChild(title);
+            wrap.appendChild(desc);
+        } else {
+            icon.textContent = '📂';
+            title.textContent = '暂无内容';
+            desc.textContent = '当前书籍暂无可供检索的章节文本。';
+            wrap.appendChild(icon);
+            wrap.appendChild(title);
+            wrap.appendChild(desc);
+        }
+        container.appendChild(wrap);
+    }
+
+    function searchInBook(query) {
+        const resultsContainer = document.getElementById('reader-inbook-search-results');
+        const metaContainer = document.getElementById('reader-inbook-search-meta');
+        const badge = document.getElementById('search-count-badge');
+        if (!resultsContainer) return;
+
+        const trimmed = (query || '').trim();
+        if (!trimmed) {
+            if (badge) {
+                badge.textContent = '0';
+                badge.hidden = true;
+            }
+            if (metaContainer) {
+                metaContainer.innerHTML = '<span class="meta-hint">输入关键词检索全书正文</span>';
+            }
+            renderSearchEmptyState(resultsContainer, 'initial');
+            return;
+        }
+
+        const book = state.currentBook;
+        if (!book) return;
+
+        if (book.format === 'pdf') {
+            if (metaContainer) metaContainer.textContent = 'PDF 格式';
+            renderSearchEmptyState(resultsContainer, 'pdf');
+            return;
+        }
+
+        if (!Array.isArray(book.chapters) || book.chapters.length === 0) {
+            if (metaContainer) metaContainer.textContent = '暂无章节内容';
+            renderSearchEmptyState(resultsContainer, 'empty');
+            return;
+        }
+
+        const matches = [];
+        const lowerQuery = trimmed.toLowerCase();
+
+        book.chapters.forEach((chapter, chIdx) => {
+            let text = '';
+            if (Array.isArray(chapter.content)) {
+                text = chapter.content.join('\n');
+            } else if (typeof chapter.content === 'string') {
+                text = chapter.content;
+            }
+            if (!text) return;
+
+            const lowerText = text.toLowerCase();
+            let pos = 0;
+            let indexInChapter = 0;
+            while ((pos = lowerText.indexOf(lowerQuery, pos)) !== -1) {
+                const start = Math.max(0, pos - 26);
+                const end = Math.min(text.length, pos + lowerQuery.length + 26);
+                const prefix = (start > 0 ? '…' : '') + text.slice(start, pos).replace(/\s+/g, ' ');
+                const matchText = text.slice(pos, pos + lowerQuery.length);
+                const suffix = text.slice(pos + lowerQuery.length, end).replace(/\s+/g, ' ') + (end < text.length ? '…' : '');
+                
+                matches.push({
+                    id: `m-${chIdx}-${indexInChapter}`,
+                    chapterIndex: chIdx,
+                    chapterTitle: chapter.title || `第 ${chIdx + 1} 章`,
+                    indexInChapter,
+                    matchOffset: pos,
+                    prefix,
+                    matchText,
+                    suffix
+                });
+
+                indexInChapter++;
+                pos += lowerQuery.length;
+            }
+        });
+
+        if (badge) {
+            badge.textContent = String(matches.length);
+            badge.hidden = matches.length === 0;
+        }
+
+        if (matches.length === 0) {
+            if (metaContainer) {
+                metaContainer.textContent = '共找到 0 处匹配';
+            }
+            renderSearchEmptyState(resultsContainer, 'no-results', trimmed);
+            return;
+        }
+
+        const matchedChapters = new Set(matches.map(m => m.chapterIndex)).size;
+        if (metaContainer) {
+            metaContainer.innerHTML = `共找到 <span class="meta-count-highlight">${matches.length}</span> 处匹配（${matchedChapters} 个章节）`;
+        }
+
+        renderSearchResults(matches, trimmed);
+    }
+
+    function renderSearchResults(matches, query) {
+        const resultsContainer = document.getElementById('reader-inbook-search-results');
+        if (!resultsContainer) return;
+        resultsContainer.replaceChildren();
+
+        const groups = new Map();
+        matches.forEach(m => {
+            if (!groups.has(m.chapterIndex)) {
+                groups.set(m.chapterIndex, []);
+            }
+            groups.get(m.chapterIndex).push(m);
+        });
+
+        groups.forEach((items) => {
+            const groupEl = document.createElement('div');
+            groupEl.className = 'search-chapter-group';
+
+            const headerEl = document.createElement('div');
+            headerEl.className = 'search-chapter-header';
+            
+            const titleEl = document.createElement('span');
+            titleEl.className = 'search-chapter-title';
+            titleEl.textContent = items[0].chapterTitle;
+
+            const countEl = document.createElement('span');
+            countEl.className = 'search-chapter-count';
+            countEl.textContent = `${items.length} 处`;
+
+            headerEl.appendChild(titleEl);
+            headerEl.appendChild(countEl);
+            groupEl.appendChild(headerEl);
+
+            items.forEach(match => {
+                const card = document.createElement('div');
+                card.className = 'search-result-card';
+                card.setAttribute('role', 'button');
+                card.setAttribute('tabindex', '0');
+                card.dataset.matchId = match.id;
+
+                const snippet = document.createElement('p');
+                snippet.className = 'search-result-snippet';
+
+                const prefixText = document.createTextNode(match.prefix);
+                const markEl = document.createElement('mark');
+                markEl.className = 'search-snippet-match';
+                markEl.textContent = match.matchText;
+                const suffixText = document.createTextNode(match.suffix);
+
+                snippet.appendChild(prefixText);
+                snippet.appendChild(markEl);
+                snippet.appendChild(suffixText);
+                card.appendChild(snippet);
+
+                card.addEventListener('click', () => {
+                    jumpToSearchResult(match, matches, query);
+                });
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        jumpToSearchResult(match, matches, query);
+                    }
+                });
+
+                groupEl.appendChild(card);
+            });
+
+            resultsContainer.appendChild(groupEl);
+        });
+    }
+
+    function jumpToSearchResult(match, matches, query) {
+        if (!match || !matches) return;
+        const viewport = document.getElementById('reader-viewport');
+        
+        if (!state.searchSession || state.searchSession.query !== query) {
+            state.searchSession = {
+                query,
+                matches,
+                currentMatchIdx: matches.indexOf(match),
+                origin: {
+                    chapterIndex: state.currentChapterIndex,
+                    page: state.currentPage,
+                    scrollTop: viewport ? viewport.scrollTop : 0
+                }
+            };
+        } else {
+            state.searchSession.currentMatchIdx = matches.indexOf(match);
+        }
+
+        if (window.innerWidth < 900) {
+            closeAllDrawers();
+        }
+
+        const targetChapterIdx = match.chapterIndex;
+        const locate = () => {
+            applySearchHighlights();
+            const content = document.getElementById('reader-content');
+            if (!content) return;
+            const hits = content.querySelectorAll('mark.reader-search-hit');
+            if (hits.length > 0) {
+                const activeHit = hits[match.indexInChapter] || hits[0];
+                hits.forEach(h => h.classList.remove('active'));
+                activeHit.classList.add('active');
+
+                if (state.settings.mode !== 'scroll') {
+                    const gap = window.innerWidth >= 900 ? 60 : 48;
+                    const step = (viewport?.clientWidth || 360) + gap;
+                    const rects = activeHit.getClientRects();
+                    const rect = rects.length ? rects[0] : activeHit.getBoundingClientRect();
+                    const rel = rect.left - content.getBoundingClientRect().left;
+                    goToPage(Math.floor(Math.max(0, rel) / step) + 1);
+                } else {
+                    activeHit.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            updateSearchDock();
+        };
+
+        if (state.currentChapterIndex !== targetChapterIdx) {
+            renderChapter(targetChapterIdx, 1);
+            requestAnimationFrame(() => requestAnimationFrame(locate));
+        } else {
+            locate();
+        }
+    }
+
+    function applySearchHighlights() {
+        if (!state.searchSession || !state.searchSession.query) return;
+        const content = document.getElementById('reader-content');
+        if (!content) return;
+        const query = state.searchSession.query;
+        if (!query.trim()) return;
+
+        // 清理已存在的搜索高亮标注（复用文本）
+        content.querySelectorAll('mark.reader-search-hit').forEach(mark => {
+            const parent = mark.parentNode;
+            if (parent) {
+                parent.replaceChild(document.createTextNode(mark.textContent), mark);
+                parent.normalize();
+            }
+        });
+
+        const regex = new RegExp(`(${escapeRegex(query.trim())})`, 'gi');
+        const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, null);
+        const textNodes = [];
+        let node;
+        while ((node = walker.nextNode())) {
+            if (node.parentElement && node.parentElement.tagName === 'MARK') {
+                continue;
+            }
+            textNodes.push(node);
+        }
+
+        for (const tn of textNodes) {
+            const text = tn.nodeValue;
+            if (!regex.test(text)) continue;
+            regex.lastIndex = 0;
+            const fragment = document.createDocumentFragment();
+            let lastIdx = 0;
+            let m;
+            while ((m = regex.exec(text)) !== null) {
+                if (m.index > lastIdx) {
+                    fragment.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+                }
+                const mark = document.createElement('mark');
+                mark.className = 'reader-search-hit';
+                mark.textContent = m[0];
+                fragment.appendChild(mark);
+                lastIdx = regex.lastIndex;
+            }
+            if (lastIdx < text.length) {
+                fragment.appendChild(document.createTextNode(text.slice(lastIdx)));
+            }
+            if (tn.parentNode) {
+                tn.parentNode.replaceChild(fragment, tn);
+            }
+        }
+
+        // 若当前匹配项属于当前章节，标记 active
+        const curMatch = state.searchSession.matches[state.searchSession.currentMatchIdx];
+        if (curMatch && curMatch.chapterIndex === state.currentChapterIndex) {
+            const hits = content.querySelectorAll('mark.reader-search-hit');
+            if (hits.length > curMatch.indexInChapter) {
+                hits[curMatch.indexInChapter].classList.add('active');
+            }
+        }
+    }
+
+    function navigateSearchMatch(direction) {
+        if (!state.searchSession || !state.searchSession.matches.length) return;
+        const s = state.searchSession;
+        s.currentMatchIdx = (s.currentMatchIdx + direction + s.matches.length) % s.matches.length;
+        const nextMatch = s.matches[s.currentMatchIdx];
+        jumpToSearchResult(nextMatch, s.matches, s.query);
+    }
+
+    function returnToSearchOrigin() {
+        if (!state.searchSession || !state.searchSession.origin) return;
+        const origin = state.searchSession.origin;
+        exitSearchSession();
+        goToChapter(origin.chapterIndex, origin.page);
+        if (state.settings.mode === 'scroll') {
+            const vp = document.getElementById('reader-viewport');
+            if (vp && typeof origin.scrollTop === 'number') {
+                vp.scrollTop = origin.scrollTop;
+            }
+        }
+        showToast('已返回搜索前阅读位置');
+    }
+
+    function exitSearchSession() {
+        state.searchSession = null;
+        const dock = document.getElementById('reader-search-dock');
+        if (dock) dock.hidden = true;
+        const content = document.getElementById('reader-content');
+        if (content) {
+            content.querySelectorAll('mark.reader-search-hit').forEach(mark => {
+                const parent = mark.parentNode;
+                if (parent) {
+                    parent.replaceChild(document.createTextNode(mark.textContent), mark);
+                    parent.normalize();
+                }
+            });
+        }
+    }
+
+    function updateSearchDock() {
+        const dock = document.getElementById('reader-search-dock');
+        if (!dock) return;
+        if (!state.searchSession || !state.searchSession.matches.length) {
+            dock.hidden = true;
+            return;
+        }
+        const { query, matches, currentMatchIdx } = state.searchSession;
+        const queryEl = document.getElementById('search-dock-query');
+        const counterEl = document.getElementById('search-dock-counter');
+        if (queryEl) queryEl.textContent = query;
+        if (counterEl) counterEl.textContent = `${currentMatchIdx + 1} / ${matches.length}`;
+        dock.hidden = false;
+    }
+
+    function initInBookSearch() {
+        const topBtnSearch = document.getElementById('reader-btn-search');
+        if (topBtnSearch) {
+            topBtnSearch.addEventListener('click', () => {
+                openDrawer('drawer-toc');
+                switchTocTab('search');
+            });
+        }
+
+        const tabBtnSearch = document.getElementById('tab-btn-search');
+        if (tabBtnSearch) {
+            tabBtnSearch.addEventListener('click', () => switchTocTab('search'));
+        }
+
+        const input = document.getElementById('reader-inbook-search-input');
+        const clearBtn = document.getElementById('reader-inbook-search-clear');
+        let searchTimer = null;
+        if (input) {
+            input.addEventListener('input', () => {
+                clearTimeout(searchTimer);
+                const val = input.value;
+                if (clearBtn) clearBtn.hidden = !val;
+                searchTimer = setTimeout(() => {
+                    searchInBook(val);
+                }, 160);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    clearTimeout(searchTimer);
+                    searchInBook(input.value);
+                    if (state.searchSession && state.searchSession.matches.length > 0) {
+                        navigateSearchMatch(e.shiftKey ? -1 : 1);
+                    }
+                }
+            });
+        }
+
+        if (clearBtn && input) {
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                clearBtn.hidden = true;
+                searchInBook('');
+                input.focus();
+            });
+        }
+
+        const btnPrev = document.getElementById('btn-search-prev');
+        if (btnPrev) {
+            btnPrev.addEventListener('click', () => navigateSearchMatch(-1));
+        }
+
+        const btnNext = document.getElementById('btn-search-next');
+        if (btnNext) {
+            btnNext.addEventListener('click', () => navigateSearchMatch(1));
+        }
+
+        const btnReturn = document.getElementById('btn-search-return');
+        if (btnReturn) {
+            btnReturn.addEventListener('click', returnToSearchOrigin);
+        }
+
+        const btnExit = document.getElementById('btn-search-exit');
+        if (btnExit) {
+            btnExit.addEventListener('click', exitSearchSession);
+        }
+
+        // 全局键盘监听：Ctrl+F 与 F3 / Esc
+        document.addEventListener('keydown', (e) => {
+            if (state.activeView !== 'reader') return;
+
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+                const activeTag = (document.activeElement && document.activeElement.tagName) || '';
+                if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+                    e.preventDefault();
+                    openDrawer('drawer-toc');
+                    switchTocTab('search');
+                    return;
+                }
+            }
+
+            if (state.searchSession) {
+                if (e.key === 'F3') {
+                    e.preventDefault();
+                    navigateSearchMatch(e.shiftKey ? -1 : 1);
+                } else if (e.key === 'Escape') {
+                    exitSearchSession();
+                }
+            }
+        });
     }
 
     // ===== 5. UI 应用与主题切换 =====
@@ -2078,6 +2576,26 @@
             item.classList.toggle('active', item.dataset.book === bookId);
         });
 
+        // 换书时重置正文搜索会话
+        if (state.searchSession) {
+            exitSearchSession();
+        }
+        const searchInput = document.getElementById('reader-inbook-search-input');
+        if (searchInput) {
+            searchInput.value = '';
+            const clearBtn = document.getElementById('reader-inbook-search-clear');
+            if (clearBtn) clearBtn.hidden = true;
+            const searchBadge = document.getElementById('search-count-badge');
+            if (searchBadge) {
+                searchBadge.textContent = '0';
+                searchBadge.hidden = true;
+            }
+            const resultsContainer = document.getElementById('reader-inbook-search-results');
+            if (resultsContainer) {
+                renderSearchEmptyState(resultsContainer, 'initial');
+            }
+        }
+
         renderChapter(state.currentChapterIndex, page);
         renderToc();
         updateBookmarkCountBadge();
@@ -2415,6 +2933,10 @@
 
         content.innerHTML = htmlParts.join('\n');
         applyChapterHighlights();
+        applySearchHighlights();
+        if (state.searchSession) {
+            updateSearchDock();
+        }
 
         // 重置滚动位置 (分页模式下归零；滚动模式下交由后续精确恢复)
         if (viewport && state.settings.mode !== 'scroll') {
@@ -4250,6 +4772,9 @@
 
         // 书架即时搜索与过滤
         initShelfSearch();
+
+        // 正文全文检索与上下文跳转系统
+        initInBookSearch();
 
         // 书架备份导出与恢复
         const btnExportBackup = document.getElementById('shelf-btn-export-backup');

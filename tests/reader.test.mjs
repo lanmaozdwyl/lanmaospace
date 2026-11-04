@@ -850,3 +850,50 @@ test('在线开源书库：精选公版典藏、Open Library 检索、直链导�
     assert(jsSource.includes('function initOnlineBookSearch()'), '需包含在线书库搜索与导入引擎');
     assert(jsSource.includes('function importCuratedBook('), '需支持精选公版书一键存入书架');
 });
+
+test('正文全文检索与上下文跳转系统：秒级全文检索、章节高亮定位、浮动导航与一键原位返回', () => {
+    // 1. HTML 节点结构与无障碍标记
+    assert(htmlSource.includes('id="reader-btn-search"'), '阅读器顶栏需包含正文搜索按钮');
+    assert(htmlSource.includes('id="tab-btn-search"'), '左侧抽屉分段标签中需包含正文搜索标签');
+    assert(htmlSource.includes('id="search-count-badge"'), '正文搜索标签需包含匹配计数徽章');
+    assert(htmlSource.includes('id="reader-search-panel"'), '需包含正文搜索面板容器');
+    assert(htmlSource.includes('id="reader-inbook-search-input"'), '需包含正文搜索输入框');
+    assert(htmlSource.includes('id="reader-inbook-search-clear"'), '需包含一键清空搜索按钮');
+    assert(htmlSource.includes('id="reader-inbook-search-meta"'), '需包含搜索匹配状态指示条');
+    assert(htmlSource.includes('id="reader-inbook-search-results"'), '需包含正文搜索结果列表挂载区');
+    assert(htmlSource.includes('id="reader-search-dock"'), '需包含正文检索悬浮快速导航条');
+    assert(htmlSource.includes('id="search-dock-query"'), '检索导航条需展示当前关键词');
+    assert(htmlSource.includes('id="search-dock-counter"'), '检索导航条需展示当前序号与总数');
+    assert(htmlSource.includes('id="btn-search-prev"'), '检索导航条需支持上一处定位');
+    assert(htmlSource.includes('id="btn-search-next"'), '检索导航条需支持下一处定位');
+    assert(htmlSource.includes('id="btn-search-return"'), '检索导航条必须提供一键返回原阅读位置按钮');
+    assert(htmlSource.includes('id="btn-search-exit"'), '检索导航条需支持退出高亮');
+
+    // 2. CSS 样式设计与视觉规范
+    assert(cssSource.includes('.inbook-search-panel'), '需包含正文搜索面板样式');
+    assert(cssSource.includes('.inbook-search-box'), '需包含带聚焦环的高质感搜索框');
+    assert(cssSource.includes('.inbook-search-input'), '需包含输入框样式');
+    assert(cssSource.includes('.search-chapter-header'), '需包含章节吸顶头部样式');
+    assert(cssSource.includes('.search-result-card'), '需包含搜索结果卡片样式');
+    assert(cssSource.includes('.search-snippet-match'), '需包含卡片内匹配词高亮高对比样式');
+    assert(cssSource.includes('mark.reader-search-hit'), '正文内部需高亮标记匹配词');
+    assert(cssSource.includes('mark.reader-search-hit.active'), '当前聚焦的高亮词需具有呼吸脉冲动效');
+    assert(cssSource.includes('.reader-search-dock'), '需包含悬浮胶囊导航条样式');
+    assert(cssSource.includes('.search-dock-btn.search-dock-return'), '返回原位按钮需具备醒目主题强调色');
+
+    // 3. JS 检索算法与交互生命周期验证
+    assert(jsSource.includes('function searchInBook('), '必须定义全书正文扫描检索函数');
+    assert(jsSource.includes('function renderSearchResults('), '必须包含按章节分组的结果渲染函数');
+    assert(jsSource.includes('function jumpToSearchResult('), '必须包含定位跳转与上下文高亮激活函数');
+    assert(jsSource.includes('function applySearchHighlights('), '必须包含正文节点级 TreeWalker 安全高亮标记');
+    assert(jsSource.includes('function navigateSearchMatch('), '必须包含上一处/下一处轮转导航');
+    assert(jsSource.includes('function returnToSearchOrigin('), '必须包含记忆并一键还原搜索前位置函数');
+    assert(jsSource.includes('function exitSearchSession('), '必须包含清理检索会话与销毁正文高亮函数');
+    assert(jsSource.includes('function initInBookSearch()'), '必须包含正文检索总装与事件监听');
+    assert(jsSource.includes('initInBookSearch();'), '需在 bindEvents 中正确初始化正文检索引擎');
+
+    // 4. 快捷键与会话生命周期
+    assert(jsSource.includes("e.key.toLowerCase() === 'f'"), '需支持 Ctrl+F / Cmd+F 快捷调出正文搜索');
+    assert(jsSource.includes("e.key === 'F3'"), '需支持 F3 / Shift+F3 定位下一个/上一个');
+    assert(jsSource.includes("e.key === 'Escape'"), '需支持 Esc 极速退出检索高亮');
+});
