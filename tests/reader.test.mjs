@@ -618,3 +618,40 @@ test('移动端体验优化：书架底栏彻底杜绝文字溢出与多余表�
     assert(cssSource.includes('.shelf-tool-btn .shelf-badge'), '移动端需隐藏声音与番茄文字徽标以杜绝挤压溢出');
     assert(cssSource.includes('calc(8px + env(safe-area-inset-bottom'), '底栏必须通过 calc 适配全面屏手势条避让高度');
 });
+
+test('在线阅读器升级：TXT 3D 拟真翻页 (@openpageflip/core) 与 PDF 3D 翻页 (pageflipopen) 深度集成', () => {
+    // 1. HTML 结构与资源引入
+    assert(htmlSource.includes('lib/openpageflip/openpageflip.css'), '需引入 @openpageflip/core 样式文件');
+    assert(htmlSource.includes('lib/pageflipopen/pageflipopen.css'), '需引入 pageflipopen 样式文件');
+    assert(htmlSource.includes('lib/openpageflip/openpageflip.js'), '需引入 @openpageflip/core 脚本');
+    assert(htmlSource.includes('lib/pageflipopen/pageflipopen.js'), '需引入 pageflipopen 脚本');
+    assert(htmlSource.includes('id="openpageflip-wrap"'), '需包含 @openpageflip 专用容器');
+    assert(htmlSource.includes('id="openpageflip-stage"'), '需包含 @openpageflip 舞台挂载节点');
+    assert(htmlSource.includes('id="pdf-wrap"'), '需包含 PDF 专用容器');
+    assert(htmlSource.includes('id="pdf-flipbook-container"'), '需包含 PDF 舞台挂载节点');
+    assert(htmlSource.includes('.pdf') && htmlSource.includes('application/pdf'), '文件选择器必须支持 PDF 格式');
+
+    // 2. CSS 样式支持
+    assert(cssSource.includes('.reader-openpageflip-wrap'), '需定义 @openpageflip 容器样式');
+    assert(cssSource.includes('.opf-page-card'), '需定义 @openpageflip 书页卡片美学样式');
+    assert(cssSource.includes('.reader-pdf-wrap'), '需定义 PDF 容器样式');
+    assert(cssSource.includes('.pdf-flipbook-container'), '需定义 PDF 3D 舞台样式');
+
+    // 3. 严格遵循约束：使用 createBook(container, opts) 且容器直接子元素为书页，严禁使用旧版 new PageFlip()
+    assert(jsSource.includes('OpenPageFlip.createBook('), '必须使用 @openpageflip 的 createBook(container, opts) API');
+    assert(!jsSource.includes('new PageFlip('), '严禁使用已弃用的 StPageFlip new PageFlip()');
+    assert(jsSource.includes('function paginateChapterContent('), '需实现基于段落和容器几何的 TXT 动态分页算法');
+    assert(jsSource.includes("setAttribute('data-density', 'soft')"), '书页节点需设置 data-density 属性');
+
+    // 4. PDF 引擎约束：调用 PageFlipOpen.setPdfWorkerSrc('/pdf.worker.mjs') 并通过 new PageFlipOpen 初始化
+    assert(jsSource.includes("PageFlipOpen.setPdfWorkerSrc('/pdf.worker.mjs')"), '必须调用 setPdfWorkerSrc 指定本地 worker 路径');
+    assert(jsSource.includes('new window.PageFlipOpen('), '必须通过 new PageFlipOpen 初始化 PDF 翻页');
+    assert(jsSource.includes("flipDuration: 600"), '需配置 flipDuration 动画时长');
+    assert(jsSource.includes("uint8[0] === 0x25 && uint8[1] === 0x50 && uint8[2] === 0x44 && uint8[3] === 0x46"), '需支持 %PDF 魔数校验');
+
+    // 5. 翻页调度联动：nextPage / prevPage / goToPage 自动适配 3D 引擎实例
+    assert(jsSource.includes('state.pdfFlipInstance.next()'), 'nextPage 需对接 PDF 实例 next()');
+    assert(jsSource.includes('state.pdfFlipInstance.prev()'), 'prevPage 需对接 PDF 实例 prev()');
+    assert(jsSource.includes('state.openPageFlipInstance.flipNext()'), 'nextPage 需对接 openpageflip flipNext()');
+    assert(jsSource.includes('state.openPageFlipInstance.flipPrev()'), 'prevPage 需对接 openpageflip flipPrev()');
+});

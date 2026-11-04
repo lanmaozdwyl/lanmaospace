@@ -547,6 +547,9 @@
         totalPages: 1,
         menuVisible: false,
         activeView: 'bookshelf',
+        openPageFlipInstance: null,
+        pdfFlipInstance: null,
+        isPdfMode: false,
         settings: {
             theme: 'parchment', // parchment | green | white | dark
             fontSize: 18,        // 14 ~ 28
@@ -768,7 +771,7 @@
                         let hasNew = false;
                         books.forEach(b => {
                             if (b && b.id && b.title && Array.isArray(b.chapters)) {
-                                if (!state.books[b.id]) hasNew = true;
+                                if (!state.books[b.id] || (b.pdfData && !state.books[b.id].pdfData)) hasNew = true;
                                 state.books[b.id] = b;
                             }
                         });
@@ -804,7 +807,18 @@
             let list = raw ? JSON.parse(raw) : [];
             if (!Array.isArray(list)) list = [];
             list = list.filter(b => b.id !== book.id);
-            list.push(book);
+            if (book.format === 'pdf') {
+                list.push({
+                    id: book.id,
+                    title: book.title,
+                    author: book.author,
+                    coverEmoji: book.coverEmoji,
+                    format: 'pdf',
+                    chapters: book.chapters
+                });
+            } else {
+                list.push(book);
+            }
             const serialized = JSON.stringify(list);
             if (serialized.length < 2 * 1024 * 1024) {
                 localStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, serialized);
@@ -1102,6 +1116,8 @@
                 }
             } catch (_) {}
         } else {
+            destroyOpenPageFlip();
+            destroyPdfBook();
             readerView.hidden = true;
             shelfView.hidden = false;
             state.activeView = 'bookshelf';
@@ -1207,6 +1223,9 @@
 
         customKeys.forEach(k => {
             const b = state.books[k];
+            const isPdf = b.format === 'pdf';
+            const tagLabel = isPdf ? 'PDF 3D' : '本地离线';
+            const coverEmoji = b.coverEmoji || (isPdf ? '📑' : '📄');
             const card = document.createElement('div');
             card.className = 'book-card-item custom-card';
             card.dataset.book = b.id;
@@ -1215,13 +1234,13 @@
             card.innerHTML = `
                 <button type="button" class="card-delete-btn" data-delete-book="${escapeHtml(b.id)}" title="移除此本地书籍" aria-label="移除此书籍">✕</button>
                 <div class="card-cover-wrap cover-custom">
-                    <span class="card-cover-emoji">${escapeHtml(b.coverEmoji || '📄')}</span>
+                    <span class="card-cover-emoji">${escapeHtml(coverEmoji)}</span>
                     <div class="card-cover-spine"></div>
                 </div>
                 <div class="card-meta">
                     <h4 class="card-title">${escapeHtml(b.title)}</h4>
-                    <p class="card-author">${escapeHtml(b.author || '本地导入')}</p>
-                    <span class="card-tag">本地离线</span>
+                    <p class="card-author">${escapeHtml(b.author || (isPdf ? '本地 PDF' : '本地导入'))}</p>
+                    <span class="card-tag">${escapeHtml(tagLabel)}</span>
                 </div>
             `;
             const delBtn = card.querySelector('.card-delete-btn');
@@ -1259,9 +1278,274 @@
         renderToc();
     }
 
-    function renderChapter(chapterIndex, pageTarget = 1) {
+    // ===== 6.8 @openpageflip 与 pageflipopen 3D 翻页引擎 =====
+    function destroyOpenPageFlip() {
+        if (state.openPageFlipInstance) {
+            try {
+                state.openPageFlipInstance.destroy();
+            } catch (_) {}
+            state.openPageFlipInstance = null;
+        }
+        const wrap = document.getElementById('openpageflip-wrap');
+        if (wrap) wrap.hidden = true;
+        const stage = document.getElementById('reader-stage');
+        if (stage) stage.classList.remove('flip-3d-active');
+    }
+
+    function destroyPdfBook() {
+        if (state.pdfFlipInstance) {
+            try {
+                state.pdfFlipInstance.destroy();
+            } catch (_) {}
+            state.pdfFlipInstance = null;
+        }
+        state.isPdfMode = false;
+        const pdfWrap = document.getElementById('pdf-wrap');
+        if (pdfWrap) pdfWrap.hidden = true;
+        const stage = document.getElementById('reader-stage');
+        if (stage) stage.classList.remove('flip-3d-active');
+    }
+
+    function paginateChapterContent(chapter, containerWidth, containerHeight, fontSize) {
+        const pw = containerWidth >= 800 ? (containerWidth / 2) : containerWidth;
+        const cw = Math.max(220, pw - 48);
+        const ch = Math.max(280, containerHeight - 56);
+        const fs = fontSize || 18;
+        const lh = fs * 1.8;
+        const linesPerPage = Math.max(8, Math.floor(ch / lh));
+        const charsPerLine = Math.max(12, Math.floor(cw / fs));
+        const charBudget = Math.max(160, Math.floor(linesPerPage * charsPerLine * 0.82));
+
+        const rawParas = Array.isArray(chapter.content)
+            ? chapter.content
+            : (typeof chapter.content === 'string' ? chapter.content.split(/\r?\n+/) : []);
+
+        const pages = [];
+        let curParas = [];
+        let curCharCount = 0;
+
+        for (const p of rawParas) {
+            const text = (p || '').trim();
+            if (!text) continue;
+
+            if (curCharCount + text.length <= charBudget) {
+                curParas.push(text);
+                curCharCount += text.length;
+            } else {
+                if (curParas.length > 0) {
+                    pages.push(curParas);
+                    curParas = [];
+                    curCharCount = 0;
+                }
+                if (text.length > charBudget) {
+                    const chunks = text.match(/[^。！？!?；;\n]+[。！？!?；;]?/g) || [text];
+                    for (const chunk of chunks) {
+                        if (curCharCount + chunk.length > charBudget && curParas.length > 0) {
+                            pages.push(curParas);
+                            curParas = [];
+                            curCharCount = 0;
+                        }
+                        curParas.push(chunk);
+                        curCharCount += chunk.length;
+                    }
+                } else {
+                    curParas.push(text);
+                    curCharCount += text.length;
+                }
+            }
+        }
+        if (curParas.length > 0 || pages.length === 0) {
+            pages.push(curParas);
+        }
+        return { pages, title: chapter.title || '' };
+    }
+
+    function renderOpenPageFlipBook(chapterIndex, pageTarget = 1) {
         const book = state.currentBook;
         if (!book || !book.chapters[chapterIndex]) return;
+
+        const chapter = book.chapters[chapterIndex];
+        const wrap = document.getElementById('openpageflip-wrap');
+        const stage = document.getElementById('openpageflip-stage');
+        const viewport = document.getElementById('reader-viewport');
+        const pdfWrap = document.getElementById('pdf-wrap');
+        const stageEl = document.getElementById('reader-stage');
+
+        if (pdfWrap) pdfWrap.hidden = true;
+        if (viewport) viewport.hidden = true;
+        if (wrap) wrap.hidden = false;
+        if (stageEl) stageEl.classList.add('flip-3d-active');
+
+        destroyOpenPageFlip();
+        if (!stage) return;
+        stage.innerHTML = '';
+
+        const stageWidth = wrap.clientWidth || window.innerWidth;
+        const stageHeight = wrap.clientHeight || (window.innerHeight - 120);
+
+        const { pages, title } = paginateChapterContent(chapter, stageWidth, stageHeight, state.settings.fontSize);
+        state.totalPages = Math.max(1, pages.length);
+
+        pages.forEach((pageParas, idx) => {
+            const pageEl = document.createElement('div');
+            pageEl.className = 'opf-page-card';
+            pageEl.setAttribute('data-density', 'soft');
+            const inner = document.createElement('div');
+            inner.className = 'opf-page-inner font-' + state.settings.fontFamily;
+            if (idx === 0) {
+                const h2 = document.createElement('h2');
+                h2.textContent = title;
+                inner.appendChild(h2);
+            }
+            pageParas.forEach(p => {
+                const pEl = document.createElement('p');
+                pEl.textContent = p;
+                inner.appendChild(pEl);
+            });
+            pageEl.appendChild(inner);
+            stage.appendChild(pageEl);
+        });
+
+        let initialPage = 0;
+        if (pageTarget === 'last') {
+            initialPage = state.totalPages - 1;
+        } else {
+            initialPage = Math.max(0, Math.min(state.totalPages - 1, (Number(pageTarget) || 1) - 1));
+        }
+
+        try {
+            const bookInstance = window.OpenPageFlip.createBook(stage, {
+                width: Math.min(560, stageWidth),
+                height: Math.min(800, stageHeight),
+                size: 'stretch',
+                minWidth: 260,
+                maxWidth: 1600,
+                cover: false,
+                startPage: initialPage,
+                flipDuration: 600
+            });
+
+            bookInstance.on('flip', (e) => {
+                state.currentPage = (e && typeof e.page === 'number' ? e.page : 0) + 1;
+                playPaperRustleSound();
+                updateFooterInfo();
+                updateSlider();
+                saveProgress();
+            });
+
+            state.openPageFlipInstance = bookInstance;
+            state.currentPage = initialPage + 1;
+            updateFooterInfo();
+            updateSlider();
+            saveProgress();
+        } catch (err) {
+            console.error('@openpageflip/core failed, fallback to standard viewport:', err);
+            if (wrap) wrap.hidden = true;
+            if (viewport) viewport.hidden = false;
+            if (stageEl) stageEl.classList.remove('flip-3d-active');
+        }
+    }
+
+    function renderPdfBook(book, pageTarget = 1) {
+        state.isPdfMode = true;
+        const viewport = document.getElementById('reader-viewport');
+        const opfWrap = document.getElementById('openpageflip-wrap');
+        const pdfWrap = document.getElementById('pdf-wrap');
+        const container = document.getElementById('pdf-flipbook-container');
+        const stageEl = document.getElementById('reader-stage');
+
+        if (viewport) viewport.hidden = true;
+        if (opfWrap) opfWrap.hidden = true;
+        if (pdfWrap) pdfWrap.hidden = false;
+        if (stageEl) stageEl.classList.add('flip-3d-active');
+
+        destroyOpenPageFlip();
+        if (state.pdfFlipInstance) {
+            try { state.pdfFlipInstance.destroy(); } catch (_) {}
+            state.pdfFlipInstance = null;
+        }
+
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (!window.PageFlipOpen) {
+            container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--r-text);">正在加载 PDF 3D 翻页组件…</div>';
+            return;
+        }
+
+        try {
+            if (typeof window.PageFlipOpen.setPdfWorkerSrc === 'function') {
+                window.PageFlipOpen.setPdfWorkerSrc('/pdf.worker.mjs');
+            }
+        } catch (err) {
+            console.warn('setPdfWorkerSrc error:', err);
+        }
+
+        let pdfSource = book.pdfUrl;
+        if (!pdfSource && book.pdfData) {
+            try {
+                const blob = new Blob([book.pdfData], { type: 'application/pdf' });
+                pdfSource = URL.createObjectURL(blob);
+                book._blobUrl = pdfSource;
+            } catch (err) {
+                console.error('Blob creation error:', err);
+            }
+        }
+
+        if (!pdfSource) {
+            container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--r-text);">未能读取到本地 PDF 二进制数据，请在书架重新导入。</div>';
+            return;
+        }
+
+        try {
+            const pdfInstance = new window.PageFlipOpen(container, {
+                source: pdfSource,
+                flipDuration: 600,
+                startPage: Number(pageTarget) || 1,
+                autoLayout: true,
+                enableZoom: true,
+                enableKeyboard: true,
+                enableTouch: true,
+                toolbar: true,
+                onReady: () => {
+                    if (state.pdfFlipInstance) {
+                        state.totalPages = state.pdfFlipInstance.totalPages || 1;
+                        state.currentPage = state.pdfFlipInstance.currentPage || 1;
+                        updateFooterInfo();
+                        updateSlider();
+                    }
+                },
+                onPageChange: (pageNum) => {
+                    state.currentPage = pageNum;
+                    if (state.pdfFlipInstance) {
+                        state.totalPages = state.pdfFlipInstance.totalPages || state.totalPages;
+                    }
+                    updateFooterInfo();
+                    updateSlider();
+                    saveProgress();
+                },
+                onError: (err) => {
+                    console.error('PageFlipOpen error:', err);
+                    showToast('PDF 解析异常: ' + (err.message || '文件损坏'));
+                }
+            });
+            state.pdfFlipInstance = pdfInstance;
+        } catch (err) {
+            console.error('PageFlipOpen instantiation failed:', err);
+            showToast('PDF 翻页引擎启动失败');
+        }
+    }
+
+    function renderChapter(chapterIndex, pageTarget = 1) {
+        const book = state.currentBook;
+        if (!book) return;
+
+        if (book.format === 'pdf') {
+            renderPdfBook(book, pageTarget);
+            return;
+        }
+
+        if (!book.chapters[chapterIndex]) return;
 
         state.currentChapterIndex = chapterIndex;
         const chapter = book.chapters[chapterIndex];
@@ -1271,6 +1555,26 @@
         if (headerChapter) {
             headerChapter.textContent = chapter.title;
         }
+
+        // 优先使用 @openpageflip/core 处理 3D 书卷 (curl) 模式
+        if (state.settings.animMode === 'curl' && window.OpenPageFlip && typeof window.OpenPageFlip.createBook === 'function') {
+            destroyPdfBook();
+            renderOpenPageFlipBook(chapterIndex, pageTarget);
+            updateChapterNavButtons();
+            highlightActiveToc();
+            return;
+        }
+
+        // 默认恢复微信读书多栏分页 / 滚动视口
+        destroyOpenPageFlip();
+        destroyPdfBook();
+
+        const wrap = document.getElementById('openpageflip-wrap');
+        const pdfWrap = document.getElementById('pdf-wrap');
+        const viewport = document.getElementById('reader-viewport');
+        if (wrap) wrap.hidden = true;
+        if (pdfWrap) pdfWrap.hidden = true;
+        if (viewport) viewport.hidden = false;
 
         // 渲染正文内容
         const content = document.getElementById('reader-content');
@@ -1299,7 +1603,6 @@
         content.innerHTML = htmlParts.join('\n');
 
         // 重置滚动位置 (分页模式下归零；滚动模式下交由后续精确恢复)
-        const viewport = document.getElementById('reader-viewport');
         if (viewport && state.settings.mode !== 'scroll') {
             viewport.scrollTop = 0;
         }
@@ -1671,6 +1974,20 @@
 
     function goToPage(pageNumber) {
         state.currentPage = Math.max(1, Math.min(state.totalPages, pageNumber));
+        if (state.isPdfMode && state.pdfFlipInstance) {
+            state.pdfFlipInstance.flipTo(state.currentPage);
+            updateFooterInfo();
+            updateSlider();
+            saveProgress();
+            return;
+        }
+        if (state.openPageFlipInstance) {
+            state.openPageFlipInstance.turnTo(state.currentPage - 1);
+            updateFooterInfo();
+            updateSlider();
+            saveProgress();
+            return;
+        }
         applyPageTransform();
         updateFooterInfo();
         updateSlider();
@@ -1679,6 +1996,23 @@
 
     function nextPage() {
         if (state.settings.mode === 'scroll') return;
+        if (state.isPdfMode && state.pdfFlipInstance) {
+            state.pdfFlipInstance.next();
+            return;
+        }
+        if (state.openPageFlipInstance) {
+            if (state.currentPage < state.totalPages) {
+                state.openPageFlipInstance.flipNext();
+            } else {
+                if (state.currentBook && state.currentChapterIndex < state.currentBook.chapters.length - 1) {
+                    goToChapter(state.currentChapterIndex + 1, 1);
+                    showToast('翻入下一章');
+                } else {
+                    showToast('已读到本书最后一页');
+                }
+            }
+            return;
+        }
         if (state.currentPage < state.totalPages) {
             executePageTurn(state.currentPage + 1, 'next');
         } else {
@@ -1694,6 +2028,23 @@
 
     function prevPage() {
         if (state.settings.mode === 'scroll') return;
+        if (state.isPdfMode && state.pdfFlipInstance) {
+            state.pdfFlipInstance.prev();
+            return;
+        }
+        if (state.openPageFlipInstance) {
+            if (state.currentPage > 1) {
+                state.openPageFlipInstance.flipPrev();
+            } else {
+                if (state.currentChapterIndex > 0) {
+                    goToChapter(state.currentChapterIndex - 1, 'last');
+                    showToast('返回上一章');
+                } else {
+                    showToast('已经是第一页了');
+                }
+            }
+            return;
+        }
         if (state.currentPage > 1) {
             executePageTurn(state.currentPage - 1, 'prev');
         } else {
@@ -1969,8 +2320,37 @@
                 return;
             }
 
-            // 1. 严格检查二进制头与文件类型（拒绝未解压的 EPUB / ZIP 二进制压缩包）
+            // 0. PDF 格式检测与 3D 翻页入库
             const uint8 = new Uint8Array(buffer.slice(0, 4));
+            const isPdfExt = file.name.toLowerCase().endsWith('.pdf');
+            const isPdfType = file.type === 'application/pdf';
+            const isPdfMagic = (uint8[0] === 0x25 && uint8[1] === 0x50 && uint8[2] === 0x44 && uint8[3] === 0x46); // %PDF
+            if (isPdfExt || isPdfType || isPdfMagic) {
+                const cleanName = file.name.replace(/\.[^/.]+$/, '').trim() || '本地 PDF 文档';
+                const bookObj = {
+                    id: 'custom_pdf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                    title: cleanName,
+                    author: '本地导入 PDF',
+                    coverEmoji: '📑',
+                    format: 'pdf',
+                    pdfData: buffer,
+                    chapters: [{ title: cleanName, page: 1 }],
+                    totalPages: 1
+                };
+                saveCustomBook(bookObj, (success) => {
+                    if (success) {
+                        showToast(`📖 已载入 PDF《${bookObj.title}》，已保存在本机书架！`, 3200);
+                    } else {
+                        showToast(`⚠️ 《${bookObj.title}》已载入临时阅读，但本机存储已满，刷新可能不会保留`, 4000);
+                    }
+                });
+                renderBookshelfGrid();
+                switchView('reader', bookObj.id, 0, 1);
+                closeAllDrawers();
+                return;
+            }
+
+            // 1. 严格检查二进制头与文件类型（拒绝未解压的 EPUB / ZIP 二进制压缩包）
             const isZipMagic = uint8[0] === 0x50 && uint8[1] === 0x4B && uint8[2] === 0x03 && uint8[3] === 0x04;
             const isEpubExt = file.name.toLowerCase().endsWith('.epub');
 
@@ -2205,6 +2585,7 @@
             function onStart(x, y, target) {
                 if (state.settings.mode === 'scroll') return;
                 if (isFlipping) return;
+                if (state.isPdfMode || state.openPageFlipInstance) return;
                 // 忽略控制栏按钮与输入框
                 if (target && (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('.reader-topbar') || target.closest('.reader-bottombar') || target.closest('.reader-drawer'))) {
                     return;
@@ -2613,6 +2994,9 @@
                     state.settings.fontSize -= 1;
                     applySettings();
                     saveSettings();
+                    if (state.activeView === 'reader' && state.openPageFlipInstance) {
+                        renderChapter(state.currentChapterIndex, state.currentPage);
+                    }
                 }
             });
         }
@@ -2622,6 +3006,9 @@
                     state.settings.fontSize += 1;
                     applySettings();
                     saveSettings();
+                    if (state.activeView === 'reader' && state.openPageFlipInstance) {
+                        renderChapter(state.currentChapterIndex, state.currentPage);
+                    }
                 }
             });
         }
@@ -2634,6 +3021,9 @@
                     state.settings.fontFamily = font;
                     applySettings();
                     saveSettings();
+                    if (state.activeView === 'reader' && state.openPageFlipInstance) {
+                        renderChapter(state.currentChapterIndex, state.currentPage);
+                    }
                 }
             });
         });
@@ -2647,6 +3037,9 @@
                     state.settings.mode = anim === 'scroll' ? 'scroll' : 'flip';
                     applySettings();
                     saveSettings();
+                    if (state.activeView === 'reader' && !state.isPdfMode) {
+                        renderChapter(state.currentChapterIndex, state.currentPage);
+                    }
                     const descMap = {
                         curl: '🍃 已开启 3D 拟真书卷翻页',
                         slide: '📱 已开启微信读书平滑滑动',
