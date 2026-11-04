@@ -43,3 +43,52 @@ body[data-theme=dark] .space-post.space-post-editing {
     border-color: #2997ff;
     box-shadow: 0 4px 16px rgba(41, 151, 255, 0.15);
 }
+
+.space-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 14px 0 8px;
+}
+.space-form-header label {
+    margin: 0 !important;
+}
+.space-counter-badge {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: #6e6e73;
+    letter-spacing: 0.02em;
+}
+.space-counter-badge.near-limit {
+    color: #ff9500;
+    font-weight: 600;
+}
+.space-counter-badge.over-limit {
+    color: #ff3b30;
+    font-weight: 600;
+}
+@media(prefers-color-scheme:dark){
+    body:not([data-theme=light]) .space-counter-badge {
+        color: #8e8e93;
+    }
+}
+body[data-theme=dark] .space-counter-badge {
+    color: #8e8e93;
+}
+
+/* Markdown 排版工具栏与预览：用半透明中性色，明暗主题都能适配 */
+.md-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:6px 0}
+.md-tools,.md-tabs{display:inline-flex;gap:4px;flex-wrap:wrap}
+.md-btn,.md-tab{min-width:36px;min-height:36px;padding:4px 10px;font:inherit;font-size:.875rem;color:inherit;background:rgba(127,127,127,.12);border:.5px solid rgba(127,127,127,.35);border-radius:10px;cursor:pointer}
+.md-btn:hover:not(:disabled),.md-tab:hover{background:rgba(127,127,127,.22)}
+.md-btn:disabled{opacity:.4;cursor:not-allowed}
+.md-tab[aria-pressed='true']{background:var(--blue,#0a84ff);border-color:transparent;color:#fff}
+.md-btn:focus-visible,.md-tab:focus-visible{outline:2px solid var(--blue,#0a84ff);outline-offset:2px}
+.md-preview{min-height:96px;margin:0 0 12px;padding:12px 14px;border:.5px dashed rgba(127,127,127,.5);border-radius:12px;background:rgba(127,127,127,.08);overflow-wrap:anywhere}
+.md-preview[hidden]{display:none}
+.md-rendered,.md-preview{white-space:normal;line-height:1.7}
+.md-rendered p,.md-preview p{margin:0 0 .6em}
+.md-rendered blockquote,.md-preview blockquote{margin:0 0 .6em;padding:2px 0 2px 12px;border-left:3px solid var(--blue,#0a84ff);opacity:.85}
+.md-rendered ul,.md-preview ul{margin:0 0 .6em;padding-left:1.4em}
+.md-rendered code,.md-preview code{padding:1px 6px;border-radius:6px;background:rgba(127,127,127,.2);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em}
+@media (max-width:600px){.md-btn,.md-tab{min-height:44px;min-width:44px}}

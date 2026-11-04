@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {cleanSpace,cleanPost,memberId} from '../lib/space.mjs';
+import {applyFormat,renderMarkdown} from '../lib/space-md.mjs';
 import {exportOwnSpace,readSpaceUsage} from '../lib/space-export.mjs';
 import {avatarDisplay,fallbackAvatarDisplay} from '../lib/avatar.mjs';
 test('个人资料整理保留合法链接并去除空白',()=>{assert.deepEqual(cleanSpace({display_name:' member ',bio:' hello ',links:[{label:' Blog ',url:' https://example.invalid/ '}]}),{display_name:'member',bio:'hello',links:[{label:'Blog',url:'https://example.invalid/'}]});});
@@ -24,8 +25,8 @@ async function fixture(other=false,options={}){
  const id='00000000-0000-4000-8000-000000000001',target='00000000-0000-4000-8000-000000000002',elements=new Map(),calls=[],downloads=[];let auth;
  const get=id=>{if(!elements.has(id))elements.set(id,new El());return elements.get(id);};
  const client={auth:{getUser:async()=>({data:{user:{id}}}),onAuthStateChange:fn=>{auth=fn;}},rpc:async(name,args)=>{calls.push({rpc:name,args});if(name==='my_space_blocks')return {data:options.blockList||[]};return {data:[{user_id:other?target:id,display_name:'<script>name</script>',bio:'<img onerror=alert(1)>',links:[],updated_at:'2026-11-03'}]};},from(table){let body,filters=[];const q={select(){return q;},eq(k,v){filters.push([k,v]);return q;},order(){return q;},range(){return q;},maybeSingle(){return q;},insert(v){body=v;return q;},update(v){body=v;return q;},then(resolve){calls.push({table,body,filters});resolve({count:options.count??0,data:table==='space_blocks'?(options.blocked?[{blocked_id:target}]:[]):table==='space_posts'?(body?(options.conflict?[]:[{id:'post1'}]):(options.posts||[])):(table==='profiles'?null:{user_id:id,display_name:'stored name',bio:'',links:[],updated_at:'v1'})});}};return q;}};
- const document={body:new El(),getElementById:get,createElement:()=>new El()};
- const ctx=vm.createContext({document,window:{addEventListener(){},confirm:()=>true,location:{replace(){}}},location:{search:other?'?user='+target:'',pathname:'/space',reload(){}},Blob,URL:{createObjectURL(blob){downloads.push(blob);return 'blob:fixture';},revokeObjectURL(){}},setTimeout(fn){fn();},URLSearchParams,crypto,Date,Error,console,getSupabase:async()=>client,cleanSpace,cleanPost,memberId,avatarDisplay,fallbackAvatarDisplay,exportOwnSpace,readSpaceUsage,avatarPublicUrl(){return '';}});
+ const document={body:new El(),getElementById:get,createElement:tag=>{const e=new El();e.tag=tag;return e;}};
+ const ctx=vm.createContext({document,window:{addEventListener(){},confirm:()=>true,location:{replace(){}}},location:{search:other?'?user='+target:'',pathname:'/space',reload(){}},Blob,URL:{createObjectURL(blob){downloads.push(blob);return 'blob:fixture';},revokeObjectURL(){}},setTimeout(fn){fn();},URLSearchParams,crypto,Date,Error,console,getSupabase:async()=>client,cleanSpace,cleanPost,memberId,applyFormat,renderMarkdown,avatarDisplay,fallbackAvatarDisplay,exportOwnSpace,readSpaceUsage,avatarPublicUrl(){return '';}});
  const source=readFileSync(new URL('../space.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'');
  vm.runInContext(source,ctx);for(let i=0;i<12;i++)await new Promise(r=>setImmediate(r));return{get,calls,auth,ctx,downloads};
 }
@@ -68,3 +69,76 @@ test('动态编辑支持平滑滚动定位、卡片原位高亮锚定与焦点�
     assert.equal(article.classList.contains('space-post-editing'), false);
     assert.equal(editBtn.focused, true);
 });
+
+test('成员空间动态发布与编辑：实时字数统计徽章 (0/2000) 与临界安全告警', async () => {
+    const html = readFileSync(new URL('../space.html', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../space.css', import.meta.url), 'utf8');
+
+    // 1. 结构与样式完整性验证
+    assert(html.includes('id="post-body-count"'), '需包含发布新动态字数指示器');
+    assert(html.includes('id="edit-post-body-count"'), '需包含编辑动态字数指示器');
+    assert(html.includes('class="space-form-header"'), '需包含表单头弹性排版容器');
+    assert(html.includes('class="space-counter-badge"'), '需包含字数统计微徽章');
+    assert(css.includes('.space-counter-badge'), 'CSS 需定义字数徽章样式');
+    assert(css.includes('.space-counter-badge.near-limit'), 'CSS 需定义临界橙色告警样式');
+    assert(css.includes('.space-counter-badge.over-limit'), 'CSS 需定义超限红色警示样式');
+
+    // 2. 发布动态表单实时计数与临界状态测试
+    const f = await fixture(false, { posts: [postFixture] });
+    assert.equal(f.get('post-body-count').textContent, '0 / 2000');
+
+    // 输入 20 字
+    f.get('post-body').value = '今天读完了《科学革命的结构》，很有启发！';
+    f.get('post-body').oninput();
+    assert.equal(f.get('post-body-count').textContent, '20 / 2000');
+    assert.equal(f.get('post-body-count').classList.contains('near-limit'), false);
+    assert.equal(f.get('post-body-count').classList.contains('over-limit'), false);
+
+    // 临界告警 (≥1900 字)
+    f.get('post-body').value = 'x'.repeat(1920);
+    f.get('post-body').oninput();
+    assert.equal(f.get('post-body-count').textContent, '1920 / 2000');
+    assert.equal(f.get('post-body-count').classList.contains('near-limit'), true);
+    assert.equal(f.get('post-body-count').classList.contains('over-limit'), false);
+
+    // 超限告警 (>2000 字)
+    f.get('post-body').value = 'x'.repeat(2005);
+    f.get('post-body').oninput();
+    assert.equal(f.get('post-body-count').textContent, '2005 / 2000');
+    assert.equal(f.get('post-body-count').classList.contains('near-limit'), false);
+    assert.equal(f.get('post-body-count').classList.contains('over-limit'), true);
+
+    // 3. 编辑动态表单初始化与计数同步
+    const article = f.get('post-list').children[0];
+    const editBtn = article.children.find(x => x.textContent === '编辑动态');
+    editBtn.onclick();
+    // postFixture.body 是 'original'，长度为 8
+    assert.equal(f.get('edit-post-body-count').textContent, '8 / 2000');
+
+    // 动态修改
+    f.get('edit-post-body').value = '新的动态正文内容修改测试';
+    f.get('edit-post-body').oninput();
+    assert.equal(f.get('edit-post-body-count').textContent, '12 / 2000');
+
+    // 取消编辑后重置归零
+    f.get('edit-post-cancel').onclick();
+    assert.equal(f.get('edit-post-body-count').textContent, '0 / 2000');
+});
+
+// ---- Markdown 排版工具栏与安全预览 ----
+const mdDoc={createElement:tag=>{const e=new El();e.tag=tag;return e;}};
+const mdRender=text=>renderMarkdown(mdDoc,text);
+const tagsOf=nodes=>nodes.map(n=>n.tag);
+test('格式化：选中文本两端包裹符号并保持选区在原文上',()=>{assert.deepEqual(applyFormat('hello world',0,5,'bold'),{value:'**hello** world',start:2,end:7});assert.deepEqual(applyFormat('abcd',3,1,'bold'),{value:'a**bc**d',start:3,end:5});});
+test('格式化：未选中时插入示例占位并选中占位文字',()=>{assert.deepEqual(applyFormat('ab',1,1,'italic'),{value:'a*斜体文字*b',start:2,end:6});assert.deepEqual(applyFormat('x',1,1,'code'),{value:'x`代码`',start:2,end:4});assert.deepEqual(applyFormat('',0,0,'list'),{value:'- 列表项',start:2,end:5});});
+test('格式化：引用与列表按行处理，并可再次点击取消',()=>{assert.deepEqual(applyFormat('a\nb',0,3,'quote'),{value:'> a\n> b',start:0,end:7});assert.deepEqual(applyFormat('> a\n> b',0,7,'quote'),{value:'a\nb',start:0,end:3});assert.deepEqual(applyFormat('one\ntwo',5,5,'list'),{value:'one\n- two',start:4,end:9});assert.deepEqual(applyFormat('\nabc',0,0,'list'),{value:'- 列表项\nabc',start:2,end:5});});
+test('格式化：空值、越界选区、未知格式与超长输入稳健处理',()=>{assert.deepEqual(applyFormat(null,undefined,undefined,'bold'),{value:'**粗体文字**',start:2,end:6});assert.equal(applyFormat('abc',0,1,'nope'),null);assert.equal(applyFormat('x'.repeat(1999),1999,1999,'bold'),null);assert.deepEqual(applyFormat('abc',-5,99,'bold'),{value:'**abc**',start:2,end:5});});
+test('渲染：空内容返回空列表，特殊字符只作为文本',()=>{assert.deepEqual(mdRender(''),[]);assert.deepEqual(mdRender(null),[]);assert.deepEqual(mdRender('  \n\n '),[]);const p=mdRender('<img src=x onerror=alert(1)> **b** `<b>`')[0];assert.deepEqual(p.children.map(c=>c.tag),['span','strong','span','code']);assert.equal(p.children[0].textContent,'<img src=x onerror=alert(1)> ');assert.equal(p.children[3].textContent,'<b>');});
+test('渲染：引用、无序列表、段落与换行',()=>{const nodes=mdRender('> q\n\n- a\n- b\nplain\nline');assert.deepEqual(tagsOf(nodes),['blockquote','ul','p']);assert.equal(nodes[1].children.length,2);assert.deepEqual(nodes[2].children.map(c=>c.tag),['span','br','span']);assert.equal(nodes[0].children[0].tag,'p');});
+test('渲染：未闭合的符号原样显示',()=>{const p=mdRender('a * b ** c `d')[0];assert.deepEqual(p.children.map(c=>c.tag),['span']);assert.equal(p.children[0].textContent,'a * b ** c `d');});
+test('工具栏：点击粗体包裹选中文字并保持选区',async()=>{const f=await fixture();const area=f.get('post-body');area.value='hello';area.selectionStart=0;area.selectionEnd=5;area.setSelectionRange=(a,b)=>{area.sel=[a,b];};const bold=f.get('post-md-bar').children[0].children[0];assert.equal(bold.dataset.md,'bold');bold.onclick();assert.equal(area.value,'**hello**');assert.deepEqual(area.sel,[2,7]);assert.equal(area.focused,true);});
+test('工具栏：没有选区信息时追加占位格式且不抛错',async()=>{const f=await fixture();const area=f.get('post-body');area.value='abc';f.get('post-md-bar').children[0].children[0].onclick();assert.equal(area.value,'abc**粗体文字**');});
+test('预览：切换后用安全 DOM 渲染，空内容给出提示，切回编辑恢复',async()=>{const f=await fixture();const area=f.get('post-body'),preview=f.get('post-preview'),bar=f.get('post-md-bar');const [editTab,previewTab]=bar.children[1].children;const formatButtons=bar.children[0].children;area.value='**hi** <script>x</script>';previewTab.onclick();assert.equal(preview.hidden,false);assert.equal(area.hidden,true);assert.equal(previewTab.attrs['aria-pressed'],'true');assert(formatButtons.every(b=>b.disabled));assert.deepEqual(preview.children[0].children.map(c=>c.tag),['strong','span']);assert.equal(preview.children[0].children[1].textContent,' <script>x</script>');formatButtons[0].onclick();assert.equal(area.value,'**hi** <script>x</script>');area.value='';previewTab.onclick();assert.match(preview.children[0].textContent,/还没有内容/);editTab.onclick();assert.equal(area.hidden,false);assert.equal(preview.hidden,true);assert(formatButtons.every(b=>!b.disabled));});
+test('发布成功后预览复位为编辑状态',async()=>{const f=await fixture();const area=f.get('post-body'),preview=f.get('post-preview');area.value='hello';f.get('post-md-bar').children[1].children[1].onclick();assert.equal(area.hidden,true);f.get('post-form').onsubmit({preventDefault(){}});for(let i=0;i<10;i++)await new Promise(r=>setImmediate(r));assert.equal(area.value,'');assert.equal(area.hidden,false);assert.equal(preview.hidden,true);});
+test('已发布动态按 Markdown 安全渲染，脚本字符只作文本',async()=>{const f=await fixture(false,{posts:[{...postFixture,body:'**b** <script>x</script>'}]});const text=f.get('post-list').children[0].children[1];assert(text.className.includes('md-rendered'));const para=text.children[0];assert.equal(para.tag,'p');assert.deepEqual(para.children.map(c=>c.tag),['strong','span']);assert.equal(para.children[1].textContent,' <script>x</script>');});
+test('Markdown 辅助代码不使用 innerHTML、eval 或内联脚本',()=>{for(const file of ['../lib/space-md.mjs','../space.js']){const src=readFileSync(new URL(file,import.meta.url),'utf8');assert.doesNotMatch(src,/innerHTML|outerHTML|insertAdjacentHTML|\beval\s*\(|new\s+Function|document\.write/);}const html=readFileSync(new URL('../space.html',import.meta.url),'utf8');assert.doesNotMatch(html,/<script(?![^>]*\bsrc=)[^>]*>/i);assert.match(html,/id=.post-md-bar./);assert.match(html,/id=.edit-preview./);});

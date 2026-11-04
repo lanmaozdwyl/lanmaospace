@@ -2,11 +2,27 @@ import {exportOwnSpace,readSpaceUsage} from './lib/space-export.mjs';
 import {getSupabase} from './lib/supabase-client.js';
 import {avatarDisplay,avatarPublicUrl,fallbackAvatarDisplay} from './lib/avatar.mjs';
 import {cleanSpace,cleanPost,memberId} from './lib/space.mjs';
+import {applyFormat,renderMarkdown} from './lib/space-md.mjs';
 const $=id=>document.getElementById(id);
 let client,user,target,own,baseline=null,memberOffset=0,postOffset=0,busy=false,ended=false,dirty=false,profileDirty=false;
 const linkInputs=[];
 let editPost=null,editDirty=false,reportOffset=0,editOpener=null;
 let targetBlocked=false,blockOffset=0;
+function updateTextareaCounter(textareaId, counterId) {
+ const textarea = $(textareaId), badge = $(counterId);
+ if (!textarea || !badge) return;
+ const len = textarea.value.length;
+ badge.textContent = `${len} / 2000`;
+ if (badge.classList?.toggle) {
+  badge.classList.toggle('near-limit', len >= 1900 && len <= 2000);
+  badge.classList.toggle('over-limit', len > 2000);
+ } else {
+  let cls = (badge.className || '').replace(/\b(near-limit|over-limit)\b/g, '').trim();
+  if (len >= 1900 && len <= 2000) cls += ' near-limit';
+  else if (len > 2000) cls += ' over-limit';
+  badge.className = cls.trim();
+ }
+}
 function updateDirty(){dirty=profileDirty||editDirty||!!$('post-body').value.trim();}
 function updatePostEditingState(){
  const list=$('post-list');if(!list)return;
@@ -85,10 +101,10 @@ async function loadPosts(){
  for(const item of rows||[]){
   const article=node('article');article.className='space-post';article.dataset={postId:item.id};article.setAttribute('data-post-id',item.id);
   if(editPost&&editPost.id===item.id){if(article.classList?.add)article.classList.add('space-post-editing');else article.className+=' space-post-editing';}
-  const time=node('time',new Date(item.created_at).toLocaleString('zh-CN'));time.dateTime=item.created_at;const text=node('p',item.body);text.className='space-text';article.append(time,text);if(item.edited_at)article.append(node('p','已编辑 · '+new Date(item.edited_at).toLocaleString('zh-CN')));if(item.moderation_hidden)article.append(node('p','这条动态已被店主隐藏，其他成员不可见。'));
+  const time=node('time',new Date(item.created_at).toLocaleString('zh-CN'));time.dateTime=item.created_at;const text=node('div');text.className='space-text md-rendered';text.replaceChildren(...renderMarkdown(document,item.body));article.append(time,text);if(item.edited_at)article.append(node('p','已编辑 · '+new Date(item.edited_at).toLocaleString('zh-CN')));if(item.moderation_hidden)article.append(node('p','这条动态已被店主隐藏，其他成员不可见。'));
   if(own){const editButton=node('button','编辑动态');editButton.type='button';editButton.onclick=()=>{
    if(editDirty&&!window.confirm('切换编辑会放弃当前动态草稿，是否继续？'))return;
-   editOpener=editButton;editPost={...item};editDirty=false;updateDirty();$('edit-post-form').hidden=false;$('edit-post-body').value=item.body;$('edit-post-status').textContent='保存会检查云端版本；冲突时保留你的草稿。';
+   mdEdit?.reset();editOpener=editButton;editPost={...item};editDirty=false;updateDirty();$('edit-post-form').hidden=false;$('edit-post-body').value=item.body;updateTextareaCounter('edit-post-body','edit-post-body-count');$('edit-post-status').textContent='保存会检查云端版本；冲突时保留你的草稿。';
    updatePostEditingState();
    $('edit-post-form').scrollIntoView?.({behavior:'smooth',block:'nearest'});
    $('edit-post-body').focus();
@@ -104,8 +120,8 @@ async function loadPosts(){
  $('posts-prev').hidden=postOffset===0;$('posts-next').hidden=(rows?.length||0)<20;
 }
 function makeLinkEditor(){for(let i=0;i<6;i++){const row=node('div');row.className='space-link-row';const label=node('input'),url=node('input');label.maxLength=40;label.placeholder=`链接 ${i+1} 名称`;label.setAttribute('aria-label',label.placeholder);url.type='url';url.maxLength=1000;url.placeholder='https://';url.setAttribute('aria-label',`链接 ${i+1} 网址`);linkInputs.push({label,url});row.append(label,url);$('link-editor').append(row);}}
-$('space-form').oninput=()=>{profileDirty=true;updateDirty();};$('post-body').oninput=updateDirty;
-$('edit-post-body').oninput=()=>{editDirty=!!editPost&&$('edit-post-body').value!==editPost.body;updateDirty();};
+$('space-form').oninput=()=>{profileDirty=true;updateDirty();};$('post-body').oninput=()=>{updateTextareaCounter('post-body','post-body-count');updateDirty();};
+$('edit-post-body').oninput=()=>{updateTextareaCounter('edit-post-body','edit-post-body-count');editDirty=!!editPost&&$('edit-post-body').value!==editPost.body;updateDirty();};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 $('space-form').onsubmit=e=>{e.preventDefault();task(async()=>{
  const links=linkInputs.filter(f=>f.label.value.trim()||f.url.value.trim()).map(f=>({label:f.label.value,url:f.url.value}));
@@ -122,19 +138,19 @@ $('post-form').onsubmit=e=>{e.preventDefault();task(async()=>{
  postAttempt??={id:crypto.randomUUID(),body};
  const existing=await result(client.from('space_posts').select('id').eq('id',postAttempt.id).eq('user_id',user.id));
  if(!existing?.length){const {error}=await client.from('space_posts').insert({id:postAttempt.id,user_id:user.id,body});assertSession();if(error){const confirmed=await result(client.from('space_posts').select('id').eq('id',postAttempt.id).eq('user_id',user.id));if(!confirmed?.length)throw error;}}
- postAttempt=null;$('post-body').value='';updateDirty();postOffset=0;$('show-archived').checked=false;await loadPosts();await loadUsage();message('动态已发布，登录成员可见。');
+ postAttempt=null;$('post-body').value='';updateTextareaCounter('post-body','post-body-count');mdPost?.reset();updateDirty();postOffset=0;$('show-archived').checked=false;await loadPosts();await loadUsage();message('动态已发布，登录成员可见。');
  // 简介表单可能仍有未保存修改，保守保留离开提醒。
 });};
 $('edit-post-form').onsubmit=e=>{e.preventDefault();task(async()=>{
  if(!editPost)return;const body=cleanPost($('edit-post-body').value);if(body===editPost.body){message('内容没有变化。');return;}
  const changed=await result(client.from('space_posts').update({body}).eq('id',editPost.id).eq('user_id',user.id).eq('updated_at',editPost.updated_at).select('id'));
  if(!changed?.length){$('edit-post-status').textContent='云端动态已被修改，未覆盖。请复制保留草稿，刷新列表后重新编辑。';throw Error('编辑冲突：草稿已保留。');}
- editPost=null;editDirty=false;updateDirty();$('edit-post-form').hidden=true;await loadPosts();message('动态修改已保存。');
+ editPost=null;editDirty=false;updateDirty();$('edit-post-body').value='';mdEdit?.reset();updateTextareaCounter('edit-post-body','edit-post-body-count');$('edit-post-form').hidden=true;await loadPosts();message('动态修改已保存。');
  if(editOpener&&typeof editOpener.focus==='function'){editOpener.focus();editOpener=null;}
 });};
 $('edit-post-cancel').onclick=()=>{
  if(editDirty&&!window.confirm('放弃当前动态的未保存修改？'))return;
- editPost=null;editDirty=false;updateDirty();$('edit-post-form').hidden=true;
+ editPost=null;editDirty=false;updateDirty();$('edit-post-body').value='';mdEdit?.reset();updateTextareaCounter('edit-post-body','edit-post-body-count');$('edit-post-form').hidden=true;
  updatePostEditingState();
  if(editOpener&&typeof editOpener.focus==='function'){editOpener.focus();editOpener=null;}
 };
@@ -190,9 +206,46 @@ async function init(){try{
  }
  assertSession();
  $('space-app').hidden=false;
+ updateTextareaCounter('post-body','post-body-count');updateTextareaCounter('edit-post-body','edit-post-body-count');
  message(own?'欢迎来到你的个人空间。填写昵称并保存后，会出现在成员列表。':'正在查看成员主页。');
  if(!targetBlocked){
   await Promise.all([loadMembers(),loadUsage(),loadBlocks(),isOwner?loadReports():Promise.resolve()]);
  }
 }catch(e){if(!ended)message(`个人空间暂不可用：${e.message}。需店主执行 user-spaces.sql、space-community.sql 和 space-blocks.sql，可执行后刷新本页。`);}}
+// Markdown 排版工具栏与安全预览：只改文本框内容，预览用 DOM 节点构建，不解析任何 HTML 字符串。
+function setupMarkdown(areaId,barId,previewId){
+ const area=$(areaId),bar=$(barId),preview=$(previewId);
+ if(!area||!bar||!preview)return null;
+ let previewing=false;
+ const tools=node('div');tools.className='md-tools';tools.setAttribute('role','group');tools.setAttribute('aria-label','文字格式');
+ const formatButtons=[];
+ for(const [kind,label,title] of [['bold','B','粗体 **'],['italic','I','斜体 *'],['quote','❝','引用 >'],['code','</>','行内代码 `'],['list','•','无序列表 -']]){
+  const button=node('button',label);button.type='button';button.className='md-btn';button.title=title;button.setAttribute('aria-label',title);button.dataset.md=kind;
+  button.onclick=()=>{
+   if(previewing||area.disabled)return;
+   const next=applyFormat(area.value,area.selectionStart,area.selectionEnd,kind);
+   if(!next){message('内容已达到 2000 字上限，无法再插入格式符号。');return;}
+   area.value=next.value;area.focus();
+   if(typeof area.setSelectionRange==='function')area.setSelectionRange(next.start,next.end);
+   if(typeof area.oninput==='function')area.oninput();
+  };
+  formatButtons.push(button);tools.append(button);
+ }
+ const tabs=node('div');tabs.className='md-tabs';
+ const editTab=node('button','编辑'),previewTab=node('button','预览');
+ for(const tab of [editTab,previewTab]){tab.type='button';tab.className='md-tab';tabs.append(tab);}
+ function show(on,focus){
+  previewing=on;area.hidden=on;preview.hidden=!on;
+  formatButtons.forEach(b=>{b.disabled=on;});
+  editTab.setAttribute('aria-pressed',String(!on));previewTab.setAttribute('aria-pressed',String(on));
+  if(on){
+   const text=area.value;
+   preview.replaceChildren(...(text.trim()?renderMarkdown(document,text):[node('p','（还没有内容，切回“编辑”输入后再预览。）')]));
+  }else if(focus&&typeof area.focus==='function')area.focus();
+ }
+ editTab.onclick=()=>show(false,true);previewTab.onclick=()=>show(true,false);
+ bar.replaceChildren(tools,tabs);show(false,false);
+ return {reset(){if(previewing)show(false,false);}};
+}
+const mdPost=setupMarkdown('post-body','post-md-bar','post-preview'),mdEdit=setupMarkdown('edit-post-body','edit-md-bar','edit-preview');
 init();
