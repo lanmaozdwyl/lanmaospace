@@ -2767,6 +2767,97 @@ body[data-theme="dark"] .pomodoro-act-btn {
     margin-top: 6px;
     font-weight: 500;
 }
+.focus-next-action-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 420px;
+    animation: focusPillFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.focus-next-action-wrap[hidden] {
+    display: none !important;
+}
+
+.focus-next-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(135deg, #34c759, #28a745);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 4px 14px rgba(40, 167, 69, 0.3);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), background 0.2s ease;
+    width: 100%;
+}
+
+.focus-next-pill-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.45);
+    background: linear-gradient(135deg, #38d660, #2db94d);
+}
+
+.focus-next-pill-btn:active {
+    transform: scale(0.98);
+}
+
+.focus-next-pill-btn:focus-visible,
+.pomodoro-next-btn:focus-visible {
+    outline: 2px solid #34c759;
+    outline-offset: 2px;
+}
+
+.pomodoro-next-wrap {
+    margin: 10px 0;
+    text-align: center;
+    animation: focusPillFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pomodoro-next-wrap[hidden] {
+    display: none !important;
+}
+
+.pomodoro-next-btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #34c759;
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3);
+    transition: all 0.16s ease;
+}
+
+.pomodoro-next-btn:hover {
+    background: #2db94d;
+    transform: translateY(-1px);
+}
+
+@keyframes focusPillFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .focus-controls {
     display: flex;
     align-items: center;

@@ -26,6 +26,46 @@ function paint(allowStart=false){
  const circle=$('focus-progress-circle');if(circle){circle.style.strokeDashoffset=String(653.45*(1-sec/MODES[state.mode]));circle.style.stroke=state.mode==='focus'?'#0071e3':state.mode==='short-break'?'#34c759':'#af52de';}
  const signal=state.isRunning+':'+state.mode;if(signal!==lastSignal){lastSignal=signal;window.dispatchEvent(new CustomEvent('lanmao-focus-state',{detail:{running:state.isRunning,mode:state.mode,allowStart}}));}
  document.title=state.isRunning?'('+str+') 蓝昴空间 · 专注中':(originalTitle||'Lanmao Space | 蓝昴空间');
+
+ function updateNextActionPills(){
+  const mainWrap=$('focus-next-action-wrap');
+  const miniWrap=$('pomodoro-next-wrap');
+  const mainText=$('focus-next-pill-text');
+  const mainIcon=$('focus-next-pill-icon');
+  const miniBtn=$('pomodoro-next-btn');
+  const isFinished=sec===0&&!state.isRunning;
+
+  if(!isFinished){
+   if(mainWrap)mainWrap.hidden=true;
+   if(miniWrap)miniWrap.hidden=true;
+  }else{
+   let nextMode,icon,labelMain,labelMini;
+   if(state.mode==='focus'){
+    const isLong=state.completedCount>0&&state.completedCount%4===0;
+    nextMode=isLong?'long-break':'short-break';
+    icon=isLong?'🌿':'☕';
+    labelMain=isLong?'太棒了！已达成 4 个番茄，开始 15 分钟长休 ↗':'太棒了！专注达成，开始 5 分钟小憩 ↗';
+    labelMini=isLong?'🌿 开始 15m 长休 ↗':'☕ 开始 5m 小憩 ↗';
+   }else{
+    nextMode='focus';
+    icon='🍅';
+    labelMain='小憩结束，精力充沛！开启新一轮深度专注 ↗';
+    labelMini='🍅 开始 25m 专注 ↗';
+   }
+   if(mainWrap&&mainText){
+    mainWrap.hidden=false;
+    mainText.textContent=labelMain;
+    if(mainIcon)mainIcon.textContent=icon;
+    $('focus-next-pill-btn')?.setAttribute('data-target-mode',nextMode);
+   }
+   if(miniWrap&&miniBtn){
+    miniWrap.hidden=false;
+    miniBtn.textContent=labelMini;
+    miniBtn.setAttribute('data-target-mode',nextMode);
+   }
+  }
+ }
+ updateNextActionPills();
 }
 function load(){try{return readFocus(localStorage.getItem(key),Date.now());}catch{notify('浏览器禁止保存；本次计时仅保留在当前页面。');return state;}}
 function persist(){try{localStorage.setItem(key,JSON.stringify(state));}catch{notify('保存失败；离开页面后可能丢失本次计时。');}}
@@ -39,6 +79,20 @@ for(const id of ['pomodoro-start','focus-main-start'])$(id)?.addEventListener('c
 for(const id of ['pomodoro-reset','focus-main-reset'])$(id)?.addEventListener('click',()=>mutate('reset'));
 $('focus-sound-toggle')?.addEventListener('click',()=>{unlockAudio();mutate('sound');});
 for(const btn of document.querySelectorAll('.pomodoro-mode-btn,.focus-mode-btn'))btn.addEventListener('click',()=>mutate(Object.keys(MODES).find(k=>MODES[k]===Number(btn.dataset.time))));
+async function advanceToNextPhase(targetMode){
+ unlockAudio();
+ const mode=targetMode||(state.mode==='focus'?(state.completedCount>0&&state.completedCount%4===0?'long-break':'short-break'):'focus');
+ await mutate(mode);
+ await mutate('toggle');
+}
+$('focus-next-pill-btn')?.addEventListener('click',e=>{
+ const mode=e.currentTarget?.getAttribute('data-target-mode');
+ advanceToNextPhase(mode);
+});
+$('pomodoro-next-btn')?.addEventListener('click',e=>{
+ const mode=e.currentTarget?.getAttribute('data-target-mode');
+ advanceToNextPhase(mode);
+});
 function panel(open){if($('pomodoro-panel'))$('pomodoro-panel').hidden=!open;$('pomodoro-toggle')?.setAttribute('aria-expanded',String(open));}
 $('pomodoro-toggle')?.addEventListener('click',()=>panel($('pomodoro-panel').hidden));$('pomodoro-close')?.addEventListener('click',()=>panel(false));
 
@@ -79,7 +133,12 @@ document.addEventListener('keydown',e=>{
  if(isInputActive(e.target)||e.metaKey||e.ctrlKey||e.altKey)return;
  const k=e.key?e.key.toLowerCase():'';
  if(e.code==='Space'||e.key===' '){
-  e.preventDefault();unlockAudio();mutate('toggle');
+  e.preventDefault();
+  if(state.remainingSeconds===0&&!state.isRunning){
+   advanceToNextPhase();
+  }else{
+   unlockAudio();mutate('toggle');
+  }
  }else if(k==='r'){
   e.preventDefault();mutate('reset');
  }else if(k==='m'){

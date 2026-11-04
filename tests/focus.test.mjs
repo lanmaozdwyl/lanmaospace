@@ -34,3 +34,30 @@ test('学术专注钟：桌面端快捷键（Space启停/R重置/M提示音/Z禅
     assert(focusJs.includes('Escape'), '需支持 Esc 键极速退出禅定模式');
     assert(focusJs.includes('zenOpener'), '退出禅定模式时需安全无损将焦点恢复给触发源');
 });
+
+test('学术专注钟：专注与小憩无缝轮转进阶胶囊导引与一键开启心流闭环', () => {
+    const focusJs = readFileSync(new URL('../focus.js', import.meta.url), 'utf8');
+    const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const styleCss = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+
+    // 1. HTML 节点结构与无障碍标记
+    assert(indexHtml.includes('id="focus-next-action-wrap"'), '主专注卡片需包含轮转进阶胶囊容器');
+    assert(indexHtml.includes('id="focus-next-pill-btn"'), '主专注卡片需包含进阶操作按钮');
+    assert(indexHtml.includes('id="focus-next-pill-text"'), '需包含动态提示文案载体');
+    assert(indexHtml.includes('id="pomodoro-next-wrap"'), '悬浮番茄钟小面板需包含轮转导引容器');
+    assert(indexHtml.includes('id="pomodoro-next-btn"'), '悬浮番茄钟小面板需包含进阶按钮');
+
+    // 2. CSS 样式设计与动效
+    assert(styleCss.includes('.focus-next-action-wrap'), '需定义主卡片轮转胶囊容器样式');
+    assert(styleCss.includes('.focus-next-pill-btn'), '需定义主卡片轮转进阶按钮样式');
+    assert(styleCss.includes('.pomodoro-next-wrap'), '需定义悬浮小卡片轮转胶囊容器样式');
+    assert(styleCss.includes('.pomodoro-next-btn'), '需定义悬浮小卡片轮转按钮样式');
+    assert(styleCss.includes('@keyframes focusPillFadeIn'), '需具备平滑淡入动效');
+
+    // 3. focus.js 轮转计算与交互生命周期
+    assert(focusJs.includes('updateNextActionPills'), 'paint 中需包含进阶胶囊渲染与状态更新');
+    assert(focusJs.includes('advanceToNextPhase'), '需包含一键启动下一阶段函数');
+    assert(focusJs.includes('focus-next-pill-btn'), '需监听主卡片进阶按钮点击');
+    assert(focusJs.includes('pomodoro-next-btn'), '需监听悬浮卡片进阶按钮点击');
+    assert(focusJs.includes('advanceToNextPhase();'), '当倒计时归零时按空格需无缝进阶下一轮');
+});
