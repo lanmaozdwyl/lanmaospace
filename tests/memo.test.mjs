@@ -252,3 +252,34 @@ test('重新选择备份会撤销上次校验，不能误恢复之前文件',asy
  const h=context(),file=await archive(records);h.get('backup-file').files=[file];h.get('backup-password').value=password;await h.run('checkBackup()');assert.equal(h.get('restore-button').hidden,false);
  h.get('backup-file').files=[new Blob(['invalid replacement'])];h.get('backup-file').onchange();assert.equal(h.run('backupManifest'),null);assert.equal(h.run('backupKey'),null);assert.equal(h.get('restore-button').hidden,true);const before=h.calls.length;await h.run('restoreBackup()');assert.equal(h.calls.length,before);
 });
+test('离线暂存模式视觉指示与弱网自动重连同步提示',async()=>{
+ const h=context();
+ assert.equal(typeof h.events.offline,'function');
+ assert.equal(typeof h.events.online,'function');
+
+ // 1. 触发断网：出现离线指示且标明暂存安全
+ h.events.offline();
+ assert.equal(h.get('memo-network-badge').hidden,false);
+ assert.match(h.get('memo-network-badge').className,/offline/);
+ assert.match(h.get('memo-network-text').textContent,/离线暂存/);
+ assert.match(h.get('memo-status').textContent,/离线暂存/);
+
+ // 2. 无草稿时触发重连：自动静默执行 reload 并更新指示
+ let reloaded=false;
+ h.ctx.markReloaded=()=>{reloaded=true;};
+ h.run("reload=async()=>{markReloaded();};");
+ await h.events.online();
+ assert.equal(reloaded,true);
+ assert.match(h.get('memo-network-badge').className,/online-restored/);
+ assert.match(h.get('memo-network-text').textContent,/已同步/);
+
+ // 3. 有未保存草稿时重连：不覆盖草稿，提示用户保存并同步
+ h.run('openEditor(null)');
+ h.get('note-body').value='offline draft content';
+ assert.equal(h.run('dirty()'),true);
+ reloaded=false;
+ await h.events.online();
+ assert.equal(reloaded,false);
+ assert.match(h.get('memo-network-text').textContent,/保存并同步/);
+ assert.match(h.get('memo-status').textContent,/未保存草稿/);
+});

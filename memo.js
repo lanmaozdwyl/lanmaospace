@@ -18,7 +18,33 @@ function show(id) { panels.forEach(p=>$(p).hidden=p!==id); }
 function status(text) { if(key) $('memo-status').textContent=text; }
 function message(id,text) { $(id).textContent=text; }
 function owner(u) { const uid=window.LANMAO_MEMO_CONFIG?.ownerUid; return !!uid&&u?.id===uid; }
-function fail(error) { console.error(error); return error?.message||'操作失败，请检查网络后重试。'; }
+function fail(error) {
+    console.error(error);
+    if(typeof navigator!=='undefined'&&!navigator.onLine) {
+        return '当前处于离线状态，修改已保留在当前页面；网络恢复后可重试同步。';
+    }
+    return error?.message||'操作失败，请检查网络后重试。';
+}
+let networkBadgeTimer=null;
+function updateNetworkBadge(online,text,autoHideMs=0) {
+    const badge=$('memo-network-badge'),label=$('memo-network-text');
+    if(!badge)return;
+    if(networkBadgeTimer){clearTimeout(networkBadgeTimer);networkBadgeTimer=null;}
+    if(online){
+        badge.className='network-status-badge online-restored';
+        if(label)label.textContent=text||'网络连接已恢复';
+        badge.hidden=false;
+        if(autoHideMs>0){
+            networkBadgeTimer=setTimeout(()=>{
+                if(badge&&badge.className.includes('online-restored'))badge.hidden=true;
+            },autoHideMs);
+        }
+    }else{
+        badge.className='network-status-badge offline';
+        if(label)label.textContent=text||'离线暂存模式：网络连接已断开，修改将保留在当前标签页';
+        badge.hidden=false;
+    }
+}
 function size(n) { return n<1048576?`${(n/1024).toFixed(1)} KB`:`${(n/1048576).toFixed(1)} MB`; }
 function state() { return normalizeNote({title:$('note-title').value,body:$('note-body').value,tags:$('note-tags').value.split(/[,，]/),pinned:$('note-pinned').checked,trashedAt:editing?.note.trashedAt}); }
 function dirty() { return !$('editor-form').hidden&&(noteSnapshot(state())!==baseline||pending.length>0); }
@@ -58,6 +84,7 @@ function wipe() {
     $('memo-list').replaceChildren(); $('memo-empty').hidden=true; progress(null);
     $('memo-search').value=''; $('memo-usage').textContent=''; $('memo-status').textContent='';
     syncSummary=null;syncProblem='';$('memo-sync-status').textContent='';
+    const badge=$('memo-network-badge');if(badge)badge.hidden=true;
     $('backup-panel').hidden=true; $('memo-passphrase').value=''; $('memo-passphrase-confirm').value='';
 }
 async function lockVault(automatic=false) {
@@ -113,6 +140,9 @@ async function unlock(password) {
         active(); key=newKey;
     }
     operationEpoch=generation; lastActivity=Date.now(); show('app-panel');
+    if(typeof navigator!=='undefined'&&!navigator.onLine){
+        updateNetworkBadge(false,'离线暂存模式：网络未连接，正文保留在当前标签页');
+    }
     let syncError=null;
     try { await reload(); } catch(error) { syncError=error; }
     active();
@@ -511,6 +541,29 @@ async function restoreBackup() {
 }
 
 window.addEventListener('beforeunload',e=>{if(dirty()||busy||sealedDraft){e.preventDefault();e.returnValue='';}});
+if(typeof window!=='undefined'){
+    window.addEventListener('offline',()=>{
+        updateNetworkBadge(false,'网络已断开：进入离线暂存模式，未保存修改将安全暂存');
+        status('网络已断开，已切换至离线暂存模式。');
+    });
+    window.addEventListener('online',async()=>{
+        updateNetworkBadge(true,'网络已恢复，正在同步云端…');
+        if(key&&!busy&&!dirty()){
+            try{
+                await reload();
+                updateNetworkBadge(true,'网络已恢复，云端内容已同步',3500);
+                status('网络已恢复，最新内容已同步。');
+            }catch{
+                updateNetworkBadge(true,'网络已恢复，但同步未成功，可点击“同步云端”重试');
+            }
+        }else if(key&&dirty()){
+            updateNetworkBadge(true,'网络已恢复，请点击“保存并同步”提交当前草稿',5000);
+            status('网络已恢复，检测到当前有未保存草稿，请及时保存并同步。');
+        }else{
+            updateNetworkBadge(true,'网络连接已恢复',3000);
+        }
+    });
+}
 document.addEventListener('click',e=>{const a=e.target.closest('a[href]');if(a&&!a.hasAttribute('download')&&!canLeave())e.preventDefault();});
 for(const event of ['pointerdown','keydown','input','scroll']) document.addEventListener(event,()=>{
     if(key&&Date.now()-lastActivity>=IDLE_MS) {lockVault(true).catch(e=>status(fail(e)));return;}
