@@ -46,10 +46,19 @@ test('重复恢复 ID 稳定，按用户与备份隔离',async()=>{
 });
 
 class Element {
-    constructor(id=''){this.id=id;this.value='';this.hidden=false;this.checked=false;this.disabled=false;this.children=[];this.files=[];this.listeners={};this.attrs={};this.textContent='';}
+    constructor(id=''){this.id=id;this.value='';this.hidden=false;this.checked=false;this.disabled=false;this.children=[];this.files=[];this.listeners={};this.attrs={};this.textContent='';this.className='';this.dataset={};}
     append(...nodes){this.children.push(...nodes);} replaceChildren(...nodes){this.children=nodes;}
     addEventListener(name,fn){this.listeners[name]=fn;} querySelectorAll(){return [];}
     setAttribute(k,v){this.attrs[k]=v;}hasAttribute(k){return Object.hasOwn(this.attrs,k);}removeAttribute(k){delete this.attrs[k];}
+    getAttribute(k){return this.attrs[k];}
+    get classList(){
+        return {
+            add:(...c)=>{const s=new Set((this.className||'').split(/\s+/).filter(Boolean));c.forEach(x=>s.add(x));this.className=Array.from(s).join(' ');},
+            remove:(...c)=>{const s=new Set((this.className||'').split(/\s+/).filter(Boolean));c.forEach(x=>s.delete(x));this.className=Array.from(s).join(' ');},
+            toggle:(c,force)=>{const s=new Set((this.className||'').split(/\s+/).filter(Boolean));const add=force!==undefined?force:!s.has(c);if(add)s.add(c);else s.delete(c);this.className=Array.from(s).join(' ');return add;},
+            contains:c=>(this.className||'').split(/\s+/).includes(c)
+        };
+    }
     reset(){}focus(){}close(){this.open=false;}showModal(){this.open=true;}click(){this.clicked=true;}remove(){}
 }
 function context(options={}) {
@@ -338,4 +347,79 @@ test('备忘录：正文实时字数/字符统计条与清空草稿二次确认�
     assert.equal(h.get('note-body').value, '');
     assert.equal(h.get('memo-status').textContent, '草稿内容已清空');
     assert.equal(h.get('memo-body-count').textContent, '0 字 · 0 字符');
+});
+
+test('加密备忘录：可点击筛选标签胶囊与活跃标签云体系', async () => {
+    const html = readFileSync(new URL('../memo.html', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../memo.css', import.meta.url), 'utf8');
+
+    // 1. 结构与样式完整性
+    assert(html.includes('id="memo-tag-cloud"'), 'HTML 需包含备忘录快捷标签云容器');
+    assert(html.includes('class="memo-tag-cloud"'), 'HTML 需包含标签云类名');
+    assert(css.includes('.memo-tag-cloud'), 'CSS 需包含标签云布局样式');
+    assert(css.includes('.memo-card-tags'), 'CSS 需包含卡片内标签容器样式');
+    assert(css.includes('.memo-tag-pill'), 'CSS 需包含标签胶囊微按钮样式');
+    assert(css.includes('.memo-tag-pill.active'), 'CSS 需包含激活状态胶囊高亮');
+
+    // 2. 模拟环境加载
+    const h = context();
+    h.run('key = {};');
+
+    // 注入多条带标签的备忘录
+    const n1 = { id: 'm1', note: { title: '工作计划', body: '周报撰写', tags: ['工作', '待办'], pinned: false, trashedAt: null }, updated_at: '2026-11-04T10:00:00Z' };
+    const n2 = { id: 'm2', note: { title: '灵感创意', body: '新算法构想', tags: ['工作', '灵感'], pinned: false, trashedAt: null }, updated_at: '2026-11-04T11:00:00Z' };
+    const n3 = { id: 'm3', note: { title: '生活琐事', body: '采购清单', tags: ['生活'], pinned: false, trashedAt: null }, updated_at: '2026-11-04T12:00:00Z' };
+
+    h.ctx.testNotes = [n1, n2, n3];
+    h.run('notes = testNotes; render();');
+
+    // 3. 标签云聚合验证
+    const cloud = h.get('memo-tag-cloud');
+    assert.equal(cloud.hidden, false, '有标签时标签云应可见');
+    // 全部 (3), #工作 (2), #待办 (1), #灵感 (1), #生活 (1) 共 5 个胶囊
+    assert.equal(cloud.children.length, 5);
+    assert.equal(cloud.children[0].textContent, '全部 (3)');
+    assert.match(cloud.children[0].className, /active/);
+
+    const workTagBtn = cloud.children.find(c => c.dataset?.tag === '工作');
+    assert(workTagBtn, '标签云需包含工作标签');
+    assert.equal(workTagBtn.textContent, '#工作 (2)');
+
+    // 4. 点击标签云胶囊进行即时筛选
+    workTagBtn.onclick();
+    assert.equal(h.get('memo-search').value, '工作');
+    assert.equal(h.get('memo-list').children.length, 2);
+    
+    // render() 重建了 DOM，检查标签云中当前激活的工作标签按钮
+    const activeWorkBtn = cloud.children.find(c => c.dataset?.tag === '工作');
+    assert.match(activeWorkBtn.className, /active/);
+    assert.equal(activeWorkBtn.attrs['aria-pressed'], 'true');
+
+    // 再次点击反选还原
+    activeWorkBtn.onclick();
+    assert.equal(h.get('memo-search').value, '');
+    assert.equal(h.get('memo-list').children.length, 3);
+    const restoredWorkBtn = cloud.children.find(c => c.dataset?.tag === '工作');
+    assert(!restoredWorkBtn.className.includes('active'));
+
+    // 5. 卡片内标签胶囊点击交互验证
+    const firstCard = h.get('memo-list').children[0];
+    const cardTagsContainer = firstCard.children.find(c => c.className === 'memo-card-tags');
+    assert(cardTagsContainer, '卡片应渲染 memo-card-tags 容器');
+    const lifePill = cardTagsContainer.children.find(c => c.dataset?.tag === '生活');
+    assert(lifePill, '卡片应包含 #生活 胶囊');
+    
+    // 点击卡片上的标签进行快速筛选
+    lifePill.onclick({ stopPropagation() {} });
+    assert.equal(h.get('memo-search').value, '生活');
+    assert.equal(h.get('memo-list').children.length, 1);
+
+    // 6. 清除搜索按钮重置
+    h.get('clear-search-button').onclick();
+    assert.equal(h.get('memo-search').value, '');
+    assert.equal(h.get('memo-list').children.length, 3);
+
+    // 7. 回收站模式自动隐藏标签云
+    h.run('viewTrash = true; render();');
+    assert.equal(cloud.hidden, true, '回收站模式下标签云应隐藏');
 });

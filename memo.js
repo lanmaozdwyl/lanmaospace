@@ -294,10 +294,82 @@ function render() {
         .sort((a,b)=>Number(b.note.pinned)-Number(a.note.pinned)||String(b.updated_at||b.created_at||'').localeCompare(String(a.updated_at||a.created_at||'')));
     $('trash-button').textContent=viewTrash?'返回备忘录':`回收站（${notes.filter(n=>n.note.trashedAt).length}）`;
     $('memo-empty').hidden=!!list.length; $('memo-empty').textContent=viewTrash?'回收站为空。':'没有匹配的备忘录。';
+
+    // 快捷标签云：收集所有未移入回收站备忘的标签频次，提供一键胶囊筛选
+    const tagCloud=$('memo-tag-cloud');
+    if(tagCloud){
+        if(viewTrash){
+            tagCloud.hidden=true;
+            tagCloud.replaceChildren();
+        }else{
+            const tagCounts=new Map(), activeNotes=notes.filter(r=>!r.note.trashedAt);
+            for(const r of activeNotes){
+                for(const t of r.note.tags||[]){
+                    const norm=String(t).trim();
+                    if(norm)tagCounts.set(norm,(tagCounts.get(norm)||0)+1);
+                }
+            }
+            if(tagCounts.size>0){
+                tagCloud.hidden=false;
+                tagCloud.replaceChildren();
+                const allBtn=document.createElement('button');
+                allBtn.type='button';
+                allBtn.className='memo-tag-pill memo-tag-all'+(!q?' active':'');
+                allBtn.textContent=`全部 (${activeNotes.length})`;
+                allBtn.setAttribute('aria-pressed',String(!q));
+                allBtn.setAttribute('aria-label',`全部备忘录 (${activeNotes.length}条)`);
+                allBtn.onclick=()=>{
+                    $('memo-search').value='';
+                    render();
+                    $('memo-search').focus?.();
+                };
+                tagCloud.append(allBtn);
+
+                const sortedTags=Array.from(tagCounts.entries()).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+                for(const [tag,count] of sortedTags){
+                    const isSelected=q===tag.toLowerCase()||q===('#'+tag.toLowerCase());
+                    const btn=document.createElement('button');
+                    btn.type='button';
+                    btn.className='memo-tag-pill'+(isSelected?' active':'');
+                    btn.textContent=`#${tag} (${count})`;
+                    btn.dataset.tag=tag;
+                    btn.setAttribute('aria-pressed',String(isSelected));
+                    btn.setAttribute('aria-label',`按标签 #${tag} 筛选 (${count}条)`);
+                    btn.onclick=()=>{
+                        $('memo-search').value=isSelected?'':tag;
+                        render();
+                        $('memo-search').focus?.();
+                    };
+                    tagCloud.append(btn);
+                }
+            }else{
+                tagCloud.hidden=true;
+                tagCloud.replaceChildren();
+            }
+        }
+    }
+
     for(const row of list) {
         const card=document.createElement('article'); card.className='memo-item';
         const h=document.createElement('h3'); h.textContent=(row.note.pinned?'📌 ':'')+(row.note.title||'无标题');
-        const info=document.createElement('p'); info.className='memo-note'; info.textContent=row.note.tags.map(t=>'#'+t).join(' · ');
+        const info=document.createElement('div'); info.className='memo-card-tags';
+        for(const tag of row.note.tags||[]){
+            const isTagActive=q===tag.toLowerCase()||q===('#'+tag.toLowerCase());
+            const pill=document.createElement('button');
+            pill.type='button';
+            pill.className='memo-tag-pill'+(isTagActive?' active':'');
+            pill.textContent='#'+tag;
+            pill.dataset.tag=tag;
+            pill.setAttribute('aria-label',`按标签 #${tag} 筛选`);
+            pill.setAttribute('aria-pressed',String(isTagActive));
+            pill.onclick=(e)=>{
+                e.stopPropagation?.();
+                $('memo-search').value=isTagActive?'':tag;
+                render();
+                $('memo-search').focus?.();
+            };
+            info.append(pill);
+        }
         const time=document.createElement('time'); time.textContent=new Date(row.updated_at).toLocaleString('zh-CN');
         const body=document.createElement('p'); body.textContent=row.note.body;
         const actions=document.createElement('div'); actions.className='memo-item-actions';
