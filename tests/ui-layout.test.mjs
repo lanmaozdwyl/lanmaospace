@@ -97,3 +97,19 @@ test('全站 Spotlight 搜索：快捷清空、深度工具与 FAQ 索引、别�
     assert(!scriptJs.includes("url: 'store.html'"), '未上线的商店严禁收录至全站 Spotlight 搜索索引');
 });
 
+test('全站深色模式：配置 color-scheme dark，统一移动端夜间原生滚动条与弹窗磨砂遮罩', async () => {
+    const { readFileSync } = await import('node:fs');
+    const styleCss = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+
+    // 1. 全局与系统偏好深色模式声明 color-scheme: dark
+    assert(styleCss.includes('[data-theme="dark"] {\n    color-scheme: dark;'), 'style.css 手动暗黑根元素需声明 color-scheme: dark');
+    assert(styleCss.includes(':root:not([data-theme="light"]) {\n        color-scheme: dark;'), 'style.css 系统偏好根元素需声明 color-scheme: dark');
+    assert(styleCss.includes('body[data-theme="dark"] {\n    color-scheme: dark;'), 'style.css 暗黑正文需声明 color-scheme: dark');
+
+    // 2. 滚动条暗色半透明圆角轨道自适应
+    assert(styleCss.includes('body[data-theme="dark"] ::-webkit-scrollbar'), '需定义暗黑模式滚动条尺寸');
+    assert(styleCss.includes('body[data-theme="dark"] ::-webkit-scrollbar-track'), '需定义暗黑模式滚动条透明背景');
+    assert(styleCss.includes('body[data-theme="dark"] dialog::backdrop'), '需适配全局原生弹窗暗黑磨砂毛玻璃');
+});
+
+
