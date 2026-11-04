@@ -25,3 +25,93 @@
  .faq-answer{padding:0 18px 16px}
  .faq-contact-card{padding:24px}
 }
+
+/* ===================================================================
+   FAQ Dark Mode Adaptations (Manual Toggle & System Preference)
+   =================================================================== */
+
+body[data-theme="dark"] .faq-hero {
+    background: radial-gradient(ellipse closest-side at 70% 35%, rgba(0, 113, 227, 0.15), transparent 100%);
+}
+body[data-theme="dark"] .faq-hero > p {
+    color: #a1a1a6;
+}
+body[data-theme="dark"] .faq-section > h2 {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .faq-item {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+body[data-theme="dark"] .faq-item[open] {
+    border-color: rgba(41, 151, 255, 0.45);
+}
+body[data-theme="dark"] .faq-item summary {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .faq-item summary::after {
+    color: #8e8e93;
+}
+body[data-theme="dark"] .faq-item[open] summary::after {
+    color: #2997ff;
+}
+body[data-theme="dark"] .faq-answer {
+    color: #a1a1a6;
+}
+body[data-theme="dark"] .faq-answer b {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .faq-contact-card {
+    background: #182230;
+    border-color: rgba(41, 151, 255, 0.25);
+}
+body[data-theme="dark"] .faq-contact-card h2 {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .faq-contact-card p {
+    color: #a1a1a6;
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .faq-hero {
+        background: radial-gradient(ellipse closest-side at 70% 35%, rgba(0, 113, 227, 0.15), transparent 100%);
+    }
+    body:not([data-theme="light"]) .faq-hero > p {
+        color: #a1a1a6;
+    }
+    body:not([data-theme="light"]) .faq-section > h2 {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .faq-item {
+        background: #1c1c1e;
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+    body:not([data-theme="light"]) .faq-item[open] {
+        border-color: rgba(41, 151, 255, 0.45);
+    }
+    body:not([data-theme="light"]) .faq-item summary {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .faq-item summary::after {
+        color: #8e8e93;
+    }
+    body:not([data-theme="light"]) .faq-item[open] summary::after {
+        color: #2997ff;
+    }
+    body:not([data-theme="light"]) .faq-answer {
+        color: #a1a1a6;
+    }
+    body:not([data-theme="light"]) .faq-answer b {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .faq-contact-card {
+        background: #182230;
+        border-color: rgba(41, 151, 255, 0.25);
+    }
+    body:not([data-theme="light"]) .faq-contact-card h2 {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .faq-contact-card p {
+        color: #a1a1a6;
+    }
+}

@@ -83,3 +83,41 @@ body[data-theme=dark] .shop-button.secondary-button.copied {
     color: #81c784;
     border-color: #2e7d32;
 }
+
+body[data-theme="dark"] .shop-nav {
+    background: rgba(22, 22, 26, 0.85);
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .shop-nav a {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .shop-nav-signout {
+    color: #aeaeb2;
+}
+body[data-theme="dark"] .shop-footer {
+    color: #8e8e93;
+}
+body[data-theme="dark"] .shop-footer a {
+    color: #2997ff;
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .shop-nav {
+        background: rgba(22, 22, 26, 0.85);
+        border-bottom-color: rgba(255, 255, 255, 0.12);
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .shop-nav a {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .shop-nav-signout {
+        color: #aeaeb2;
+    }
+    body:not([data-theme="light"]) .shop-footer {
+        color: #8e8e93;
+    }
+    body:not([data-theme="light"]) .shop-footer a {
+        color: #2997ff;
+    }
+}

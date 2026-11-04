@@ -208,3 +208,22 @@ test('一键快捷复制 QQ 号并提供友好提示反馈', async () => {
     assert.equal(copyBtn.classList.contains('copied'), true);
     assert.match(get('copy-qq-feedback').textContent, /3126477562/);
 });
+
+test('常见问题 FAQ 页与商店深色模式全量自适应：卡片、折叠项、导航条与联系卡片', () => {
+    const faqCss = readFileSync(new URL('../faq.css', import.meta.url), 'utf8');
+    const storeCss = readFileSync(new URL('../store.css', import.meta.url), 'utf8');
+    const mobileCss = readFileSync(new URL('../mobile.css', import.meta.url), 'utf8');
+
+    // 1. FAQ 页面深色模式双通道支持
+    assert(faqCss.includes('body[data-theme="dark"] .faq-item'), '需支持手动暗黑模式 FAQ 卡片');
+    assert(faqCss.includes('@media (prefers-color-scheme: dark)'), '需支持系统偏好夜间模式');
+    assert(faqCss.includes('.faq-item summary') && faqCss.includes('.faq-answer'), '需适配折叠项标题与展开文本');
+    assert(faqCss.includes('.faq-contact-card'), '需适配底部咨询联络卡暗黑背景');
+
+    // 2. 商店导航条与页脚深色模式
+    assert(storeCss.includes('body[data-theme="dark"] .shop-nav'), '需适配商店导航条暗黑背景与边框');
+    assert(storeCss.includes('body[data-theme="dark"] .shop-footer'), '需适配商店页脚深色模式');
+
+    // 3. 移动端安全区避让
+    assert(mobileCss.includes('.shop-nav{padding-top:env(safe-area-inset-top,0px)}'), '移动端导航需包含刘海安全区避让');
+});
