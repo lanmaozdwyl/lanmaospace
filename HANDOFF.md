@@ -1,3 +1,13 @@
+# 登录与认证页：补全 viewport-fit=cover 视口元标签与刘海屏安全区避让（2026-11-04 晚）
+
+本节优先于下方历史记录。针对登录认证页（`login.html` / `tests/login-security.test.mjs`）在全屏 PWA、微信 Webview 及 iOS Safari/全面屏机型上因遗漏 `viewport-fit=cover` 导致状态栏与刘海安全区失效的系统 Bug 进行修复：
+1. 视口元标签补齐：
+   - 将 `<meta name="viewport" content="width=device-width, initial-scale=1.0">` 补全升级为 `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">`；
+   - 与全站其余页面保持 100% 一致，使得 CSS 中 `padding-top: calc(72px + env(safe-area-inset-top, 0px))` 能够正确读取系统状态栏与灵动岛切角高度，消除顶栏返回链接与刘海硬件重叠遮挡。
+2. 全站 282 项自动化测试、语法安全检查与 clean `dist` 构建 100% 通过。
+
+---
+
 # 阅读器正文白屏空显与零宽崩溃修复、移动端状态栏刘海遮挡全站系统化治理（2026-11-04 晚）
 
 本节优先于下方历史记录。针对用户反馈的核心严重 Bug（书架书籍点击进入后正文一片空白空显、手机顶栏文字「蓝昴空间」被手机状态栏遮挡）进行深度代码追查与全链路架构修复：

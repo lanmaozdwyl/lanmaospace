@@ -193,6 +193,7 @@ test('登录与认证页移动端人机工程学：返回首页入口导航、44
     assert(authCss.includes('.password-toggle-btn') && authCss.includes('min-width: 44px') && authCss.includes('min-height: 44px'), '密码眼睛切换按钮必须具备不低于 44px 的触控靶心');
     assert(authCss.includes('.auth-links button') && authCss.includes('min-height: 44px'), '切换登录/注册与忘记密码链接必须具备 44px 触控靶心防误触');
 
-    // 3. 安全区适配
+    // 3. 安全区适配与 viewport-fit=cover 元标签完整性
+    assert(loginHtml.includes('viewport-fit=cover'), 'login.html 必须配置 viewport-fit=cover 否则 iOS safe-area 变量将失效归零');
     assert(memoCss.includes('safe-area-inset-top'), 'memo-shell 必须在窄屏下适配刘海屏安全区避让');
 });
