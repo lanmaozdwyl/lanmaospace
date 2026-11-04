@@ -1,14 +1,14 @@
 /* Shared motion layer. Content stays readable without JavaScript. */
-.reading-progress{position:fixed;top:0;left:0;height:2px;width:100%;background:linear-gradient(90deg,#7c74e9,#d47ccc,#75b7f2);transform:scaleX(0);transform-origin:left;z-index:11000;pointer-events:none}
+.reading-progress{position:fixed;top:0;left:0;height:2px;width:100%;background:linear-gradient(90deg,#0071e3,#2997ff,#5ac8fa);transform:scaleX(0);transform-origin:left;z-index:11000;pointer-events:none}
 .shop-nav{position:sticky;top:0;z-index:100;background:rgba(251,251,253,.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 .shop-hero{position:relative;isolation:isolate;overflow:hidden}
-.shop-hero::before{content:'';position:absolute;inset:5% -5%;z-index:-1;background:radial-gradient(ellipse at 70% 40%,#dfd4fc88,transparent 60%),radial-gradient(ellipse at 30% 70%,#cee9ff88,transparent 55%);animation:ambient-arrival 4.5s ease-out both;pointer-events:none}
+.shop-hero::before{content:'';position:absolute;inset:5% -5%;z-index:-1;background:radial-gradient(ellipse closest-side at 70% 40%,#d4e6fc88,transparent 100%),radial-gradient(ellipse closest-side at 30% 70%,#cee9ff88,transparent 100%);animation:ambient-arrival 4.5s ease-out both;pointer-events:none}
 .gradient-text{background-size:180% 100%;animation:gradient-arrival 4s ease-out both}
 .product,.book-card,.friend-card,.tool-card{position:relative;isolation:isolate}
-.product::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;background:radial-gradient(240px circle at var(--light-x,50%) var(--light-y,50%),#a5b4fc28,transparent 70%);opacity:0;transition:opacity .35s}
+.product::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;background:radial-gradient(240px circle at var(--light-x,50%) var(--light-y,50%),#93c5fd28,transparent 70%);opacity:0;transition:opacity .35s}
 .product:hover::after{opacity:1}
 .product .mark{transition:transform .5s cubic-bezier(.22,1,.36,1),box-shadow .5s}
-.product:hover .mark{transform:translateY(-3px) rotate(-5deg);box-shadow:0 8px 24px #8e82d225}
+.product:hover .mark{transform:translateY(-3px) rotate(-5deg);box-shadow:0 8px 24px #2997ff25}
 .product{transition:transform .45s cubic-bezier(.22,1,.36,1),box-shadow .45s,rotate .25s}
 .shop-filters button{transition:background-color .25s,color .25s,transform .25s}
 .shop-filters button:active,.shop-button:active,.submit-btn:active{transform:scale(.97)}
@@ -23,3 +23,5 @@ dialog[open]::backdrop{animation:veil-arrival .25s ease both}
 @keyframes ambient-arrival{from{opacity:0;transform:translate(24px,12px) scale(.94)}to{opacity:1;transform:none}}
 @media(hover:none){.product:hover .mark{transform:none;box-shadow:none}.product::after{display:none}}
 @media(prefers-reduced-motion:reduce){.reading-progress{display:none}.product{rotate:none!important}.shop-hero::before,.gradient-text,dialog[open],dialog[open]::backdrop{animation:none!important}}
+@media(prefers-color-scheme:dark){body:not([data-theme=light]) .shop-hero::before{background:radial-gradient(ellipse closest-side at 70% 40%,rgba(41,120,220,.22),transparent 100%),radial-gradient(ellipse closest-side at 30% 70%,rgba(90,200,250,.12),transparent 100%)}}
+body[data-theme=dark] .shop-hero::before{background:radial-gradient(ellipse closest-side at 70% 40%,rgba(41,120,220,.22),transparent 100%),radial-gradient(ellipse closest-side at 30% 70%,rgba(90,200,250,.12),transparent 100%)}

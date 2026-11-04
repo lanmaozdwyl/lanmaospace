@@ -1690,7 +1690,7 @@ html, body.reader-body {
 .shelf-search-clear {
     border: none;
     background: transparent;
-    color: var(--r-text-dim);
+    color: var(--r-text-muted);
     font-size: 11px;
     cursor: pointer;
     padding: 2px 4px;
@@ -1700,7 +1700,7 @@ html, body.reader-body {
     grid-column: 1 / -1;
     text-align: center;
     padding: 36px 0;
-    color: var(--r-text-dim);
+    color: var(--r-text-muted);
     font-size: 14px;
 }
 .shelf-search-empty span {
