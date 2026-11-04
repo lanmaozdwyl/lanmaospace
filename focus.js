@@ -41,13 +41,57 @@ $('focus-sound-toggle')?.addEventListener('click',()=>{unlockAudio();mutate('sou
 for(const btn of document.querySelectorAll('.pomodoro-mode-btn,.focus-mode-btn'))btn.addEventListener('click',()=>mutate(Object.keys(MODES).find(k=>MODES[k]===Number(btn.dataset.time))));
 function panel(open){if($('pomodoro-panel'))$('pomodoro-panel').hidden=!open;$('pomodoro-toggle')?.setAttribute('aria-expanded',String(open));}
 $('pomodoro-toggle')?.addEventListener('click',()=>panel($('pomodoro-panel').hidden));$('pomodoro-close')?.addEventListener('click',()=>panel(false));
+
+let zenOpener=null;
+function setZenMode(active){
+ const isZen=document.body?.classList.contains('focus-zen-active');
+ if(active===isZen)return;
+ if(active){
+  zenOpener=document.activeElement;
+  document.body?.classList.add('focus-zen-active');
+  $('focus-zen-toggle')?.setAttribute('aria-pressed','true');
+  $('focus-zen-close')?.focus();
+ }else{
+  document.body?.classList.remove('focus-zen-active');
+  $('focus-zen-toggle')?.setAttribute('aria-pressed','false');
+  if(zenOpener&&typeof zenOpener.focus==='function')zenOpener.focus();
+  else $('focus-zen-toggle')?.focus();
+ }
+}
+function toggleZenMode(){setZenMode(!document.body?.classList.contains('focus-zen-active'));}
+$('focus-zen-toggle')?.addEventListener('click',toggleZenMode);
+$('focus-zen-close')?.addEventListener('click',()=>setZenMode(false));
+
+function isInputActive(target){
+ if(!target)return false;
+ const tag=target.tagName?target.tagName.toUpperCase():'';
+ return tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||Boolean(target.isContentEditable);
+}
+
 window.addEventListener('storage',e=>{if(key&&e.key===key){state=reconcileFocus(load(),Date.now()).state;paint();}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&key){state=load();pulse();}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')panel(false);});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'){
+  if(document.body?.classList.contains('focus-zen-active')){setZenMode(false);e.preventDefault();return;}
+  panel(false);
+  return;
+ }
+ if(isInputActive(e.target)||e.metaKey||e.ctrlKey||e.altKey)return;
+ const k=e.key?e.key.toLowerCase():'';
+ if(e.code==='Space'||e.key===' '){
+  e.preventDefault();unlockAudio();mutate('toggle');
+ }else if(k==='r'){
+  e.preventDefault();mutate('reset');
+ }else if(k==='m'){
+  e.preventDefault();unlockAudio();mutate('sound');
+ }else if(k==='z'){
+  e.preventDefault();toggleZenMode();
+ }
+});
 async function init(){try{
  const client=await getSupabase(),{data,error}=await client.auth.getSession();if(error||!data.session)return;
  const uid=data.session.user.id;key='lanmao_focus_v3_'+uid;state=reconcileFocus(load(),Date.now()).state;persist();
- client.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||(session?.user?.id&&session.user.id!==uid)){ended=true;clearInterval(timer);state=freshFocus(Date.now());document.title=originalTitle||'Lanmao Space | 蓝昴空间';paint();panel(false);audio?.close().catch(()=>{});}});
+ client.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||(session?.user?.id&&session.user.id!==uid)){ended=true;clearInterval(timer);setZenMode(false);state=freshFocus(Date.now());document.title=originalTitle||'Lanmao Space | 蓝昴空间';paint();panel(false);audio?.close().catch(()=>{});}});
  notify('仅保存于此账号的当前浏览器；手机 App 与其他设备分别计时。锁屏提示受系统限制。');
  paint();timer=setInterval(pulse,1000);
 }catch{notify('专注钟暂不可用，请联网并登录后重试。');}}

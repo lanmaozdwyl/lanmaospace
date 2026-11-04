@@ -509,6 +509,7 @@
             </div>
 
             <div class="focus-card fade-up">
+                <button type="button" class="focus-zen-close-btn" id="focus-zen-close" aria-label="退出禅定模式 (按 Esc 退出)" title="退出禅定模式 (按 Esc 退出)">✕</button>
                 <div class="focus-modes" role="tablist" aria-label="专注模式切换">
                     <button type="button" class="focus-mode-btn active" data-time="1500" data-mode="focus">🍅 25m 深度专注</button>
                     <button type="button" class="focus-mode-btn" data-time="300" data-mode="short-break">☕ 5m 短暂小憩</button>
@@ -536,9 +537,19 @@
                     <button type="button" class="focus-btn focus-btn-secondary" id="focus-main-reset">
                         <span>重置</span>
                     </button>
-                    <button type="button" class="focus-btn focus-btn-icon" id="focus-sound-toggle" aria-label="提示音开关" title="提示音开启/关闭">
+                    <button type="button" class="focus-btn focus-btn-icon" id="focus-sound-toggle" aria-label="提示音开关" title="提示音开启/关闭 (快捷键 M)">
                         <span id="focus-sound-icon" aria-hidden="true">🔔</span>
                     </button>
+                    <button type="button" class="focus-btn focus-btn-icon" id="focus-zen-toggle" aria-label="全屏禅定沉浸模式" title="全屏禅定沉浸模式 (快捷键 Z)">
+                        <span id="focus-zen-icon" aria-hidden="true">⛶</span>
+                    </button>
+                </div>
+
+                <div class="focus-shortcuts-hint" aria-hidden="true">
+                    <span><kbd>Space</kbd> 启停</span>
+                    <span><kbd>R</kbd> 重置</span>
+                    <span><kbd>M</kbd> 提示音</span>
+                    <span><kbd>Z</kbd> 禅定模式</span>
                 </div>
 
                 <p id="focus-storage-status" role="status" class="focus-storage-note">专注记录在本机保存；锁屏和后台提醒受手机系统限制。</p><div class="focus-stats-row">
