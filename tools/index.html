@@ -33,7 +33,8 @@
 
         <div class="tools-controls">
             <label class="tools-search-label" for="tools-search">搜索工具</label>
-            <input type="search" id="tools-search" class="tools-search" placeholder="输入工具名字或用途，比如 翻译" autocomplete="off">
+            <input type="search" id="tools-search" class="tools-search" placeholder="输入工具名字或用途，比如 翻译" autocomplete="off" aria-keyshortcuts="/">
+            <p class="tools-keyhint">键盘：数字 1–5 切换分类 · / 聚焦搜索 · Esc 清空搜索</p>
             <div class="tools-filters" role="group" aria-label="按分类筛选工具">
                 <button type="button" class="filter-btn active" data-filter="all" aria-pressed="true">全部</button>
                 <button type="button" class="filter-btn" data-filter="translate" aria-pressed="false">🌐 翻译</button>

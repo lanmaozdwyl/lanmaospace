@@ -135,6 +135,35 @@
     margin-bottom: 48px;
 }
 
+.tools-keyhint {
+    text-align: center;
+    color: var(--gray-400);
+    font-size: 0.8125rem;
+    margin: 0 0 12px;
+}
+
+.tools-filters .filter-btn:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+}
+
+.tools-filters .filter-btn.key-flash {
+    animation: tools-key-flash 0.6s ease-out;
+}
+
+@keyframes tools-key-flash {
+    0% { box-shadow: 0 0 0 0 rgba(10, 132, 255, 0.55); }
+    100% { box-shadow: 0 0 0 10px rgba(10, 132, 255, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tools-filters .filter-btn.key-flash { animation: none; }
+}
+
+@media (hover: none) {
+    .tools-keyhint { display: none; }
+}
+
 .tools-footnote {
     margin-top: 64px;
     text-align: center;

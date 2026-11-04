@@ -1,3 +1,16 @@
+# 工具站全键盘操控（2026-11-04 晚）
+
+本节优先于下方历史记录。为 tools/index.html 与 tools/tools.js 增加键盘效率支持：
+1. 数字键 1~9 按筛选按钮顺序切换分类（当前仅 5 个按钮：全部、翻译、学术写作、编程开发、设计 & 效率，所以 1~5 生效，6~9 忽略且不拦截）。切换同步 active 与 aria-pressed，并给目标按钮短暂高亮（.key-flash，prefers-reduced-motion 下关闭），搜索词保持不变。
+2. 斜杠 / 聚焦搜索框（搜索框声明 aria-keyshortcuts）；Esc 先清空搜索并恢复列表，搜索框内再按一次退出焦点，失焦后残留搜索词也可被 Esc 清空。
+3. 在 input、textarea、select、contenteditable 中打字时不拦截任何数字键或斜杠；带 Ctrl/Meta/Alt 的组合键、输入法组字和已被处理的事件也不触发。
+4. 符合 CSP：只用外部 tools.js，无内联脚本、内联事件属性、eval 或 innerHTML。页面新增 .tools-keyhint 提示条，触屏设备（hover: none）自动隐藏。
+5. tests/tools.test.mjs 由 3 项增至 15 项，覆盖切换、输入保护、边界数字、Esc 两段行为、修饰键和 CSP 静态检查。npm test 245 项与 scripts/check.mjs 语法检查通过。
+
+边界：测试使用最小 DOM 桩，不是真实浏览器，真实按键、输入法和屏幕阅读器播报仍需浏览器实测。本轮未重新构建 dist（dist 已存在，构建脚本会拒绝覆盖），推送前需另行核对白名单打包；未改动 tools 以外的文件。
+
+---
+
 # 微信读书级书架多视图切换、算法精装封面与在线开源书库（2026-11-04 下午）
 
 本节优先于下方历史记录。基于 474cecb 完成在线阅读器（`reader.html` / `reader.js` / `reader.css`）的书架视觉与图书获取大版本体验飞跃：
