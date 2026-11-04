@@ -22,3 +22,10 @@ test('手机底栏支持专注模块滚动视口相交动态同步高亮',()=>{
  assert(navCode.includes('IntersectionObserver'),'mobile-nav.js 需支持视口相交监听器');
  assert(navCode.includes("getElementById('focus')"),'需监听专注钟模块节点');
 });
+
+test('移动端顶栏桌面导航重影净化：商店/常见问题/头像与备忘录顶栏在手机底栏启用时隐藏冗余链接', () => {
+ const mobileCss = fs.readFileSync(new URL('../mobile.css', import.meta.url), 'utf8');
+ assert(mobileCss.includes('.mobile-enabled .shop-nav-links'), 'mobile.css 必须在启用手机底栏时隐藏商店与 FAQ 页的冗余桌面顶栏链接');
+ assert(mobileCss.includes('.mobile-enabled .memo-topbar-links'), 'mobile.css 必须在启用手机底栏时隐藏头像设置页的冗余桌面顶栏链接');
+ assert(mobileCss.includes(':not(.memo-topbar-back)'), '登录页的返回首页链接必须予以保留以防死路');
+});
