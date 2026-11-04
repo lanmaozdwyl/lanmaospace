@@ -172,6 +172,13 @@ html, body.reader-body {
 .shelf-tool-btn:hover {
     border-color: var(--r-accent);
 }
+.shelf-space-btn {
+    text-decoration: none;
+    color: var(--r-text);
+}
+.shelf-space-btn:hover {
+    color: var(--r-accent);
+}
 .shelf-badge {
     font-size: 11px;
     font-weight: 600;
@@ -1575,6 +1582,27 @@ html, body.reader-body {
     }
     .shelf-tool-btn .shelf-badge {
         display: none;
+    }
+    @media (max-width: 380px) {
+        .shelf-back-home span:not([aria-hidden="true"]) {
+            display: none;
+        }
+        .shelf-back-home {
+            padding: 6px 8px;
+        }
+        .shelf-header {
+            padding: 6px 8px;
+            padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+            gap: 4px;
+        }
+        .shelf-header-right {
+            gap: 4px;
+        }
+        .shelf-tool-btn {
+            width: 34px;
+            height: 34px;
+            font-size: 13px;
+        }
     }
     .shelf-main {
         padding: 16px 12px calc(84px + env(safe-area-inset-bottom, 0px));

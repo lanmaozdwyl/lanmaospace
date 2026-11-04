@@ -725,3 +725,15 @@ test('效率区工程：珍藏书签管理系统与目录双标签联动及无�
     assert(jsSource.includes('exportBookshelfBackup'), '书架备份导出需包含 bookmarks 字段');
     assert(jsSource.includes('state.bookmarks = Object.assign({}, state.bookmarks, data.bookmarks)'), '书架备份恢复需能无缝导入 bookmarks');
 });
+
+test('体验优化：书架移动端底栏个人空间通道互联与抽屉关闭无障碍焦点回跳', () => {
+    // 1. 书架顶栏/底栏直达空间入口
+    assert(htmlSource.includes('id="shelf-btn-space"'), '书架工具组需配备个人空间快捷按钮');
+    assert(htmlSource.includes('href="space.html"'), '书架空间按钮必须直达 space.html');
+    assert(cssSource.includes('.shelf-space-btn'), 'CSS 需支持空间按钮链接美学样式');
+    assert(cssSource.includes('@media (max-width: 380px)'), 'CSS 需适配 380px 以下超窄屏紧凑布局');
+
+    // 2. 抽屉关闭焦点回跳 (WCAG AA 无障碍闭环)
+    assert(jsSource.includes('lastDrawerTrigger = triggerEl'), 'openDrawer 需捕获打开触发源元素');
+    assert(jsSource.includes('lastDrawerTrigger.focus'), 'closeAllDrawers 关闭时焦点必须精准恢复至触发源');
+});

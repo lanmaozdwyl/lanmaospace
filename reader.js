@@ -1273,7 +1273,10 @@
         if (bottombar) bottombar.classList.toggle('menu-hidden', !visible);
     }
 
-    function openDrawer(drawerId) {
+    let lastDrawerTrigger = null;
+
+    function openDrawer(drawerId, triggerEl) {
+        lastDrawerTrigger = triggerEl || (document.activeElement && document.activeElement !== document.body ? document.activeElement : null);
         closeAllDrawers();
         const drawer = document.getElementById(drawerId);
         const backdrop = document.getElementById('reader-backdrop');
@@ -1304,6 +1307,10 @@
         const stage = document.getElementById('reader-stage');
         if (backdrop) backdrop.hidden = true;
         if (stage) stage.classList.remove('drawer-opened');
+        if (lastDrawerTrigger && typeof lastDrawerTrigger.focus === 'function') {
+            try { lastDrawerTrigger.focus({ preventScroll: true }); } catch (_) {}
+            lastDrawerTrigger = null;
+        }
     }
 
     
