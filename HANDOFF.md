@@ -1,3 +1,17 @@
+# 全站深色模式：配置 color-scheme: dark，统一夜间原生滚动条与弹窗磨砂遮罩视觉层级（2026-11-04 晚）
+
+本节优先于下方历史记录。针对全站深色模式在 iOS Safari、Blink/WebKit 移动端浏览器中缺少原生色彩方案声明、导致系统原生滚动条与弹窗选择器出现刺眼白色亮斑，以及弹窗遮罩背景在 OLED 屏幕上对比生硬的问题进行系统性视觉层级与人机工程升级：
+1. 注入原生 `color-scheme: dark;` 规范（`style.css` / `store.css`）：
+   - 在 `[data-theme="dark"]`、`:root:not([data-theme="light"])`、`body[data-theme="dark"]`、`body:not([data-theme="light"])` 以及弹窗 `dialog` 上显式声明 `color-scheme: dark;`；
+   - 彻底解决移动端 iOS Safari 在深色页面下弹出原生表单输入控件、系统选择器与主屏 Home 指示器时出现白底反光的刺眼 Bug，全面提升 OLED 屏幕夜间暗光护眼体验。
+2. 移动端与全站暗黑滚动条（`::-webkit-scrollbar`）精细化适配：
+   - 为暗黑模式下的内部滚动区域与弹窗配置 8px 极简滚动条，轨道完全透明（`background: transparent;`），滑块采用 20% 半透明白色（`rgba(255, 255, 255, 0.2)`）与全圆角胶囊设计（`border-radius: 999px;`），悬停时增亮至 35%，视觉层次柔和自然。
+3. 弹窗深色磨砂遮罩（Backdrop Blur）增强：
+   - 将商店商品详情弹窗（`store.css`）与全站原生对话框（`style.css`）在暗黑模式下的背景遮罩升级为 `background: rgba(0, 0, 0, 0.72-0.75)` 并叠加 12px-14px 硬件加速磨砂毛玻璃滤镜（`backdrop-filter: blur(12px-14px); -webkit-backdrop-filter: blur(12px-14px);`），消除直切割黑框的生硬突兀感。
+4. 全站 288 项自动化测试（新增全站深色模式 color-scheme 与磨砂毛玻璃回归用例）、语法安全检查与 clean `dist` 构建 100% 顺利通过。
+
+---
+
 # 在线阅读器：自定义书籍二次确认防误删与书签/笔记级联清理（2026-11-04 晚）
 
 本节优先于下方历史记录。针对在线阅读器书架大厅（`reader.html` / `reader.css` / `reader.js` / `tests/reader.test.mjs`）中自定义书籍（本地导入的 EPUB/TXT/PDF）在移动端点击易误触删除按钮、且删除时直接硬删除导致珍贵书籍与阅读记录永久灭失，以及残留书签/划线笔记产生孤儿垃圾数据的严重隐患进行全链路安全治理：
