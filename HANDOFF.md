@@ -1,3 +1,19 @@
+# Claude 剩余改动发布（2026-11-04）
+
+本节优先于历史记录。阅读器补齐与其他页面相同的前端登录守卫，login.js 允许登录后返回 /reader 与 /reader.html 并保留原查询参数/锚点。守卫仍为静态站软门禁，不能称作服务端鉴权。reader.js 仅修正 EPUB 支持范围的注释，不改阅读数据或逻辑。
+
+npm test 与 scripts/check.mjs 共用 scripts/test-list.mjs；新增 scripts/test.mjs，187 项功能测试和语法、dist 构建通过。AUDIT.md 已作为历史报告加入，并在顶部注明已修复事项。首页三步上手、书架备份提醒和格式配置已在远程，无需重复覆盖；SQL 文件仅本地行尾差异，线上数据库不需要执行新脚本。
+
+发布以 facf3b8 为基线，保留此前蓝色 UI 更新。真实账号登录/邮件、加密备忘录和安卓真机流程仍需相应实际验收。本轮未读取私人内容。
+
+---
+
+# 内容完善与仓库整理（2026-11-04）
+
+本节优先于下方历史记录。首页 hero 区新增“三步上手”引导句（阅读器→自然声→专注钟）；阅读器导入区补充“换浏览器或清除站点数据前先导出书架备份”的提醒；README 修正为“本地预览无需构建，部署时执行 node scripts/build.mjs”。新增 .gitattributes（LF 统一）与 .editorconfig，不重写现有文件行尾。审查报告中“npm test 漏测”已过时：npm test 与 check.mjs 共用 scripts/test-list.mjs；reader.js 头部注释也已说明 EPUB 暂不支持。未改 reader.js 逻辑、数据库、价格、配色，隐藏模块保持隐藏。scripts/check.mjs 187 项功能测试通过；未做真机或线上验收。
+
+---
+
 # 蓝色视觉样式发布（2026-11-04）
 
 本节优先于下方历史记录。本轮发布本地尚未上线的 8 个 CSS 文件（style、motion、reader、memo、profile、space、store、faq）：统一蓝色渐变/光晕、深色模式及提示区域配色，修正缺失的灰色变量和阅读器次要文字变量。保留当前首页内容与隐藏功能范围。

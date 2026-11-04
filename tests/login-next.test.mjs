@@ -15,3 +15,12 @@ test('FAQ 页面登录后保留原目标与锚点',()=>{assert.equal(next('/faq'
 test('个人空间链接登录后保留目标成员',()=>{assert.equal(next('/space.html?user=00000000-0000-4000-8000-000000000001'),'/space.html?user=00000000-0000-4000-8000-000000000001');assert.equal(next('/space'),'/space');});
 
 test('账号安全页登录后返回原位置',()=>{assert.equal(next('/account'),'/account');assert.equal(next('/account.html'),'/account.html');});
+
+test('阅读器登录后回到书架，不丢锚点',()=>{assert.equal(next('/reader.html'),'/reader.html');assert.equal(next('/reader'),'/reader');assert.equal(next('/reader.html#shelf'),'/reader.html#shelf');});
+
+test('阅读器页加载登录守卫与配置，且守卫在阅读器脚本之前',()=>{
+  const html=readFileSync(new URL('../reader.html',import.meta.url),'utf8');
+  assert.ok(html.includes('memo-config.js'),'reader.html 必须加载 memo-config.js，否则守卫拿不到 Supabase 配置');
+  assert.ok(html.includes('auth-guard.js'),'reader.html 必须加载 auth-guard.js');
+  assert.ok(html.indexOf('auth-guard.js')<html.indexOf('reader.js'),'登录守卫需在 reader.js 之前执行');
+});
