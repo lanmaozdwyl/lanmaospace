@@ -1846,20 +1846,24 @@ html, body.reader-body {
     position: absolute;
     top: 6px;
     right: 6px;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
-    border: none;
-    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     color: #ffffff;
-    font-size: 11px;
+    font-size: 12px;
+    line-height: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
+    transition: opacity 0.15s, transform 0.15s, background-color 0.15s, border-color 0.15s;
     z-index: 5;
+    touch-action: manipulation;
 }
 .book-card-item:hover .card-delete-btn,
 .book-card-item:focus-within .card-delete-btn {
@@ -1867,12 +1871,22 @@ html, body.reader-body {
 }
 @media (max-width: 768px) {
     .card-delete-btn {
-        opacity: 0.85;
+        opacity: 0.9;
+        top: 8px;
+        right: 8px;
+        width: 30px;
+        height: 30px;
+        font-size: 13px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     }
 }
 .card-delete-btn:hover {
     background: #ff3b30;
-    transform: scale(1.1);
+    border-color: #ff3b30;
+    transform: scale(1.08);
+}
+.card-delete-btn:active {
+    transform: scale(0.92);
 }
 
 /* ===== 书架搜索与过滤样式 ===== */

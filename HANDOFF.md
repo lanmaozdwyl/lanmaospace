@@ -1,3 +1,18 @@
+# 在线阅读器：自定义书籍二次确认防误删与书签/笔记级联清理（2026-11-04 晚）
+
+本节优先于下方历史记录。针对在线阅读器书架大厅（`reader.html` / `reader.css` / `reader.js` / `tests/reader.test.mjs`）中自定义书籍（本地导入的 EPUB/TXT/PDF）在移动端点击易误触删除按钮、且删除时直接硬删除导致珍贵书籍与阅读记录永久灭失，以及残留书签/划线笔记产生孤儿垃圾数据的严重隐患进行全链路安全治理：
+1. 二次确认防误删安全守卫（`confirmDeleteCustomBook`）：
+   - 点击书卡删除按钮（`.card-delete-btn`）时不再直接执行物理删除，必须弹出明确清晰的二次确认对话框（`确定要从书架移除《xxx》吗？已导入的本地离线文件、阅读进度以及该书的所有书签和划线笔记将被彻底删除，此操作无法撤销。`）；
+   - 用户取消时 100% 保持现状不丢数据，仅当用户显式点击确认后才执行删除操作。
+2. 级联深度清理孤儿书签与划线笔记：
+   - 彻底解决旧版 `deleteCustomBook` 仅删除书籍主体和进度，但遗留 `STORAGE_KEY_BOOKMARKS` 与 `STORAGE_KEY_HIGHLIGHTS` 孤儿记录的问题；
+   - 删除书籍时自动级联剔除 `state.bookmarks[bookId]` 与 `state.highlights[bookId]`，同步调用 `saveBookmarks()` 与 `saveHighlights()`，并即刻刷新书签与划线笔记徽章计数，杜绝存储泄露与脏数据堆积。
+3. 移动端人机工程与视觉优化（`reader.css`）：
+   - 为 `.card-delete-btn` 注入毛玻璃背景（`backdrop-filter: blur(4px)`）与细微边框，小屏端（`max-width: 768px`）触控靶心从 24px 优化扩大至 30px×30px，并配置 `touch-action: manipulation;` 与按压缩放动效，兼顾醒目标识与精准防误触。
+4. 全站 287 项自动化测试、语法安全检查与 clean `dist` 构建 100% 通过。
+
+---
+
 # 全站 Spotlight 搜索（Ctrl+K）：深度收录蓝昴工具箱、常见问题 FAQ、多维拼音/别名检索与空状态建议胶囊（2026-11-04 晚）
 
 本节优先于下方历史记录。针对全站快捷搜索（`index.html` / `style.css` / `script.js` / `tests/ui-layout.test.mjs`）仅有 9 个主模块且缺乏深度工具索引、输入框无法快捷清空、无匹配时仅有冷冰冰文字的问题进行功能扩容与体验升级：

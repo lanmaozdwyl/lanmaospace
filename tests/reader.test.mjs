@@ -1003,3 +1003,25 @@ test('阅读器书架置底工具栏 40-44px 人机工程学靶心与防误按�
     assert(/@media\s*\([^)]*max-width:\s*380px[^)]*\)[\s\S]*?\.shelf-brand-title\s*\{[^}]*display:\s*none/i.test(readerCss), '极窄屏下需隐藏书架冗余标题释放横向空间');
     assert(/@media\s*\([^)]*max-width:\s*380px[^)]*\)[\s\S]*?\.shelf-tool-btn\s*\{[^}]*min-width:\s*40px/i.test(readerCss), '极窄屏下仍必须保持不低于 40px 的大拇指防误触尺寸');
 });
+
+test('阅读器自定义书籍安全删除防护与书签/笔记级联清理', () => {
+    const readerJs = readFileSync(new URL('../reader.js', import.meta.url), 'utf8');
+    const readerCss = readFileSync(new URL('../reader.css', import.meta.url), 'utf8');
+
+    // 1. 安全删除确认函数与绑定
+    assert(readerJs.includes('function confirmDeleteCustomBook'), '必须提供删除二次确认防误删函数');
+    assert(readerJs.includes('window.confirm'), '必须调用二次确认对话框告知用户删除后果');
+    assert(readerJs.includes('confirmDeleteCustomBook(b.id)'), '卡片删除按钮必须绑定确认函数而非直接硬删除');
+
+    // 2. 书签与划线笔记孤儿记录级联清理
+    assert(readerJs.includes('state.bookmarks[bookId]'), '必须级联检查并清理关联书签');
+    assert(readerJs.includes('state.highlights[bookId]'), '必须级联检查并清理关联划线笔记');
+    assert(readerJs.includes('saveBookmarks()'), '书签清理后需持久化更新存储');
+    assert(readerJs.includes('saveHighlights()'), '划线笔记清理后需持久化更新存储');
+
+    // 3. 移动端人机工程与样式
+    assert(readerCss.includes('.card-delete-btn'), '需定义卡片删除按钮样式');
+    assert(readerCss.includes('touch-action: manipulation'), '需优化移动端触控防误按属性');
+    assert(/@media\s*\([^)]*max-width:\s*768px[^)]*\)[\s\S]*?\.card-delete-btn[\s\S]*?width:\s*30px/i.test(readerCss), '移动端删除按钮尺寸需优化至 30px 便于明确操作与防遮挡');
+});
+

@@ -966,7 +966,18 @@
         }
     }
 
+    function confirmDeleteCustomBook(bookId) {
+        const book = state.books[bookId];
+        const title = (book && book.title) || '此本地书籍';
+        const ok = window.confirm(`确定要从书架移除《${title}》吗？\n\n已导入的本地离线文件、阅读进度以及该书的所有书签和划线笔记将被彻底删除，此操作无法撤销。`);
+        if (!ok) return false;
+        deleteCustomBook(bookId);
+        return true;
+    }
+
     function deleteCustomBook(bookId) {
+        const book = state.books[bookId];
+        const title = (book && book.title) || '';
         delete state.books[bookId];
 
         // 1. 从 localStorage 镜像移除
@@ -1004,7 +1015,21 @@
             localStorage.removeItem(STORAGE_KEY_PROGRESS);
         }
 
-        // 4. 若删除的书恰好是当前活跃书籍，重置为默认书《小王子》并清理路由参数
+        // 4. 级联清理该书的珍藏书签与划线笔记
+        let bookmarksChanged = false;
+        if (state.bookmarks && state.bookmarks[bookId]) {
+            delete state.bookmarks[bookId];
+            bookmarksChanged = true;
+        }
+        let highlightsChanged = false;
+        if (state.highlights && state.highlights[bookId]) {
+            delete state.highlights[bookId];
+            highlightsChanged = true;
+        }
+        if (bookmarksChanged) saveBookmarks();
+        if (highlightsChanged) saveHighlights();
+
+        // 5. 若删除的书恰好是当前活跃书籍，重置为默认书《小王子》并清理路由参数
         if (state.currentBookId === bookId) {
             state.currentBookId = 'prince';
             state.currentBook = state.books.prince || BUILTIN_BOOKS.prince;
@@ -1028,7 +1053,7 @@
 
         renderBookshelfGrid();
         updateBookshelfHero();
-        showToast('已从本机移除该书');
+        showToast(title ? `已从书架移除《${title}》` : '已从本机移除该书');
     }
 
     // ===== 4.8 珍藏书签管理引擎 =====
@@ -2555,7 +2580,7 @@
                 if (delBtn) {
                     delBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        deleteCustomBook(b.id);
+                        confirmDeleteCustomBook(b.id);
                     });
                 }
             }
