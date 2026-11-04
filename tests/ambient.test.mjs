@@ -110,3 +110,47 @@ test('伴读白噪音触控滑块防误滚与静音/定时人机工程学：44px
     assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?\.ambient-vol-slider::-webkit-slider-thumb\s*\{[^}]*width:\s*22px/i.test(styleCss), '手机窄屏下滑块 thumb 需放大至 22px 方便触控');
     assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?\.ambient-timer-pill\s*\{[^}]*min-height:\s*44px/i.test(styleCss), '定时胶囊需具备 44px 人机工程学高度');
 });
+
+test('伴读声音防挂死升级：音频拉取并行不被挂起的恢复阻断，且支持非根路径相对回退与预解锁', async () => {
+    // 1. 网络拉取不被挂起的 resume 阻塞
+    let fetchStarted = false;
+    let finishResume;
+    const pendingResume = new Promise(r => { finishResume = r; });
+    const f = fixture({
+        resume: () => pendingResume,
+        fetch: async () => {
+            fetchStarted = true;
+            return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) };
+        }
+    });
+
+    const playPromise = f.player.play();
+    await tick();
+    // 此时 resume 仍在 pending，但 fetch 必须已启动
+    assert.equal(fetchStarted, true, '即使 resume 尚未 resolve，fetch 也应立即并发启动');
+    assert.equal(f.player.state, 'loading');
+
+    // 恢复完成，播放顺畅开始
+    finishResume();
+    await playPromise;
+    assert.equal(f.player.state, 'playing');
+
+    // 2. 根路径 404 时自动降级为相对路径拉取
+    const requestedUrls = [];
+    const fFallback = fixture({
+        fetch: async url => {
+            requestedUrls.push(url);
+            if (url.startsWith('/audio/')) {
+                return { ok: false, status: 404, headers: new Map() };
+            }
+            return { ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(8), headers: new Map() };
+        }
+    });
+    await fFallback.player.play('stream');
+    assert.deepEqual(requestedUrls, ['/audio/stream.mp3', 'audio/stream.mp3'], '首选 /audio 失败时应尝试相对路径 audio/');
+    assert.equal(fFallback.player.state, 'playing');
+
+    // 3. 支持预解锁 unlock()
+    assert.equal(typeof f.player.unlock, 'function', '播放器必须导出 unlock 方法用于手势唤醒');
+    f.player.unlock();
+});

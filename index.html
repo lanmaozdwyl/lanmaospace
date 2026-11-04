@@ -702,7 +702,10 @@
                         <div class="form-group">
                             <div class="form-group-header">
                                 <label for="message">留言内容</label>
-                                <span class="guestbook-char-count" id="guestbookCharCount" aria-live="polite">0 / 2000</span>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="guestbook-draft-notice" id="guestbookDraftNotice" hidden>📝 已恢复草稿</span>
+                                    <span class="guestbook-char-count" id="guestbookCharCount" aria-live="polite">0 / 2000</span>
+                                </div>
                             </div>
                             <textarea id="message" rows="4" placeholder="想说什么都可以哦～" maxlength="2000" required></textarea>
                         </div>
@@ -713,7 +716,10 @@
                     </form>
 
                     <p class="guestbook-note">提交后需店主审核通过才会公开显示；邮箱只用来联系你，不会公开显示。</p>
-                    <p class="guestbook-status" id="guestbookStatus" role="status" aria-live="polite"></p>
+                    <div class="guestbook-status-row">
+                        <p class="guestbook-status" id="guestbookStatus" role="status" aria-live="polite"></p>
+                        <button type="button" class="guestbook-retry-btn" id="guestbookRetryBtn" hidden>🔄 重试发送</button>
+                    </div>
 
                     <!-- 留言列表：只显示审核通过的留言，由 guestbook.js 从 Supabase 读取 -->
                     <div class="messages-list" id="messagesList"></div>

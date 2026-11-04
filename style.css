@@ -929,6 +929,55 @@ button {
     font-weight: 700;
 }
 
+.guestbook-draft-notice {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: var(--primary);
+    background: rgba(102, 126, 234, 0.12);
+    padding: 2px 8px;
+    border-radius: 6px;
+    animation: fadeIn 0.2s ease;
+}
+
+.guestbook-draft-notice[hidden] {
+    display: none !important;
+}
+
+.guestbook-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.guestbook-retry-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.guestbook-retry-btn:hover {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+.guestbook-retry-btn[hidden] {
+    display: none !important;
+}
+
 .guestbook-quick-tags {
     display: flex;
     align-items: center;

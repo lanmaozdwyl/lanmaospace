@@ -120,6 +120,16 @@ if (play) {
             if (detail.allowStart && !isActive()) player.play();
         } else if (isActive()) player.pause();
     });
+    ['pomodoro-start', 'focus-main-start', 'focus-next-pill-btn', 'pomodoro-next-btn'].forEach(btnId => {
+        byId(btnId)?.addEventListener('click', () => {
+            if (byId('ambient-pomodoro-sync')?.checked) player.unlock?.();
+        });
+    });
+    document.addEventListener('keydown', event => {
+        if ((event.code === 'Space' || event.key === ' ') && byId('ambient-pomodoro-sync')?.checked) {
+            player.unlock?.();
+        }
+    });
     const credits = byId('ambient-credits');
     for (const sound of AMBIENT_SOUNDS) {
         const line = document.createElement('p');

@@ -27,7 +27,7 @@ test('店主读取待审核列表，用户内容以纯文本显示并支持审�
 });
 test('退出登录移除审核内容，忽略尚未返回的列表',async()=>{const f=await fixture('owner',true);const panel=f.host.afterItem;f.signout();f.resolve();await new Promise(resolve=>setImmediate(resolve));assert(panel.removed);assert.equal(panel.children[4].children.length,0);});
 
-test('首页留言板：实时字数计数器（0/2000）与快捷打卡胶囊标签（Pills）', () => {
+test('首页留言板：实时字数计数器（0/2000）、快捷打卡胶囊、草稿自动暂存恢复与失败一键重试', () => {
     const guestbookJs = readFileSync(new URL('../guestbook.js', import.meta.url), 'utf8');
     const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
     const styleCss = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
@@ -36,6 +36,8 @@ test('首页留言板：实时字数计数器（0/2000）与快捷打卡胶囊�
     assert(indexHtml.includes('id="guestbookCharCount"'), '留言板必须包含字数计数器节点');
     assert(indexHtml.includes('guestbook-quick-tags'), '需包含快捷打卡问候语标签栏');
     assert(indexHtml.includes('class="quick-tag-pill"'), '需包含快捷问候胶囊按钮');
+    assert(indexHtml.includes('id="guestbookDraftNotice"'), '需包含草稿恢复微提示节点');
+    assert(indexHtml.includes('id="guestbookRetryBtn"'), '需包含提交失败重试按钮');
     assert(indexHtml.includes('maxlength="40"'), '昵称输入框需声明 maxlength 限制');
     assert(indexHtml.includes('maxlength="2000"'), '留言输入框需声明 maxlength 限制');
 
@@ -43,9 +45,15 @@ test('首页留言板：实时字数计数器（0/2000）与快捷打卡胶囊�
     assert(styleCss.includes('.guestbook-char-count'), '需定义字数计数器样式');
     assert(styleCss.includes('.guestbook-quick-tags'), '需定义快捷打卡胶囊容器样式');
     assert(styleCss.includes('.quick-tag-pill'), '需定义胶囊按钮微交互与悬浮动效');
+    assert(styleCss.includes('.guestbook-draft-notice'), '需定义草稿恢复提示样式');
+    assert(styleCss.includes('.guestbook-retry-btn'), '需定义重试按钮样式');
 
     // 3. guestbook.js 逻辑绑定与重置响应
     assert(guestbookJs.includes('initGuestbookEnhancements'), '需定义留言板增强初始化函数');
     assert(guestbookJs.includes('updateCharCount'), '需包含动态字数更新与超限高亮逻辑');
+    assert(guestbookJs.includes('STORAGE_KEY_GUESTBOOK_DRAFT'), '需定义草稿本地持久化键');
+    assert(guestbookJs.includes('saveDraft'), '需包含输入实时暂存草稿逻辑');
+    assert(guestbookJs.includes('restoreDraft'), '需包含离页/刷新后自动恢复草稿逻辑');
+    assert(guestbookJs.includes('clearDraft'), '提交成功后需清除本地草稿');
     assert(guestbookJs.includes('form.reset()'), '成功提交后必须清空表单并重置字数计数器');
 });

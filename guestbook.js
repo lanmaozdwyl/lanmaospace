@@ -102,9 +102,15 @@ async function loadMessages() {
     }
 }
 
+const STORAGE_KEY_GUESTBOOK_DRAFT = 'lanmao_guestbook_draft_v1';
+
 function initGuestbookEnhancements() {
+    const nameInput = document.getElementById("name");
+    const emailInput = document.getElementById("email");
     const messageInput = document.getElementById("message");
     const countEl = document.getElementById("guestbookCharCount");
+    const draftNotice = document.getElementById("guestbookDraftNotice");
+    const retryBtn = document.getElementById("guestbookRetryBtn");
     const quickTags = document.querySelectorAll(".quick-tag-pill");
 
     function updateCharCount() {
@@ -115,10 +121,75 @@ function initGuestbookEnhancements() {
         countEl.classList.toggle("over-limit", len > 2000);
     }
 
-    if (messageInput && countEl) {
-        messageInput.addEventListener("input", updateCharCount);
-        updateCharCount();
+    function saveDraft() {
+        try {
+            const nameVal = nameInput ? nameInput.value.trim() : "";
+            const emailVal = emailInput ? emailInput.value.trim() : "";
+            const msgVal = messageInput ? messageInput.value : "";
+            if (nameVal || emailVal || msgVal.trim()) {
+                const payload = {
+                    name: nameVal,
+                    email: emailVal,
+                    message: msgVal,
+                    savedAt: Date.now()
+                };
+                localStorage.setItem(STORAGE_KEY_GUESTBOOK_DRAFT, JSON.stringify(payload));
+            } else {
+                localStorage.removeItem(STORAGE_KEY_GUESTBOOK_DRAFT);
+            }
+        } catch (_) {}
     }
+
+    function clearDraft() {
+        try {
+            localStorage.removeItem(STORAGE_KEY_GUESTBOOK_DRAFT);
+            if (draftNotice) draftNotice.hidden = true;
+            if (retryBtn) retryBtn.hidden = true;
+        } catch (_) {}
+    }
+
+    function restoreDraft() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_GUESTBOOK_DRAFT);
+            if (!raw) return;
+            const draft = JSON.parse(raw);
+            if (!draft || typeof draft !== "object") return;
+            let restored = false;
+            if (draft.name && nameInput && !nameInput.value) {
+                nameInput.value = draft.name;
+                restored = true;
+            }
+            if (draft.email && emailInput && !emailInput.value) {
+                emailInput.value = draft.email;
+                restored = true;
+            }
+            if (draft.message && messageInput && !messageInput.value) {
+                messageInput.value = draft.message;
+                restored = true;
+            }
+            if (restored) {
+                updateCharCount();
+                if (draftNotice) {
+                    draftNotice.hidden = false;
+                    setTimeout(() => {
+                        if (draftNotice) draftNotice.hidden = true;
+                    }, 4500);
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (nameInput) nameInput.addEventListener("input", saveDraft);
+    if (emailInput) emailInput.addEventListener("input", saveDraft);
+    if (messageInput) {
+        messageInput.addEventListener("input", () => {
+            updateCharCount();
+            saveDraft();
+        });
+    }
+
+    restoreDraft();
+    updateCharCount();
 
     quickTags.forEach(pill => {
         pill.addEventListener("click", () => {
@@ -131,16 +202,17 @@ function initGuestbookEnhancements() {
             }
             messageInput.focus();
             updateCharCount();
+            saveDraft();
         });
     });
 
-    return { updateCharCount };
+    return { updateCharCount, saveDraft, clearDraft };
 }
 
 async function init() {
     const form = document.getElementById("messageForm");
     if (!form) return;
-    const { updateCharCount } = initGuestbookEnhancements();
+    const { updateCharCount, saveDraft, clearDraft } = initGuestbookEnhancements();
     if (!isConfigured()) {
         setStatus("留言功能还没接好，请稍后再试。");
         return;
@@ -157,6 +229,7 @@ async function init() {
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const button = form.querySelector('button[type="submit"]');
+        const retryBtn = document.getElementById("guestbookRetryBtn");
         const name = document.getElementById("name").value.trim();
         const email = document.getElementById("email").value.trim();
         const message = document.getElementById("message").value.trim();
@@ -174,11 +247,14 @@ async function init() {
             return;
         }
         if (button) button.disabled = true;
+        if (retryBtn) retryBtn.hidden = true;
         setStatus("正在提交…");
+        saveDraft();
         try {
             const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
             if (sessionError) throw sessionError;
             if (!sessionData.session) {
+                saveDraft();
                 window.location.replace(`login.html?next=${encodeURIComponent(window.location.pathname)}`);
                 return;
             }
@@ -190,17 +266,30 @@ async function init() {
             });
             if (error) throw error;
             lastSubmitAt = Date.now();
+            clearDraft();
             form.reset();
             updateCharCount();
             setStatus("留言已提交，店主审核通过后才会公开显示，感谢你的留言！");
         } catch (error) {
             console.error(error);
+            saveDraft();
             const text = String(error && error.message ? error.message : "");
             setStatus(
                 text.includes("guestbook_messages")
                     ? "留言功能还没接好：请店主先在 Supabase 运行 guestbook.sql，之后再提交。"
-                    : "提交失败，请检查网络或 Supabase 项目是否暂停，刷新后再试。"
+                    : "提交失败，已为你妥善保存草稿，请检查网络后点击【重试发送】。"
             );
+            if (retryBtn) {
+                retryBtn.hidden = false;
+                retryBtn.onclick = () => {
+                    retryBtn.hidden = true;
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit();
+                    } else {
+                        form.dispatchEvent(new Event('submit', { cancelable: true }));
+                    }
+                };
+            }
         } finally {
             if (button) button.disabled = false;
         }
