@@ -4,7 +4,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-  Content-Security-Policy: frame-ancestors 'self'; object-src 'none'; base-uri 'self'; default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: data: https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; form-action 'self' https://wpa.qq.com
+  Content-Security-Policy: frame-ancestors 'self'; object-src 'none'; base-uri 'self'; default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: data: https://*.supabase.co wss://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://archive.org; worker-src 'self' blob:; form-action 'self' https://wpa.qq.com
   Cache-Control: no-cache
 
 /memo-config.js

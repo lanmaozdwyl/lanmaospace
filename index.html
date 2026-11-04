@@ -676,16 +676,26 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="name">昵称</label>
-                                <input type="text" id="name" placeholder="你的名字" required>
+                                <input type="text" id="name" placeholder="你的名字" maxlength="40" required>
                             </div>
                             <div class="form-group">
                                 <label for="email">邮箱（选填）</label>
                                 <input type="email" id="email" placeholder="your@email.com">
                             </div>
                         </div>
+                        <div class="guestbook-quick-tags" role="toolbar" aria-label="快捷留言打卡">
+                            <span class="quick-tags-label">✨ 快速打卡：</span>
+                            <button type="button" class="quick-tag-pill" data-msg="🐾 前来踩一踩，蓝昴空间做得很棒！">🐾 前来打卡</button>
+                            <button type="button" class="quick-tag-pill" data-msg="🌟 宝藏小站，已加入浏览器书签！">🌟 收藏小站</button>
+                            <button type="button" class="quick-tag-pill" data-msg="☕ 持续关注中，博主加油更新呀！">☕ 催更博主</button>
+                            <button type="button" class="quick-tag-pill" data-msg="💡 发现一个很棒的工具/想法：">💡 提个建议</button>
+                        </div>
                         <div class="form-group">
-                            <label for="message">留言内容</label>
-                            <textarea id="message" rows="4" placeholder="想说什么都可以哦～" required></textarea>
+                            <div class="form-group-header">
+                                <label for="message">留言内容</label>
+                                <span class="guestbook-char-count" id="guestbookCharCount" aria-live="polite">0 / 2000</span>
+                            </div>
+                            <textarea id="message" rows="4" placeholder="想说什么都可以哦～" maxlength="2000" required></textarea>
                         </div>
                         <button type="submit" class="submit-btn">
                             <span>发送留言</span>

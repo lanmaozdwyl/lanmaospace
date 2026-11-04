@@ -102,9 +102,45 @@ async function loadMessages() {
     }
 }
 
+function initGuestbookEnhancements() {
+    const messageInput = document.getElementById("message");
+    const countEl = document.getElementById("guestbookCharCount");
+    const quickTags = document.querySelectorAll(".quick-tag-pill");
+
+    function updateCharCount() {
+        if (!messageInput || !countEl) return;
+        const len = messageInput.value.length;
+        countEl.textContent = `${len} / 2000`;
+        countEl.classList.toggle("near-limit", len >= 1900 && len <= 2000);
+        countEl.classList.toggle("over-limit", len > 2000);
+    }
+
+    if (messageInput && countEl) {
+        messageInput.addEventListener("input", updateCharCount);
+        updateCharCount();
+    }
+
+    quickTags.forEach(pill => {
+        pill.addEventListener("click", () => {
+            if (!messageInput) return;
+            const textToAdd = pill.dataset.msg || pill.textContent;
+            if (!messageInput.value.trim()) {
+                messageInput.value = textToAdd;
+            } else {
+                messageInput.value = messageInput.value.trim() + "\n" + textToAdd;
+            }
+            messageInput.focus();
+            updateCharCount();
+        });
+    });
+
+    return { updateCharCount };
+}
+
 async function init() {
     const form = document.getElementById("messageForm");
     if (!form) return;
+    const { updateCharCount } = initGuestbookEnhancements();
     if (!isConfigured()) {
         setStatus("留言功能还没接好，请稍后再试。");
         return;
@@ -155,6 +191,7 @@ async function init() {
             if (error) throw error;
             lastSubmitAt = Date.now();
             form.reset();
+            updateCharCount();
             setStatus("留言已提交，店主审核通过后才会公开显示，感谢你的留言！");
         } catch (error) {
             console.error(error);
