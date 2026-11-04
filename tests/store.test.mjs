@@ -227,3 +227,12 @@ test('常见问题 FAQ 页与商店深色模式全量自适应：卡片、折叠
     // 3. 移动端安全区避让
     assert(mobileCss.includes('.shop-nav{padding-top:env(safe-area-inset-top,0px)}'), '移动端导航需包含刘海安全区避让');
 });
+
+test('商店商品详情弹窗移动端窄屏人机工程：内边距瘦身、绝对定位关闭按钮防重叠与全量深色自适应', () => {
+    const storeCss = readFileSync(new URL('../store.css', import.meta.url), 'utf8');
+    assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?dialog#detail,\s*dialog\s*\{[^}]*padding:\s*22px\s*16px/i.test(storeCss), '小屏下弹窗必须将内边距缩减至 16px 左右以释放横向内容宽度');
+    assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?#close\s*\{[^}]*position:\s*absolute/i.test(storeCss), '小屏下关闭按钮必须采用绝对定位脱离文档流以防挤压长标题');
+    assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?\.detail-header\s*\{[^}]*padding-right:\s*48px/i.test(storeCss), '弹窗题头右侧必须为绝对定位的关闭按钮预留避让空间');
+    assert(storeCss.includes('body[data-theme="dark"] dialog') && storeCss.includes('.detail-section'), '商品弹窗需支持深色模式背景与板块');
+    assert(storeCss.includes('@media (prefers-color-scheme: dark)') && storeCss.includes('.detail-warranty-section'), '质保条款需自适应暗绿色背景');
+});
