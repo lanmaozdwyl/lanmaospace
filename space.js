@@ -5,9 +5,20 @@ import {cleanSpace,cleanPost,memberId} from './lib/space.mjs';
 const $=id=>document.getElementById(id);
 let client,user,target,own,baseline=null,memberOffset=0,postOffset=0,busy=false,ended=false,dirty=false,profileDirty=false;
 const linkInputs=[];
-let editPost=null,editDirty=false,reportOffset=0;
+let editPost=null,editDirty=false,reportOffset=0,editOpener=null;
 let targetBlocked=false,blockOffset=0;
 function updateDirty(){dirty=profileDirty||editDirty||!!$('post-body').value.trim();}
+function updatePostEditingState(){
+ const list=$('post-list');if(!list)return;
+ for(const card of list.children||[]){
+  const isCurrent=!!(editPost&&card.dataset?.postId===editPost.id);
+  if(card.classList?.toggle)card.classList.toggle('space-post-editing',isCurrent);
+  else if(card.className){
+   if(isCurrent&&!card.className.includes('space-post-editing'))card.className=(card.className+' space-post-editing').trim();
+   else if(!isCurrent&&card.className.includes('space-post-editing'))card.className=card.className.replace(/\bspace-post-editing\b/g,'').trim();
+  }
+ }
+}
 function node(tag,text){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;}
 function message(text){$('space-status').textContent=text;}
 function assertSession(){if(ended)throw Error('会话已结束，请重新登录。');}
@@ -72,10 +83,15 @@ async function loadPosts(){
  const rows=await result(client.from('space_posts').select('id,user_id,body,archived,created_at,updated_at,edited_at,moderation_hidden').eq('user_id',target).eq('archived',archived).order('created_at',{ascending:false}).order('id',{ascending:false}).range(postOffset,postOffset+19));
  const list=$('post-list');list.replaceChildren();
  for(const item of rows||[]){
-  const article=node('article');article.className='space-post';const time=node('time',new Date(item.created_at).toLocaleString('zh-CN'));time.dateTime=item.created_at;const text=node('p',item.body);text.className='space-text';article.append(time,text);if(item.edited_at)article.append(node('p','已编辑 · '+new Date(item.edited_at).toLocaleString('zh-CN')));if(item.moderation_hidden)article.append(node('p','这条动态已被店主隐藏，其他成员不可见。'));
+  const article=node('article');article.className='space-post';article.dataset={postId:item.id};article.setAttribute('data-post-id',item.id);
+  if(editPost&&editPost.id===item.id){if(article.classList?.add)article.classList.add('space-post-editing');else article.className+=' space-post-editing';}
+  const time=node('time',new Date(item.created_at).toLocaleString('zh-CN'));time.dateTime=item.created_at;const text=node('p',item.body);text.className='space-text';article.append(time,text);if(item.edited_at)article.append(node('p','已编辑 · '+new Date(item.edited_at).toLocaleString('zh-CN')));if(item.moderation_hidden)article.append(node('p','这条动态已被店主隐藏，其他成员不可见。'));
   if(own){const editButton=node('button','编辑动态');editButton.type='button';editButton.onclick=()=>{
    if(editDirty&&!window.confirm('切换编辑会放弃当前动态草稿，是否继续？'))return;
-   editPost={...item};editDirty=false;updateDirty();$('edit-post-form').hidden=false;$('edit-post-body').value=item.body;$('edit-post-status').textContent='保存会检查云端版本；冲突时保留你的草稿。';$('edit-post-body').focus();
+   editOpener=editButton;editPost={...item};editDirty=false;updateDirty();$('edit-post-form').hidden=false;$('edit-post-body').value=item.body;$('edit-post-status').textContent='保存会检查云端版本；冲突时保留你的草稿。';
+   updatePostEditingState();
+   $('edit-post-form').scrollIntoView?.({behavior:'smooth',block:'nearest'});
+   $('edit-post-body').focus();
   };article.append(editButton);}
   else {const reportButton=node('button','举报');reportButton.type='button';const form=node('form');form.hidden=true;const reason=node('textarea');reason.maxLength=500;reason.required=true;reason.setAttribute('aria-label','举报原因');const send=node('button','提交举报');send.type='submit';const cancel=node('button','取消');cancel.type='button';cancel.onclick=()=>{form.hidden=true;};form.append(reason,send,cancel);reportButton.onclick=()=>{form.hidden=!form.hidden;if(!form.hidden)reason.focus();};form.onsubmit=e=>{e.preventDefault();task(async()=>{const why=reason.value.trim();if(!why||[...why].length>500)throw Error('举报原因请填写 1–500 字。');const sent=await result(client.rpc('report_space_post',{p_post:item.id,p_reason:why}));form.hidden=true;message(sent?'举报已提交，店主审核后处理；不会自动隐藏内容。':'你已经举报过这条动态。');});};article.append(reportButton,form);}
   if(own){const button=node('button',item.archived?'恢复公开':'隐藏动态');button.type='button';button.onclick=()=>task(async()=>{
@@ -114,8 +130,14 @@ $('edit-post-form').onsubmit=e=>{e.preventDefault();task(async()=>{
  const changed=await result(client.from('space_posts').update({body}).eq('id',editPost.id).eq('user_id',user.id).eq('updated_at',editPost.updated_at).select('id'));
  if(!changed?.length){$('edit-post-status').textContent='云端动态已被修改，未覆盖。请复制保留草稿，刷新列表后重新编辑。';throw Error('编辑冲突：草稿已保留。');}
  editPost=null;editDirty=false;updateDirty();$('edit-post-form').hidden=true;await loadPosts();message('动态修改已保存。');
+ if(editOpener&&typeof editOpener.focus==='function'){editOpener.focus();editOpener=null;}
 });};
-$('edit-post-cancel').onclick=()=>{if(editDirty&&!window.confirm('放弃当前动态的未保存修改？'))return;editPost=null;editDirty=false;updateDirty();$('edit-post-form').hidden=true;};
+$('edit-post-cancel').onclick=()=>{
+ if(editDirty&&!window.confirm('放弃当前动态的未保存修改？'))return;
+ editPost=null;editDirty=false;updateDirty();$('edit-post-form').hidden=true;
+ updatePostEditingState();
+ if(editOpener&&typeof editOpener.focus==='function'){editOpener.focus();editOpener=null;}
+};
 $('member-search-form').onsubmit=e=>{e.preventDefault();memberOffset=0;task(loadMembers);};
 $('member-search-clear').onclick=()=>{$('member-search').value='';memberOffset=0;task(loadMembers);};
 async function loadReports(){

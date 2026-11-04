@@ -8,7 +8,18 @@ import {avatarDisplay,fallbackAvatarDisplay} from '../lib/avatar.mjs';
 test('个人资料整理保留合法链接并去除空白',()=>{assert.deepEqual(cleanSpace({display_name:' member ',bio:' hello ',links:[{label:' Blog ',url:' https://example.invalid/ '}]}),{display_name:'member',bio:'hello',links:[{label:'Blog',url:'https://example.invalid/'}]});});
 test('拒绝脚本地址、登录凭据、过多链接和超长资料',()=>{for(const url of ['javascript:alert(1)','data:text/html,x','https://name:password@example.invalid/'])assert.throws(()=>cleanSpace({display_name:'name',links:[{label:'x',url}]}));for(const v of [{display_name:''},{display_name:'x'.repeat(41)},{display_name:'x',bio:'x'.repeat(601)},{display_name:'x',links:Array(7).fill({label:'x',url:'https://example.invalid/'})}])assert.throws(()=>cleanSpace(v));});
 test('动态长度和成员地址校验',()=>{assert.equal(cleanPost(' hello '),'hello');assert.throws(()=>cleanPost(' '));assert.throws(()=>cleanPost('x'.repeat(2001)));assert.equal(memberId('not-an-id'),null);assert.equal(memberId('00000000-0000-4000-8000-000000000001'),'00000000-0000-4000-8000-000000000001');});
-class El{constructor(){this.hidden=false;this.value='';this.children=[];this.style={};this.textContent='';}append(...nodes){this.children.push(...nodes);}replaceChildren(...nodes){this.children=nodes;}setAttribute(){}click(){this.clicked=true;}remove(){this.removed=true;}focus(){this.focused=true;}querySelectorAll(){return [];} }
+class El{
+ constructor(){this.hidden=false;this.value='';this.children=[];this.style={};this.textContent='';this.className='';this.dataset={};this.attrs={};this.scrolled=false;this.focused=false;}
+ append(...nodes){this.children.push(...nodes);}replaceChildren(...nodes){this.children=nodes;}setAttribute(k,v){this.attrs[k]=String(v);}click(){this.clicked=true;}remove(){this.removed=true;}focus(){this.focused=true;}scrollIntoView(){this.scrolled=true;}querySelectorAll(){return [];}
+ get classList(){
+  return{
+   add:(...classes)=>{const set=new Set(this.className.split(/\s+/).filter(Boolean));classes.forEach(c=>set.add(c));this.className=[...set].join(' ');},
+   remove:(...classes)=>{const set=new Set(this.className.split(/\s+/).filter(Boolean));classes.forEach(c=>set.delete(c));this.className=[...set].join(' ');},
+   toggle:(c,force)=>{const has=this.className.split(/\s+/).includes(c);const want=force!==undefined?!!force:!has;if(want)this.classList.add(c);else this.classList.remove(c);return want;},
+   contains:c=>this.className.split(/\s+/).includes(c)
+  };
+ }
+}
 async function fixture(other=false,options={}){
  const id='00000000-0000-4000-8000-000000000001',target='00000000-0000-4000-8000-000000000002',elements=new Map(),calls=[],downloads=[];let auth;
  const get=id=>{if(!elements.has(id))elements.set(id,new El());return elements.get(id);};
@@ -37,3 +48,23 @@ test('屏蔽请求只针对当前目标并在成功后隐藏内容',async()=>{co
 test('解除屏蔽重新读取目标主页及动态',async()=>{const f=await fixture(true,{blocked:true,posts:[postFixture]});f.get('toggle-member-block').onclick();for(let i=0;i<8;i++)await new Promise(r=>setImmediate(r));assert(f.calls.some(c=>c.rpc==='set_space_block'&&c.args.p_block===false));assert.equal(f.get('member-profile-card').hidden,false);assert(f.calls.some(c=>c.rpc==='member_spaces'));assert(f.get('post-list').children.length>0);});
 test('屏蔽名单只在本人空间显示',async()=>{const own=await fixture();assert.equal(own.get('blocks-panel').hidden,false);const other=await fixture(true);assert.equal(other.get('blocks-panel').hidden,true);assert(!other.calls.some(c=>c.rpc==='my_space_blocks'));});
 test('个人空间支持首屏主页与动态并发加载及快照秒开',async()=>{const source=readFileSync(new URL('../space.js',import.meta.url),'utf8');assert(source.includes('Promise.all([loadSpace(),loadPosts()])'),'核心主页与动态必须并行加载');assert(source.includes('lanmao_space_cached_profile_'),'必须支持本地快照以实现首屏秒开');});
+
+test('动态编辑支持平滑滚动定位、卡片原位高亮锚定与焦点恢复', async () => {
+    const f = await fixture(false, {posts: [postFixture]});
+    const article = f.get('post-list').children[0];
+    const editBtn = article.children.find(x => x.textContent === '编辑动态');
+    assert(editBtn);
+
+    // 1. 点击“编辑动态”：表单展开并滚动定位，当前卡片添加 space-post-editing 高亮
+    editBtn.onclick();
+    assert.equal(f.get('edit-post-form').hidden, false);
+    assert.equal(f.get('edit-post-form').scrolled, true);
+    assert.equal(article.classList.contains('space-post-editing'), true);
+    assert.equal(f.get('edit-post-body').focused, true);
+
+    // 2. 点击“取消编辑”：表单隐藏，卡片高亮清除，原编辑按钮恢复焦点
+    f.get('edit-post-cancel').onclick();
+    assert.equal(f.get('edit-post-form').hidden, true);
+    assert.equal(article.classList.contains('space-post-editing'), false);
+    assert.equal(editBtn.focused, true);
+});
