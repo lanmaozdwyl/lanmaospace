@@ -2,8 +2,34 @@ import {getSupabase} from './lib/supabase-client.js';
 import {currentAccount,sendAccountReset,signOutEverywhere} from './lib/account-security.mjs';
 
 const $=id=>document.getElementById(id);
-let client,user,busy=false,ended=false,resetAt=0,cooldownTimer=null;
+let client,user,busy=false,ended=false,resetAt=0,cooldownTimer=null,emailMasked=true;
 const COOLDOWN_KEY_PREFIX='lanmao_account_reset_cooldown_';
+
+function maskEmail(email){
+ if(!email||typeof email!=='string')return '';
+ const atIdx=email.indexOf('@');
+ if(atIdx<=0)return email;
+ const name=email.slice(0,atIdx),domain=email.slice(atIdx);
+ if(name.length<=2)return name[0]+'***'+domain;
+ return name.slice(0,2)+'***'+name.slice(-1)+domain;
+}
+
+function updateEmailDisplay(){
+ const rawEmail=user?.email||'未绑定邮箱';
+ const emailEl=$('account-email');
+ const previewEl=$('account-reset-email-preview');
+ const iconEl=$('account-mask-icon');
+ const toggleBtn=$('account-toggle-mask');
+ const display=(emailMasked&&rawEmail.includes('@'))?maskEmail(rawEmail):rawEmail;
+ if(emailEl)emailEl.textContent=display;
+ if(previewEl)previewEl.textContent=display;
+ if(iconEl)iconEl.textContent=emailMasked?'👁️':'🙈';
+ if(toggleBtn){
+  const label=emailMasked?'显示完整邮箱':'隐藏邮箱';
+  toggleBtn.setAttribute('aria-label',label);
+  toggleBtn.setAttribute('title',label);
+ }
+}
 
 function getCooldownKey(uid){
  return COOLDOWN_KEY_PREFIX+(uid||(user&&user.id)||'guest');
@@ -117,6 +143,13 @@ $('account-signout-all').onclick=async()=>{
  }
 };
 
+if($('account-toggle-mask')){
+ $('account-toggle-mask').onclick=()=>{
+  emailMasked=!emailMasked;
+  updateEmailDisplay();
+ };
+}
+
 window.addEventListener('pagehide',()=>stopCooldown(false));
 
 async function init(){
@@ -134,6 +167,10 @@ async function init(){
   });
   $('account-actions').hidden=false;
   $('account-status').textContent='已确认当前登录身份。';
+  if($('account-user-id')&&user?.id){
+   $('account-user-id').textContent=`UID: ${user.id.slice(0,8)}…`;
+  }
+  updateEmailDisplay();
   restoreCooldown();
  }catch{
   $('account-status').textContent='请先登录后再管理账号安全。';

@@ -280,3 +280,155 @@ body[data-theme="dark"] .member-grid a {
         color: #f5f5f7;
     }
 }
+
+/* ===================================================================
+   Account Identity & Security Information Card (Light & Dark)
+   =================================================================== */
+
+.account-identity-card {
+    background: linear-gradient(135deg, rgba(238, 245, 253, 0.7) 0%, rgba(255, 255, 255, 0.95) 100%);
+    border: 1px solid rgba(0, 113, 227, 0.2);
+}
+.account-identity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+}
+.account-identity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1d7237;
+    background: #e6f6ec;
+    border-radius: 999px;
+}
+.account-identity-id {
+    font-size: 12px;
+    color: #6e6e73;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+}
+.account-identity-body {
+    display: grid;
+    gap: 16px;
+}
+.account-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.account-info-label {
+    font-size: 14px;
+    color: #6e6e73;
+    font-weight: 500;
+}
+.account-email-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+.account-info-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d1d1f;
+    letter-spacing: -0.01em;
+}
+.account-mask-btn {
+    border: 1px solid #d2d2d7;
+    background: #fff;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    margin: 0 !important;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.account-mask-btn:hover {
+    background: #f5f5f7;
+    border-color: #0071e3;
+}
+.account-info-hint {
+    font-size: 13px;
+    color: #0071e3;
+}
+
+body[data-theme="dark"] .account-identity-card {
+    background: linear-gradient(135deg, rgba(24, 34, 48, 0.8) 0%, rgba(28, 28, 30, 0.95) 100%);
+    border-color: rgba(41, 151, 255, 0.3);
+}
+body[data-theme="dark"] .account-identity-header {
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+body[data-theme="dark"] .account-identity-badge {
+    color: #34c759;
+    background: rgba(52, 199, 89, 0.15);
+}
+body[data-theme="dark"] .account-identity-id {
+    color: #8e8e93;
+}
+body[data-theme="dark"] .account-info-label {
+    color: #a1a1a6;
+}
+body[data-theme="dark"] .account-info-value {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .account-mask-btn {
+    background: #2c2c2e;
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .account-mask-btn:hover {
+    background: #3a3a3c;
+    border-color: #2997ff;
+}
+body[data-theme="dark"] .account-info-hint {
+    color: #5ac8fa;
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .account-identity-card {
+        background: linear-gradient(135deg, rgba(24, 34, 48, 0.8) 0%, rgba(28, 28, 30, 0.95) 100%);
+        border-color: rgba(41, 151, 255, 0.3);
+    }
+    body:not([data-theme="light"]) .account-identity-header {
+        border-bottom-color: rgba(255, 255, 255, 0.12);
+    }
+    body:not([data-theme="light"]) .account-identity-badge {
+        color: #34c759;
+        background: rgba(52, 199, 89, 0.15);
+    }
+    body:not([data-theme="light"]) .account-identity-id {
+        color: #8e8e93;
+    }
+    body:not([data-theme="light"]) .account-info-label {
+        color: #a1a1a6;
+    }
+    body:not([data-theme="light"]) .account-info-value {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .account-mask-btn {
+        background: #2c2c2e;
+        border-color: rgba(255, 255, 255, 0.2);
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .account-mask-btn:hover {
+        background: #3a3a3c;
+        border-color: #2997ff;
+    }
+    body:not([data-theme="light"]) .account-info-hint {
+        color: #5ac8fa;
+    }
+}

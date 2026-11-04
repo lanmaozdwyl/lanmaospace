@@ -21,3 +21,23 @@ test('账号安全：重置密码邮件 60 秒动态倒计时冷却、防刷防�
  assert(html.includes('id="account-signout-all"'),'页面必须包含退出所有设备按钮');
  assert(css.includes('#account-reset-password:disabled'),'样式必须包含按钮禁用置灰态');
 });
+test('账号安全：当前登录邮箱明示、发信目标指示、脱敏切换与身份信息安全卡片',()=>{
+ const js=readFileSync(new URL('../account.js',import.meta.url),'utf8');
+ const html=readFileSync(new URL('../account.html',import.meta.url),'utf8');
+ const spaceCss=readFileSync(new URL('../space.css',import.meta.url),'utf8');
+ // 检查 HTML 结构
+ assert(html.includes('id="account-identity-card"'),'页面必须包含身份安全卡片');
+ assert(html.includes('id="account-user-id"'),'必须包含 UID 展示元素');
+ assert(html.includes('id="account-email"'),'必须包含当前账号邮箱展示元素');
+ assert(html.includes('id="account-toggle-mask"'),'必须包含脱敏切换按钮');
+ assert(html.includes('id="account-reset-email-preview"'),'重置密码提示中必须包含专属邮箱预览占位');
+ // 检查 JS 脱敏与切换逻辑
+ assert(js.includes('function maskEmail'),'必须实现邮箱脱敏算法函数');
+ assert(js.includes('function updateEmailDisplay'),'必须包含邮箱显示与脱敏更新函数');
+ assert(js.includes('account-toggle-mask'),'必须绑定脱敏按钮点击事件');
+ assert(js.includes('account-user-id'),'初始化时需填入截断UID');
+ // 检查 CSS 样式
+ assert(spaceCss.includes('.account-identity-card'),'space.css 必须包含卡片基础样式');
+ assert(spaceCss.includes('.account-mask-btn'),'space.css 必须包含脱敏切换按钮样式');
+ assert(spaceCss.includes('body[data-theme="dark"] .account-identity-card'),'必须支持深色主题');
+});
