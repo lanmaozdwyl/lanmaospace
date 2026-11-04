@@ -714,13 +714,20 @@
                 <div class="contact-card fade-up">
                     <h3>📬 找到我</h3>
                     <div class="contact-links">
-                        <a href="https://wpa.qq.com/msgrd?v=3&uin=3126477562&site=qq&menu=yes" class="contact-link" target="_blank" rel="noopener noreferrer">
-                            <span class="contact-icon">💬</span>
-                            <div>
-                                <span class="contact-label">QQ 联系</span>
-                                <span class="contact-value">与我联系</span>
-                            </div>
-                        </a>
+                        <div class="contact-item-group">
+                            <a href="https://wpa.qq.com/msgrd?v=3&uin=3126477562&site=qq&menu=yes" class="contact-link" id="contact-qq-link" target="_blank" rel="noopener noreferrer" title="点击跳转 QQ 与我联系">
+                                <span class="contact-icon">💬</span>
+                                <div class="contact-text-wrap">
+                                    <span class="contact-label">QQ 联系</span>
+                                    <span class="contact-value">3126477562</span>
+                                </div>
+                            </a>
+                            <button type="button" class="contact-copy-btn" id="contact-copy-qq-btn" aria-label="一键复制 QQ 号" title="复制 QQ 号到剪贴板">
+                                <span class="copy-icon" aria-hidden="true">📋</span>
+                                <span class="copy-label">复制</span>
+                            </button>
+                        </div>
+                        <p class="contact-feedback" id="contact-qq-feedback" role="status" aria-live="polite" hidden></p>
                         <a href="https://github.com/lanmaozdwyl" class="contact-link" target="_blank" rel="noopener noreferrer">
                             <span class="contact-icon">🐙</span>
                             <div>

@@ -1212,6 +1212,80 @@ body[data-theme="dark"] .guestbook-char-count {
     transform: translateX(4px);
 }
 
+.contact-item-group {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+}
+
+.contact-item-group .contact-link {
+    flex: 1;
+    min-width: 0;
+}
+
+.contact-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid var(--gray-200);
+    background: var(--gray-50);
+    color: var(--dark);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all var(--transition-fast);
+}
+
+.contact-copy-btn:hover {
+    background: rgba(0, 113, 227, 0.08);
+    border-color: rgba(0, 113, 227, 0.3);
+    color: var(--blue);
+}
+
+.contact-copy-btn.copied {
+    background: #34c759;
+    border-color: #34c759;
+    color: #ffffff;
+}
+
+.contact-feedback {
+    font-size: 0.75rem;
+    color: #0071e3;
+    margin: -2px 0 4px 6px;
+    line-height: 1.4;
+    transition: opacity var(--transition-fast);
+}
+
+body[data-theme="dark"] .contact-copy-btn,
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .contact-copy-btn {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.12);
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .contact-copy-btn:hover {
+        background: rgba(0, 113, 227, 0.2);
+        border-color: rgba(0, 113, 227, 0.5);
+        color: #64d2ff;
+    }
+    body:not([data-theme="light"]) .contact-feedback {
+        color: #64d2ff;
+    }
+}
+body[data-theme="dark"] .contact-copy-btn:hover {
+    background: rgba(0, 113, 227, 0.2);
+    border-color: rgba(0, 113, 227, 0.5);
+    color: #64d2ff;
+}
+body[data-theme="dark"] .contact-feedback {
+    color: #64d2ff;
+}
+
 .contact-icon {
     font-size: 1.25rem;
 }

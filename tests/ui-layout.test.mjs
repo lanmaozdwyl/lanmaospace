@@ -38,3 +38,26 @@ test('本地存储被禁用时，主题切换仍然可用', () => {
     const theme=initTheme({root,body,storage:{getItem(){throw Error('disabled');},setItem(){throw Error('disabled');}},media:{matches:false,addEventListener(){}}});
     assert.doesNotThrow(()=>theme.toggle());assert.equal(root.dataset.theme,'dark');assert.equal(body.dataset.theme,'dark');
 });
+
+test('首页联系方式：一键复制 QQ 号与双通道剪贴板降级支持', async () => {
+    const { readFileSync } = await import('node:fs');
+    const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const scriptJs = readFileSync(new URL('../script.js', import.meta.url), 'utf8');
+    const styleCss = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+
+    // 1. HTML 节点结构与辅助功能属性
+    assert(indexHtml.includes('id="contact-copy-qq-btn"'), '联系卡片需包含快捷复制 QQ 按钮');
+    assert(indexHtml.includes('id="contact-qq-feedback"'), '需包含复制成功状态反馈提示节点');
+    assert(indexHtml.includes('3126477562'), '需明文展示真实 QQ 号码');
+
+    // 2. CSS 样式规范
+    assert(styleCss.includes('.contact-item-group'), '需定义联系项并排响应式容器');
+    assert(styleCss.includes('.contact-copy-btn'), '需定义一键复制按钮样式');
+    assert(styleCss.includes('.contact-feedback'), '需定义复制成功轻量提示反馈样式');
+
+    // 3. JS 双通道剪贴板复制逻辑
+    assert(scriptJs.includes('initContactCopyQQ'), '需定义首页 QQ 复制初始化函数');
+    assert(scriptJs.includes('3126477562'), '复制目标需为精确 QQ 号');
+    assert(scriptJs.includes('navigator.clipboard'), '需优先调用系统原生剪贴板 API');
+    assert(scriptJs.includes('execCommand'), '需包含 textarea 降级复制机制，保证微信/内嵌视窗兼容性');
+});

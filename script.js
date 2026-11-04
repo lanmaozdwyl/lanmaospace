@@ -329,3 +329,49 @@ document.addEventListener('keydown', event => {
         accountMenu.querySelector('summary').focus();
     }
 });
+
+// ===== 首页 QQ 一键快速复制与优雅降级 =====
+(function initContactCopyQQ() {
+    const copyBtn = document.getElementById('contact-copy-qq-btn');
+    const feedback = document.getElementById('contact-qq-feedback');
+    if (!copyBtn) return;
+
+    copyBtn.addEventListener('click', async () => {
+        const text = '3126477562';
+        let ok = false;
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                ok = true;
+            }
+        } catch (_) {}
+
+        if (!ok && typeof document !== 'undefined') {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select?.();
+                ok = document.execCommand?.('copy');
+                document.body.removeChild(ta);
+            } catch (_) {}
+        }
+
+        const labelEl = copyBtn.querySelector('.copy-label');
+        if (labelEl) labelEl.textContent = '已复制';
+        copyBtn.classList.add('copied');
+
+        if (feedback) {
+            feedback.hidden = false;
+            feedback.textContent = '✨ QQ 号 (3126477562) 已复制到剪贴板！可打开 QQ 搜索添加。';
+        }
+
+        setTimeout(() => {
+            if (labelEl) labelEl.textContent = '复制';
+            copyBtn.classList.remove('copied');
+            if (feedback) feedback.hidden = true;
+        }, 3000);
+    });
+})();
