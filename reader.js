@@ -3317,6 +3317,7 @@
             state.totalPages = 1;
             state.currentPage = 1;
             updateFooterInfo();
+            updateSlider();
             return;
         }
 
@@ -3410,7 +3411,23 @@
     }
 
     function nextPage() {
-        if (state.settings.mode === 'scroll') return;
+        if (state.settings.mode === 'scroll') {
+            const vp = document.getElementById('reader-viewport');
+            if (vp) {
+                const step = vp.clientHeight * 0.85;
+                if (vp.scrollTop + vp.clientHeight >= vp.scrollHeight - 12) {
+                    if (state.currentBook && state.currentChapterIndex < state.currentBook.chapters.length - 1) {
+                        goToChapter(state.currentChapterIndex + 1, 1);
+                        showToast('滚动进入下一章');
+                    } else {
+                        showToast('已读到本书最后一页');
+                    }
+                } else {
+                    vp.scrollBy({ top: step, behavior: 'smooth' });
+                }
+            }
+            return;
+        }
         if (state.isPdfMode && state.pdfFlipInstance) {
             state.pdfFlipInstance.next();
             return;
@@ -3442,7 +3459,23 @@
     }
 
     function prevPage() {
-        if (state.settings.mode === 'scroll') return;
+        if (state.settings.mode === 'scroll') {
+            const vp = document.getElementById('reader-viewport');
+            if (vp) {
+                const step = vp.clientHeight * 0.85;
+                if (vp.scrollTop <= 12) {
+                    if (state.currentChapterIndex > 0) {
+                        goToChapter(state.currentChapterIndex - 1, 'last');
+                        showToast('返回上一章');
+                    } else {
+                        showToast('已经是第一页了');
+                    }
+                } else {
+                    vp.scrollBy({ top: -step, behavior: 'smooth' });
+                }
+            }
+            return;
+        }
         if (state.isPdfMode && state.pdfFlipInstance) {
             state.pdfFlipInstance.prev();
             return;
@@ -3513,6 +3546,16 @@
     function updateSlider() {
         const slider = document.getElementById('reader-page-slider');
         if (!slider) return;
+        if (state.settings.mode === 'scroll') {
+            slider.min = '0';
+            slider.max = '100';
+            const vp = document.getElementById('reader-viewport');
+            const totalScroll = vp ? (vp.scrollHeight - vp.clientHeight) : 0;
+            const currentScroll = vp ? vp.scrollTop : 0;
+            const pct = totalScroll > 0 ? Math.round((currentScroll / totalScroll) * 100) : 0;
+            slider.value = String(pct);
+            return;
+        }
         slider.min = '1';
         slider.max = String(state.totalPages);
         slider.value = String(state.currentPage);
@@ -5008,7 +5051,6 @@
 
         if (stage && viewport && content) {
             const gestureEnabled = () => {
-                if (state.settings.mode === 'scroll') return false;
                 if (isFlipping) return false;
                 if (state.openPageFlipInstance) return false;
                 if (state.highlightMode) return false; // 划线模式沿用原生文字选择，暂不介入
@@ -5024,14 +5066,19 @@
             if (window.ReaderGesture) {
                 const machine = new window.ReaderGesture.GestureMachine({
                     isEnabled: gestureEnabled,
+                    isSwipeEnabled: () => state.settings.mode !== 'scroll',
                     onTap: (zone) => {
                         lastTouchTapAt = Date.now();
+                        if (state.settings.mode === 'scroll') {
+                            toggleMenu();
+                            return;
+                        }
                         if (zone === 'prev') prevPage();
                         else if (zone === 'next') nextPage();
                         else toggleMenu();
                     },
                     onSwipeStart: () => {
-                        if (state.isPdfMode) return;
+                        if (state.isPdfMode || state.settings.mode === 'scroll') return;
                         swipeActive = true;
                         // 只在滑动开始时读取一次几何数据，避免 touchmove 中反复触发强制回流
                         cachedColWidth = viewport.clientWidth || 360;
@@ -5134,18 +5181,29 @@
             return false;
         };
 
-        // 连续长卷滚动模式下的滚动进度实时持久化
+        // 连续长卷滚动模式下的滚动进度实时持久化与触控/点击唤起控制栏
         const readerVp = document.getElementById('reader-viewport');
         if (readerVp) {
             let scrollSaveTimer = null;
             readerVp.addEventListener('scroll', () => {
                 if (state.settings.mode !== 'scroll') return;
                 updateFooterInfo();
+                updateSlider();
                 clearTimeout(scrollSaveTimer);
                 scrollSaveTimer = setTimeout(() => {
                     saveProgress();
                 }, 120);
             }, { passive: true });
+
+            // 滚动模式下直接为视口绑定轻触兜底，确保移动触屏与鼠标均能即刻呼出或隐藏控制栏
+            readerVp.addEventListener('click', (e) => {
+                if (state.settings.mode !== 'scroll') return;
+                if (Date.now() - lastTouchTapAt < 400) return;
+                if (e.target && e.target.closest && e.target.closest('button, a, input, select, textarea, dialog, mark')) return;
+                const sel = window.getSelection ? window.getSelection() : null;
+                if (sel && sel.toString().trim().length > 0) return;
+                toggleMenu();
+            });
         }
 
         // 键盘按键翻页支持
@@ -5188,6 +5246,16 @@
         const slider = document.getElementById('reader-page-slider');
         if (slider) {
             slider.addEventListener('input', (e) => {
+                if (state.settings.mode === 'scroll') {
+                    const vp = document.getElementById('reader-viewport');
+                    if (vp) {
+                        const pct = Number(e.target.value) / 100;
+                        const maxScroll = vp.scrollHeight - vp.clientHeight;
+                        vp.scrollTop = Math.round(maxScroll * pct);
+                        updateFooterInfo();
+                    }
+                    return;
+                }
                 goToPage(Number(e.target.value));
             });
             slider.addEventListener('change', () => {

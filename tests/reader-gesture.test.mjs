@@ -206,3 +206,25 @@ test('isEnabled 返回 false（如 PDF 或卷曲模式）时整个状态机不�
   assert.equal(m.touchMove({ x: 260, y: 301 }), false);
   assert.equal(m.state, S.IDLE);
 });
+
+test('isSwipeEnabled 返回 false（如长卷连续滚动模式）时不锁定滑页但仍保留轻触点按', () => {
+  const log = [];
+  const m = new G.GestureMachine({
+    isSwipeEnabled: () => false,
+    onTap: (z) => log.push('tap:' + z),
+    onSwipeStart: () => log.push('swipeStart')
+  });
+
+  // 1. 滑动手势被忽略，不进入 SWIPING 也不触发 onSwipeStart
+  down(m, 200, 300);
+  assert.equal(m.touchMove({ x: 260, y: 301 }), false);
+  assert.equal(m.state, S.IDLE);
+  assert.deepEqual(log, []);
+  m.touchEnd();
+
+  // 2. 纯轻触点按正常触发 onTap，确保连续滚动模式下可唤出控制栏
+  down(m, 200, 300);
+  m.touchEnd();
+  assert.deepEqual(log, ['tap:menu']);
+});
+

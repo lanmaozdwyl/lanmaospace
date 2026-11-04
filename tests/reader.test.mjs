@@ -1048,3 +1048,23 @@ test('阅读器自定义书籍安全删除防护与书签/笔记级联清理', (
     assert(/@media\s*\([^)]*max-width:\s*768px[^)]*\)[\s\S]*?\.card-delete-btn[\s\S]*?width:\s*30px/i.test(readerCss), '移动端删除按钮尺寸需优化至 30px 便于明确操作与防遮挡');
 });
 
+test('连续长卷滚动模式移动端防假死人机工程：手势点按唤出菜单、视口轻触兜底、进度条拖拽滚动与翻页滚动', () => {
+    const readerJs = readFileSync(new URL('../reader.js', import.meta.url), 'utf8');
+
+    // 1. 手势状态机支持在长卷模式下放行轻触点按 onTap
+    assert(readerJs.includes("isSwipeEnabled: () => state.settings.mode !== 'scroll'"), '状态机需声明长卷模式仅禁用横滑、保留轻触点按');
+    assert(/onTap:\s*\(zone\)\s*=>\s*\{[\s\S]*?if\s*\(state\.settings\.mode === 'scroll'\)\s*\{\s*toggleMenu\(\);/.test(readerJs), '长卷模式下触屏轻触必须触发 toggleMenu 唤起控制栏');
+
+    // 2. 视口轻触点击兜底，双重保障触屏与指针均能唤出菜单
+    assert(/readerVp\.addEventListener\('click'[\s\S]*?if\s*\(state\.settings\.mode !== 'scroll'\)\s*return;[\s\S]*?toggleMenu\(\);/.test(readerJs), '视口需具备长卷模式轻触唤起菜单兜底监听');
+
+    // 3. 进度条在长卷模式下的 0-100 百分比同步与拖拽定位
+    assert(/updateSlider\(\)[\s\S]*?if\s*\(state\.settings\.mode === 'scroll'\)\s*\{[\s\S]*?slider\.min = '0';[\s\S]*?slider\.max = '100'/.test(readerJs), '长卷模式下翻页进度条需支持 0-100% 映射');
+    assert(/slider\.addEventListener\('input'[\s\S]*?if\s*\(state\.settings\.mode === 'scroll'\)\s*\{[\s\S]*?vp\.scrollTop = Math\.round\(maxScroll \* pct\);/.test(readerJs), '长卷模式下拖动进度条必须实时平滑滚动视口');
+
+    // 4. nextPage 与 prevPage 在长卷模式下的滚动步进与跨章衔接
+    assert(/function nextPage\(\)[\s\S]*?if\s*\(state\.settings\.mode === 'scroll'\)\s*\{[\s\S]*?vp\.scrollBy\(\{ top: step, behavior: 'smooth' \}\);/.test(readerJs), '长卷模式下下一页需平滑向下滚动一屏');
+    assert(/function prevPage\(\)[\s\S]*?if\s*\(state\.settings\.mode === 'scroll'\)\s*\{[\s\S]*?vp\.scrollBy\(\{ top: -step, behavior: 'smooth' \}\);/.test(readerJs), '长卷模式下上一页需平滑向上滚动一屏');
+});
+
+

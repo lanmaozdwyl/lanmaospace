@@ -67,6 +67,10 @@
       return typeof this.cfg.isEnabled === 'function' ? !!this.cfg.isEnabled() : true;
     }
 
+    _swipeEnabled() {
+      return typeof this.cfg.isSwipeEnabled === 'function' ? !!this.cfg.isSwipeEnabled() : (this.cfg.isSwipeEnabled !== false);
+    }
+
     _zone(x, width) {
       if (!width) return 'menu';
       var r = x / width;
@@ -140,7 +144,7 @@
 
       if (this.state !== S.IDLE || tc.abandoned || tc.kind !== 'content') return false;
 
-      if (adx > c.swipeLockX && (ady < c.swipeMaxY || adx > ady * c.swipeRatio)) {
+      if (this._swipeEnabled() && adx > c.swipeLockX && (ady < c.swipeMaxY || adx > ady * c.swipeRatio)) {
         this._clear('longPressTimer');
         this._set(S.SWIPING);
         this._emit('onSwipeStart');
