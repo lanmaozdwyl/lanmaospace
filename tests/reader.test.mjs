@@ -682,3 +682,46 @@ test('体验优化：大文件导入反馈 Loading 遮罩与防重点击保护�
     assert(jsSource.includes('pdfNotice.hidden = !state.isPdfMode'), 'applySettings 需实时同步 PDF 提示可见性');
     assert(jsSource.includes("showToast('📑 PDF 文档固定采用 3D 画册翻页模式"), 'PDF 模式下点击非适用动效需给出友好指引');
 });
+
+test('效率区工程：正文排版矩阵控制（行距/段距/版心/一键恢复）与响应式变量驱动', () => {
+    // 1. HTML 节点完备性
+    assert(htmlSource.includes('id="line-height-chips"'), '设置抽屉需包含行距选择 chips 组');
+    assert(htmlSource.includes('id="para-spacing-chips"'), '设置抽屉需包含段距选择 chips 组');
+    assert(htmlSource.includes('id="page-width-chips"'), '设置抽屉需包含版心宽度选择 chips 组');
+    assert(htmlSource.includes('id="btn-reset-typography"'), '设置抽屉需包含一键恢复默认排版按钮');
+
+    // 2. CSS 变量与自适应排版
+    assert(cssSource.includes('--r-para-spacing'), 'CSS 必须定义 --r-para-spacing 变量');
+    assert(cssSource.includes('.setting-chips-row'), 'CSS 需支持 setting-chips-row 排版胶囊');
+    assert(cssSource.includes('.setting-reset-btn'), 'CSS 需支持 setting-reset-btn 恢复按钮');
+
+    // 3. JS 状态流与动态应用
+    assert(jsSource.includes('lineHeight: 1.8'), '初始状态需包含 lineHeight 默认值');
+    assert(jsSource.includes("paraSpacing: '1.0em'"), '初始状态需包含 paraSpacing 默认值');
+    assert(jsSource.includes("pageWidth: '840px'"), '初始状态需包含 pageWidth 默认值');
+    assert(jsSource.includes('--r-para-spacing'), 'applySettings 必须将 paraSpacing 注入根节点 CSS 变量');
+    assert(jsSource.includes("btnResetTypo.addEventListener('click'"), '必须绑定一键恢复默认排版点击事件');
+});
+
+test('效率区工程：珍藏书签管理系统与目录双标签联动及无缝云备份恢复', () => {
+    // 1. HTML 顶栏与抽屉节点
+    assert(htmlSource.includes('id="reader-btn-bookmark"'), '阅读器顶栏需配置一键书签按钮');
+    assert(htmlSource.includes('id="tab-btn-toc"'), '目录抽屉需包含大纲标签切换按钮');
+    assert(htmlSource.includes('id="tab-btn-bookmarks"'), '目录抽屉需包含书签标签切换按钮');
+    assert(htmlSource.includes('id="bookmark-count-badge"'), '书签标签上需配备书签数量徽章');
+    assert(htmlSource.includes('id="reader-bookmarks-list"'), '需配置独立的书签卡片列表容器');
+
+    // 2. CSS 视觉交互规范
+    assert(cssSource.includes('.drawer-tabs-segment'), 'CSS 需定义抽屉分段控制栏');
+    assert(cssSource.includes('.drawer-tab.active'), 'CSS 需定义激活标签的高亮状态');
+    assert(cssSource.includes('.bookmark-card'), 'CSS 需定义精美书签卡片容器');
+    assert(cssSource.includes('#reader-btn-bookmark.bookmarked'), '已书签状态下按钮需呈现高亮色');
+
+    // 3. JS 数据结构与业务逻辑
+    assert(jsSource.includes('STORAGE_KEY_BOOKMARKS'), '需定义书签 localStorage 持久化 key');
+    assert(jsSource.includes('function loadBookmarks()'), '必须包含 loadBookmarks 读取引擎');
+    assert(jsSource.includes('function toggleBookmark()'), '必须包含 toggleBookmark 切换与摘录提取');
+    assert(jsSource.includes('function renderBookmarksList()'), '必须包含 renderBookmarksList 列表渲染');
+    assert(jsSource.includes('exportBookshelfBackup'), '书架备份导出需包含 bookmarks 字段');
+    assert(jsSource.includes('state.bookmarks = Object.assign({}, state.bookmarks, data.bookmarks)'), '书架备份恢复需能无缝导入 bookmarks');
+});
