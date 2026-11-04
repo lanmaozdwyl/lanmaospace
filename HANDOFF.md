@@ -1,3 +1,11 @@
+# PDF 刷新异步竞态修复与构建验证（2026-11-04 下午）
+
+本节优先于下方历史记录。基于 0858f18 完成核心缺陷修复与构建校验：
+1. PDF 刷新路由异步竞态防死锁：解决本地导入 PDF 后，浏览器刷新带参数网址（`reader.html?book=custom_pdf_...`）因 localStorage 仅存元数据、IndexedDB 尚未完成异步读取导致误报“未能读取到本地 PDF 二进制数据”且回调短路无法恢复的死锁缺陷。在 `state` 增加 `dbLoaded` 状态守卫；在 `renderPdfBook` 中增加平滑加载提示；在 `initCustomBooksStorage` 异步回调中增加 `targetBook.format === 'pdf' && !state.pdfFlipInstance` 判断，数据到达后无缝挂载 3D 翻页实例。
+2. 构建与运行验证：191 项功能测试、语法检查以及 clean `dist` 构建全部通过。新增专项回归测试用例。
+
+---
+
 # 移动端性能加速与书架底栏视觉重构（2026-11-04 午）
 
 本节优先于下方历史记录。基于 5aa0e28 完成三项关键体验与性能优化：

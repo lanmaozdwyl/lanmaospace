@@ -655,3 +655,12 @@ test('在线阅读器升级：TXT 3D 拟真翻页 (@openpageflip/core) 与 PDF 3
     assert(jsSource.includes('state.openPageFlipInstance.flipNext()'), 'nextPage 需对接 openpageflip flipNext()');
     assert(jsSource.includes('state.openPageFlipInstance.flipPrev()'), 'prevPage 需对接 openpageflip flipPrev()');
 });
+
+test('缺陷修复：PDF 刷新路由异步竞态防死锁与离线加载平滑唤醒', () => {
+    // 1. 状态定义包含离线数据库加载状态标识
+    assert(jsSource.includes('dbLoaded: false'), 'state 必须定义 dbLoaded 初始标志');
+    // 2. 异步回调需核验 PDF 实例挂载状态，防止首屏异步竞态导致永久拦截
+    assert(jsSource.includes("targetBook.format === 'pdf' && !state.pdfFlipInstance"), 'IndexedDB 异步加载完成必须无条件唤醒未就绪的 PDF 3D 翻页实例');
+    // 3. 数据未就绪时展现优雅过渡提示而非直接报错
+    assert(jsSource.includes('正在从本机离线数据库加载 PDF'), '需展示离线数据库读取过渡提示，杜绝报错假死');
+});

@@ -550,6 +550,7 @@
         openPageFlipInstance: null,
         pdfFlipInstance: null,
         isPdfMode: false,
+        dbLoaded: false,
         settings: {
             theme: 'parchment', // parchment | green | white | dark
             fontSize: 18,        // 14 ~ 28
@@ -775,6 +776,7 @@
                                 state.books[b.id] = b;
                             }
                         });
+                        state.dbLoaded = true;
                         // 无论是否有新增，只要 IndexedDB 完成读取，均确保网格与英雄榜渲染完整
                         renderBookshelfGrid();
                         updateBookshelfHero();
@@ -783,16 +785,20 @@
                         }
                     };
                     getAllReq.onerror = () => {
+                        state.dbLoaded = true;
                         if (typeof callback === 'function') callback(false);
                     };
                 };
                 req.onerror = () => {
+                    state.dbLoaded = true;
                     if (typeof callback === 'function') callback(false);
                 };
             } else {
+                state.dbLoaded = true;
                 if (typeof callback === 'function') callback(false);
             }
         } catch (_) {
+            state.dbLoaded = true;
             if (typeof callback === 'function') callback(false);
         }
     }
@@ -1493,7 +1499,11 @@
         }
 
         if (!pdfSource) {
-            container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--r-text);">未能读取到本地 PDF 二进制数据，请在书架重新导入。</div>';
+            if (!state.dbLoaded) {
+                container.innerHTML = '<div style="padding: 60px 20px; text-align: center; color: var(--r-text);"><div style="font-size: 32px; margin-bottom: 16px;">⏳</div><div style="font-size: 16px; font-weight: 500;">正在从本机离线数据库加载 PDF 文档…</div><div style="font-size: 13px; opacity: 0.7; margin-top: 8px;">首次读取大文件，稍候片刻即可呈现</div></div>';
+            } else {
+                container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--r-text);">未能读取到本地 PDF 二进制数据，请在书架重新导入。</div>';
+            }
             return;
         }
 
@@ -3356,7 +3366,13 @@
         initCustomBooksStorage((hasNew) => {
             // IndexedDB 异步读取完成回调：优先使用初始地址捕获的目标，防止被初始书架路由覆盖
             const targetBookId = initialBook || new URLSearchParams(window.location.search).get('book');
-            if (targetBookId && state.books[targetBookId] && (state.activeView !== 'reader' || state.currentBookId !== targetBookId)) {
+            const targetBook = targetBookId ? state.books[targetBookId] : null;
+            const needsRender = targetBook && (
+                state.activeView !== 'reader' ||
+                state.currentBookId !== targetBookId ||
+                (targetBook.format === 'pdf' && !state.pdfFlipInstance)
+            );
+            if (needsRender) {
                 const bookProg = loadBookProgress(targetBookId);
                 let targetChap = (bookProg && typeof bookProg.chapterIndex === 'number') ? bookProg.chapterIndex : 0;
                 let targetPg = (bookProg && typeof bookProg.page === 'number') ? bookProg.page : 1;
