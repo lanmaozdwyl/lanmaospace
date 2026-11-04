@@ -102,3 +102,11 @@ test('伴读声音系统升级：音量数值实时反馈、本地持久化记�
     assert.equal(f2.el('ambient-vol-icon').textContent, '🔉');
     assert.equal(f2.player.volume, 0.15);
 });
+
+test('伴读白噪音触控滑块防误滚与静音/定时人机工程学：44px 靶心与 touch-action 防误滑', () => {
+    const styleCss = fs.readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+    assert(styleCss.includes('.ambient-vol-slider') && styleCss.includes('touch-action: none'), '音量滑块必须配置 touch-action: none 消除水平拖动引发纵向页面晃动');
+    assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?\.ambient-vol-btn\s*\{[^}]*min-width:\s*44px/i.test(styleCss), '手机窄屏下静音按钮需配置不低于 44px 靶心');
+    assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?\.ambient-vol-slider::-webkit-slider-thumb\s*\{[^}]*width:\s*22px/i.test(styleCss), '手机窄屏下滑块 thumb 需放大至 22px 方便触控');
+    assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?\.ambient-timer-pill\s*\{[^}]*min-height:\s*44px/i.test(styleCss), '定时胶囊需具备 44px 人机工程学高度');
+});

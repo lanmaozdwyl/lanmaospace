@@ -1,3 +1,19 @@
+# 伴读白噪音：触控滑块防页面晃动抖动与静音/定时人机工程学升级（2026-11-04 晚）
+
+本节优先于下方历史记录。针对伴读声音卡片（`index.html` / `style.css` / `tests/ambient.test.mjs`）在触屏手机与窄屏机型上调节音量引发页面剧烈上下抖动、静音按钮靶心狭小易误触的问题进行系统化升级：
+1. 音量滑块 `touch-action: none` 手势防抖隔离：
+   - 为 `.ambient-vol-slider` 注入 `touch-action: none;`，彻底切断水平拖动滑块时系统误判的纵向页面滚动触发，滑动调音量顺滑稳定、页面零抖动；
+   - 在 `@media (max-width: 600px)` 下将滑块 Thumb 尺寸从 14px 扩大至 22px×22px（同时适配 WebKit 与 Firefox Gecko `::-moz-range-thumb`），消除大拇指遮挡与脱手。
+2. 静音按钮与音量外框 44px 人机工程学靶心化：
+   - 将静音切换按钮（`.ambient-vol-btn`）在手机端扩展为 `min-width: 44px; min-height: 44px; font-size: 16px;`，并配置 `touch-action: manipulation;`；
+   - 整体音量胶囊外框（`.ambient-vol-wrap`）注入 `min-height: 44px;`，方便单手大拇指快速盲操一键静音/恢复。
+3. 声音卡片窄屏内边距瘦身与定时胶囊换行自适应：
+   - 将 `.ambient-card` 窄屏内边距由 36px 瘦身至 `24px 16px 20px`，释放 40px 横向可用空间；
+   - 定时胶囊容器（`.ambient-timer-select`）开启 `flex-wrap: wrap; gap: 8px;`，各档位胶囊（`.ambient-timer-pill`）扩展至 44px 高度与 44px 宽度，彻底消除窄屏手指挤压与误触。
+4. 全站 284 项自动化测试、语法安全检查与 clean `dist` 构建 100% 通过。
+
+---
+
 # 登录与认证页：补全 viewport-fit=cover 视口元标签与刘海屏安全区避让（2026-11-04 晚）
 
 本节优先于下方历史记录。针对登录认证页（`login.html` / `tests/login-security.test.mjs`）在全屏 PWA、微信 Webview 及 iOS Safari/全面屏机型上因遗漏 `viewport-fit=cover` 导致状态栏与刘海安全区失效的系统 Bug 进行修复：

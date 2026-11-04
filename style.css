@@ -2325,11 +2325,66 @@ dialog.spotlight-modal::backdrop {
     color: var(--gray-400);
     font-family: var(--font-mono);
 }
+.spotlight-clear {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--gray-400);
+    padding: 6px 10px;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: 8px;
+    transition: color 0.15s, background-color 0.15s;
+    flex-shrink: 0;
+}
+.spotlight-clear:hover {
+    color: var(--dark);
+    background: rgba(0, 0, 0, 0.06);
+}
+body[data-theme="dark"] .spotlight-clear:hover,
+body:not([data-theme="light"]) .spotlight-clear:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+}
 .spotlight-empty {
     padding: 32px 16px;
     text-align: center;
     color: var(--gray-600);
     font-size: 14px;
+}
+.spotlight-empty-icon {
+    display: inline-block;
+    font-size: 24px;
+    margin-bottom: 8px;
+    opacity: 0.8;
+}
+.spotlight-suggest-pills {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.spotlight-suggest-btn {
+    border: 1px solid var(--gray-200);
+    background: rgba(0, 0, 0, 0.03);
+    color: var(--blue);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.spotlight-suggest-btn:hover {
+    background: rgba(0, 113, 227, 0.08);
+    border-color: var(--blue);
+}
+body[data-theme="dark"] .spotlight-suggest-btn,
+body:not([data-theme="light"]) .spotlight-suggest-btn {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: #2997ff;
 }
 .spotlight-footer {
     display: flex;
@@ -3399,6 +3454,7 @@ body[data-theme="dark"].focus-zen-active .focus-zen-close-btn:hover {
     line-height: 1;
     color: var(--gray-600);
     transition: transform 0.15s ease, opacity 0.15s ease;
+    touch-action: manipulation;
 }
 .ambient-vol-btn:hover {
     transform: scale(1.15);
@@ -3427,6 +3483,7 @@ body[data-theme="dark"].focus-zen-active .focus-zen-close-btn:hover {
     border-radius: 4px;
     outline: none;
     cursor: pointer;
+    touch-action: none;
     transition: background 0.2s;
 }
 .ambient-vol-slider::-webkit-slider-thumb {
@@ -3828,7 +3885,64 @@ body[data-theme="dark"] .ambient-card-title { color: #f5f5f7; }
 .ambient-source-notes summary { cursor: pointer; padding: 10px 0; }
 .ambient-source-notes a { color: var(--blue); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
 .ambient-sound-card:focus-visible, .ambient-play-btn:focus-visible, .ambient-timer-pill:focus-visible, .ambient-source-notes summary:focus-visible, .ambient-vol-slider:focus-visible { outline: 3px solid #0071e3; outline-offset: 4px; }
-@media (max-width: 600px) { .ambient-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ambient-sound-card { min-width: 0; padding: 16px 12px; } .ambient-master-controls { width: 100%; } .ambient-vol-wrap { flex: 1; } .ambient-vol-slider { width: 100%; min-width: 50px; } }
+@media (max-width: 600px) {
+    .ambient-card {
+        padding: 24px 16px 20px;
+        border-radius: 22px;
+    }
+    .ambient-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .ambient-sound-card {
+        min-width: 0;
+        padding: 16px 12px;
+    }
+    .ambient-master-controls {
+        width: 100%;
+        gap: 12px;
+    }
+    .ambient-vol-wrap {
+        flex: 1;
+        min-height: 44px;
+        box-sizing: border-box;
+        padding: 4px 12px;
+    }
+    .ambient-vol-btn {
+        min-width: 44px;
+        min-height: 44px;
+        font-size: 16px;
+    }
+    .ambient-vol-slider {
+        width: 100%;
+        min-width: 50px;
+        height: 6px;
+        touch-action: none;
+    }
+    .ambient-vol-slider::-webkit-slider-thumb {
+        width: 22px;
+        height: 22px;
+    }
+    .ambient-vol-slider::-moz-range-thumb {
+        width: 22px;
+        height: 22px;
+        border: none;
+        border-radius: 50%;
+        background: #0071e3;
+    }
+    .ambient-timer-select {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .ambient-timer-pill {
+        min-height: 44px;
+        min-width: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+        padding: 8px 14px;
+    }
+}
 
 .ambient-feature-toggle input:focus-visible + .ambient-toggle-box { outline: 3px solid #0071e3; outline-offset: 4px; }
 
