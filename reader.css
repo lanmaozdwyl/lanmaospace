@@ -1435,27 +1435,101 @@ html, body.reader-body {
 
 /* 移动端书架自适应 */
 @media (max-width: 640px) {
-    /* 移动端人机工程学：顶栏置底为吸底导航栏，大拇指轻松触达 */
+    /* 移动端人机工程学：顶栏置底为吸底导航栏，大拇指轻松触达，彻底消除文字溢出与挤压 */
     .shelf-header {
         position: fixed;
         top: auto;
         bottom: 0;
         left: 0;
         right: 0;
-        height: 56px;
+        height: auto;
+        min-height: 52px;
+        box-sizing: border-box;
         border-top: 0.5px solid var(--r-bar-border);
         border-bottom: none;
-        padding: 0 16px;
-        padding-bottom: env(safe-area-inset-bottom, 0px);
+        padding: 8px 12px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
         box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.08);
         z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .shelf-header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        flex-shrink: 1;
+    }
+    .shelf-back-home {
+        font-size: 13px;
+        padding: 6px 10px;
+        gap: 3px;
+        flex-shrink: 0;
+        white-space: nowrap;
     }
     .shelf-brand-title {
-        font-size: 16px;
+        font-size: 15px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        margin: 0;
+    }
+    .shelf-header-right {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .shelf-tool-btn {
+        padding: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+    .shelf-tool-btn .shelf-badge {
+        display: none;
     }
     .shelf-main {
-        padding: 16px 12px calc(80px + env(safe-area-inset-bottom, 0px));
+        padding: 16px 12px calc(84px + env(safe-area-inset-bottom, 0px));
         gap: 20px;
+    }
+    .shelf-section-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    .shelf-search-wrap {
+        margin: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .shelf-search-input {
+        width: 100%;
+        flex: 1;
+    }
+    .shelf-action-buttons-wrap {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+    .shelf-upload-btn, .shelf-backup-actions {
+        width: 100%;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+    .shelf-backup-btn {
+        flex: 1;
+        justify-content: center;
     }
     .shelf-hero-card {
         flex-direction: column;

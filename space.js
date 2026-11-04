@@ -35,6 +35,7 @@ $('blocks-refresh').onclick=()=>task(loadBlocks);$('blocks-prev').onclick=()=>{b
 async function loadSpace(){
  const rows=await result(client.rpc('member_spaces',{p_id:target,p_offset:0}));
  const row=rows?.[0];baseline=row?.updated_at||null;
+ if(own&&row){try{localStorage.setItem('lanmao_space_cached_profile_'+user.id,JSON.stringify(row));}catch(_){}}
  $('member-name').textContent=row?.display_name||(own?'我的空间':'成员空间');$('member-bio').textContent=row?.bio||'';
  $('space-empty').hidden=!!row;avatar(row,row?.display_name||'');
  const links=$('member-links');links.replaceChildren();
@@ -130,11 +131,46 @@ $('posts-prev').onclick=()=>{postOffset=Math.max(0,postOffset-20);task(loadPosts
 $('members-prev').onclick=()=>{memberOffset=Math.max(0,memberOffset-30);task(loadMembers);};$('members-next').onclick=()=>{memberOffset+=30;task(loadMembers);};
 $('reload-space').onclick=()=>{if(!dirty||window.confirm('刷新会清除当前未保存内容，是否继续？'))window.location.reload();};
 async function init(){try{
- client=await getSupabase();const {data,error}=await client.auth.getUser();if(error||!data.user){window.location.replace('/login.html?next='+encodeURIComponent(location.pathname+location.search));return;}
- user=data.user;client.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){ended=true;dirty=false;$('space-app').replaceChildren();$('space-app').hidden=true;message('已退出登录。');}});
+ client=await getSupabase();
+ let currentUser=null;
+ if(typeof client?.auth?.getSession==='function'){
+  try{const {data:s}=await client.auth.getSession();if(s?.session?.user)currentUser=s.session.user;}catch(_){}
+ }
+ if(!currentUser){
+  const {data,error}=await client.auth.getUser();
+  if(error||!data.user){window.location.replace('/login.html?next='+encodeURIComponent(location.pathname+location.search));return;}
+  currentUser=data.user;
+ }
+ user=currentUser;
+ client.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){ended=true;dirty=false;$('space-app').replaceChildren();$('space-app').hidden=true;message('已退出登录。');}});
  const raw=new URLSearchParams(location.search).get('user');if(raw&&!memberId(raw))throw Error('个人主页地址不正确。');target=raw||user.id;own=target===user.id;
  const isOwner=window.LANMAO_MEMO_CONFIG?.ownerUid===user.id;$('reports-panel').hidden=!isOwner;
  makeLinkEditor();$('member-block-control').hidden=own;$('blocks-panel').hidden=!own;$('space-data-panel').hidden=!own;$('space-editor').hidden=!own;$('post-form').hidden=!own;$('archive-control').hidden=!own;
- await loadBlockState();if(!targetBlocked){await loadSpace();await loadPosts();}await loadMembers();await loadUsage();await loadBlocks();if(isOwner)await loadReports();assertSession();$('space-app').hidden=false;message(own?'欢迎来到你的个人空间。填写昵称并保存后，会出现在成员列表。':'正在查看成员主页。');
+
+ if(own){
+  try{
+   const cached=localStorage.getItem('lanmao_space_cached_profile_'+user.id);
+   if(cached){
+    const row=JSON.parse(cached);
+    if(row&&row.display_name){
+     $('member-name').textContent=row.display_name;
+     $('member-bio').textContent=row.bio||'';
+     avatar(row,row.display_name);
+     $('space-app').hidden=false;
+    }
+   }
+  }catch(_){}
+ }
+
+ await loadBlockState();
+ if(!targetBlocked){
+  await Promise.all([loadSpace(),loadPosts()]);
+ }
+ assertSession();
+ $('space-app').hidden=false;
+ message(own?'欢迎来到你的个人空间。填写昵称并保存后，会出现在成员列表。':'正在查看成员主页。');
+ if(!targetBlocked){
+  await Promise.all([loadMembers(),loadUsage(),loadBlocks(),isOwner?loadReports():Promise.resolve()]);
+ }
 }catch(e){if(!ended)message(`个人空间暂不可用：${e.message}。需店主执行 user-spaces.sql、space-community.sql 和 space-blocks.sql，可执行后刷新本页。`);}}
 init();

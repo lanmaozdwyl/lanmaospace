@@ -31,3 +31,4 @@ const media=matchMedia('(max-width: 820px)');media.addEventListener('change',()=
 let fullHeight=window.visualViewport?.height||window.innerHeight;
 function keyboard(){const focused=document.activeElement,editing=focused?.matches('textarea,input:not([type=checkbox]):not([type=radio]):not([type=file]),[contenteditable=true]');const h=window.visualViewport?.height||innerHeight;if(!editing)fullHeight=h;document.body.classList.toggle('mobile-keyboard',!!editing&&fullHeight-h>140);}
 window.visualViewport?.addEventListener('resize',keyboard);document.addEventListener('focusin',keyboard);document.addEventListener('focusout',()=>setTimeout(keyboard,100));
+try{if('requestIdleCallback' in window){requestIdleCallback(()=>{if(!document.querySelector('link[rel="prefetch"][href="/space.html"]')){const l=document.createElement('link');l.rel='prefetch';l.href='/space.html';document.head.append(l);}},{timeout:2000});}}catch(_){}

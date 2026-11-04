@@ -611,3 +611,10 @@ test('审查缺陷修复：IndexedDB 纯异步超大书籍刷新路由恢复不�
 test('审查缺陷修复：书架卡片删除按钮键盘 Enter/Space 严禁拦截并误触发打开书籍', () => {
     assert(jsSource.includes("if (e.target.closest('.card-delete-btn') || e.target.closest('button')) return;"), '网格 keydown 必须排除删除按钮以保留原生激活');
 });
+
+test('移动端体验优化：书架底栏彻底杜绝文字溢出与多余表情符号', () => {
+    assert(!htmlSource.includes('📚 我的书架'), '书架标题移除表情符号，避免底部导航栏显得奇怪');
+    assert(htmlSource.includes('<h1 class="shelf-brand-title">我的书架</h1>'), '保留纯净的书架标题');
+    assert(cssSource.includes('.shelf-tool-btn .shelf-badge'), '移动端需隐藏声音与番茄文字徽标以杜绝挤压溢出');
+    assert(cssSource.includes('calc(8px + env(safe-area-inset-bottom'), '底栏必须通过 calc 适配全面屏手势条避让高度');
+});
