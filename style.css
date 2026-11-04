@@ -117,6 +117,8 @@ button {
     left: 0;
     right: 0;
     z-index: 9999;
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
     background: rgba(251, 251, 253, 0.72);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -3831,7 +3833,7 @@ body[data-theme="dark"] .ambient-card-title { color: #f5f5f7; }
 .ambient-feature-toggle input:focus-visible + .ambient-toggle-box { outline: 3px solid #0071e3; outline-offset: 4px; }
 
 /* 精简首页：阅读、声音与专注；暂停模块通过 HTML hidden 保留原内容。 */
-.home-simple .hero { min-height: 580px; min-height: min(78svh, 740px); padding: 112px 22px 72px; }
+.home-simple .hero { min-height: 580px; min-height: min(78svh, 740px); padding: calc(124px + env(safe-area-inset-top, 0px)) 22px 72px; }
 .home-simple .hero-title { font-size: clamp(38px, 6vw, 64px); margin-bottom: 24px; line-height: 1.2; }
 .home-simple .hero-subtitle { font-size: 18px; margin-bottom: 32px; }
 .home-simple .hero-eyebrow, .home-simple .hero-title, .home-simple .hero-subtitle, .home-simple .hero-cta { opacity: 1; transform: none; animation: none; }
@@ -3856,7 +3858,7 @@ body[data-theme="dark"] .ambient-card-title { color: #f5f5f7; }
 .home-simple .hero-cta:focus-visible, .home-account summary:focus-visible, .home-account-menu :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 .home-simple .footer-quote { display: none; }
 @media (max-width: 820px) {
-    .home-simple .hero { min-height: calc(100svh - 76px); padding: 100px 22px 64px; }
+    .home-simple .hero { min-height: calc(100svh - 76px); padding: calc(128px + env(safe-area-inset-top, 0px)) 22px 64px; }
     .home-simple .hero-title { font-size: clamp(32px, 7.7vw, 50px); }
     .home-simple .hero-subtitle { font-size: 16px; }
     .home-simple .section { padding: 64px 0; }

@@ -19,6 +19,7 @@
  .mobile-enabled .navbar .nav-links,.mobile-enabled .navbar .nav-toggle{display:none!important}
  .mobile-enabled .space-nav>div,.mobile-enabled .tools-topbar-links,.mobile-enabled .shop-nav-links,.mobile-enabled .memo-topbar-links,.mobile-enabled .memo-topbar>a:not(:first-child):not(.memo-topbar-back){display:none!important}
  .mobile-enabled .navbar,.mobile-enabled .space-nav,.mobile-enabled .shop-nav{padding-top:env(safe-area-inset-top,0px)}
+ .mobile-enabled .hero{padding-top:calc(128px + env(safe-area-inset-top,0px))!important}
  .mobile-enabled .memo-shell{padding-top:calc(36px + env(safe-area-inset-top,0px));padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
  .mobile-enabled .back-to-top{bottom:calc(var(--dock-space) + 12px);left:16px;right:auto}
  .mobile-enabled .pomodoro-widget{bottom:calc(var(--dock-space) + 12px);right:16px}

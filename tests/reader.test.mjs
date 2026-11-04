@@ -963,6 +963,31 @@ test('个人数据主权与备份抗丢书治理：突破 2MB 阈值、IndexedDB
     assert.equal(decoded[3], 0x46); // 'F'
 });
 
+test('阅读器与全站：正文视口防挤压空白、列宽零值兜底自愈与移动端顶栏安全区避让防遮挡', () => {
+    const css = readFileSync(new URL('../reader.css', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../reader.js', import.meta.url), 'utf8');
+    const styleCss = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+    const spaceCss = readFileSync(new URL('../space.css', import.meta.url), 'utf8');
+    const toolsCss = readFileSync(new URL('../tools/tools.css', import.meta.url), 'utf8');
+
+    // 1. 阅读器正文容器显隐与 [hidden] 优先级守护
+    assert(css.includes('.reader-viewport[hidden],') && css.includes('.reader-openpageflip-wrap[hidden],'), 'reader.css 必须为阅读器各分屏容器显式定义 [hidden] display: none !important');
+    assert(css.includes('[hidden] {\n    display: none !important;\n}'), 'reader.css 必须包含全局 [hidden] 最高优先级规则，防止 display: flex 挤压正文产生大白屏');
+
+    // 2. reader.js 健壮性：未知书目自动优雅兜底与章节数组防呆
+    assert(js.includes('book = BUILTIN_BOOKS.prince'), 'loadBook 遇到未知或损坏书目时必须自动兜底小王子典藏本');
+    assert(js.includes('Math.max(260, rawWidth'), 'updatePaginationMetrics 必须对 0 宽视口进行 Math.max(260) 兜底保护');
+    assert(js.includes('requestAnimationFrame(() => updatePaginationMetrics(preserveAnchor))'), '视口未就绪（0 宽）时必须在下一帧重新排版以自愈重测');
+
+    // 3. 手机端顶部文字（蓝昴空间等）状态栏与刘海屏安全区避让防遮挡
+    assert(css.includes('.shelf-header {\n    position: sticky;\n    top: 0;\n    left: 0;\n    right: 0;\n    padding-top: env(safe-area-inset-top, 0px);'), '书架大厅题头必须包含 env(safe-area-inset-top) 避让');
+    assert(css.includes('.reader-topbar {\n    position: fixed;\n    top: 0;\n    left: 0;\n    right: 0;\n    padding-top: env(safe-area-inset-top, 0px);'), '阅读器控制栏必须包含 env(safe-area-inset-top) 避让');
+    assert(styleCss.includes('.navbar {\n    position: fixed;\n    top: 0;\n    left: 0;\n    right: 0;\n    z-index: 9999;\n    padding-top: env(safe-area-inset-top, 0px);'), '首页导航条必须原生包含 env(safe-area-inset-top) 避让');
+    assert(styleCss.includes('calc(124px + env(safe-area-inset-top, 0px))') || styleCss.includes('calc(128px + env(safe-area-inset-top, 0px))'), '首页 Hero 区域必须包含足够的顶部距离防止标题蓝昴空间被状态栏挤压遮挡');
+    assert(spaceCss.includes('padding:calc(16px + env(safe-area-inset-top,0px))'), '成员空间导航条需适配状态栏安全区');
+    assert(toolsCss.includes('padding-top: calc(48px + env(safe-area-inset-top, 0px))'), '工具箱顶栏需适配状态栏安全区');
+});
+
 test('阅读器移动端 iOS Safari 16px 防缩放保护：书架/书内/在线书库/伴读下拉控件 16px 规范与触控靶心', () => {
     const readerCss = readFileSync(new URL('../reader.css', import.meta.url), 'utf8');
     assert(/@media\s*\([^)]*max-width:\s*820px[^)]*\)[\s\S]*?\.shelf-search-input[\s\S]*?font-size:\s*16px/i.test(readerCss), '书架搜索框在小屏下必须具备 16px 防 iOS 自动放大');

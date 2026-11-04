@@ -5,7 +5,7 @@
 }
 
 .tools-shell {
-    padding-top: 48px;
+    padding-top: calc(48px + env(safe-area-inset-top, 0px));
     padding-bottom: 80px;
 }
 

@@ -2566,11 +2566,25 @@
 
     // ===== 7. 书籍与章节加载 =====
     function loadBook(bookId, chapterIndex = 0, page = 1) {
-        const book = state.books[bookId];
-        if (!book) return;
-
-        state.currentBookId = bookId;
+        let book = state.books[bookId];
+        if (!book && BUILTIN_BOOKS[bookId]) {
+            book = BUILTIN_BOOKS[bookId];
+            state.books[bookId] = book;
+        }
+        if (!book) {
+            book = BUILTIN_BOOKS.prince;
+            state.currentBookId = 'prince';
+        } else {
+            state.currentBookId = bookId;
+        }
         state.currentBook = book;
+        if (!Array.isArray(book.chapters) || book.chapters.length === 0) {
+            if (book.format === 'pdf') {
+                book.chapters = [{ title: book.title || 'PDF 文档', page: 1 }];
+            } else {
+                book.chapters = [{ title: book.title || '正文', content: ['本书暂无章节内容'] }];
+            }
+        }
         state.currentChapterIndex = Math.max(0, Math.min(book.chapters.length - 1, chapterIndex));
 
         // 更新书籍标题
@@ -2698,6 +2712,8 @@
         const book = state.currentBook;
         if (!book || !book.chapters[chapterIndex]) return;
 
+        destroyOpenPageFlip();
+
         const chapter = book.chapters[chapterIndex];
         const wrap = document.getElementById('openpageflip-wrap');
         const stage = document.getElementById('openpageflip-stage');
@@ -2710,7 +2726,6 @@
         if (wrap) wrap.hidden = false;
         if (stageEl) stageEl.classList.add('flip-3d-active');
 
-        destroyOpenPageFlip();
         if (!stage) return;
         stage.innerHTML = '';
 
@@ -2884,7 +2899,13 @@
             return;
         }
 
-        if (!book.chapters[chapterIndex]) return;
+        if (!book.chapters || !book.chapters[chapterIndex]) {
+            if (book.chapters && book.chapters.length > 0) {
+                chapterIndex = 0;
+            } else {
+                return;
+            }
+        }
 
         state.currentChapterIndex = chapterIndex;
         const chapter = book.chapters[chapterIndex];
@@ -3269,7 +3290,9 @@
 
         const anchorIndex = preserveAnchor ? findAnchorParagraphIndex(content, oldOffset, oldStep) : 0;
 
-        const colWidth = viewport.clientWidth;
+        const rawWidth = viewport.clientWidth;
+        const fallbackWidth = window.innerWidth >= 900 ? 820 : Math.max(260, window.innerWidth - 48);
+        const colWidth = Math.max(260, rawWidth || fallbackWidth);
         const colGap = window.innerWidth >= 900 ? 60 : 48;
         const step = colWidth + colGap;
 
@@ -3280,6 +3303,10 @@
         const calculatedPages = Math.max(1, Math.round((scrollWidth + colGap / 2) / step));
 
         state.totalPages = calculatedPages;
+
+        if (rawWidth <= 0) {
+            requestAnimationFrame(() => updatePaginationMetrics(preserveAnchor));
+        }
 
         if (preserveAnchor) {
             const blocks = content.querySelectorAll('p, h2, h3, blockquote');

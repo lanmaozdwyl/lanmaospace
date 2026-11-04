@@ -1,3 +1,20 @@
+# 阅读器正文白屏空显与零宽崩溃修复、移动端状态栏刘海遮挡全站系统化治理（2026-11-04 晚）
+
+本节优先于下方历史记录。针对用户反馈的核心严重 Bug（书架书籍点击进入后正文一片空白空显、手机顶栏文字「蓝昴空间」被手机状态栏遮挡）进行深度代码追查与全链路架构修复：
+1. 书架点击书籍「一点东西都没有」白屏空显根因与修复（`reader.css` / `reader.js`）：
+   - **CSS `[hidden]` 权重被覆盖导致三容器并存挤压**：`reader.css` 中 `.reader-openpageflip-wrap` 与 `.reader-pdf-wrap` 声明了 `display: flex;`，由于缺少 `[hidden]` 最高优先级规则，类选择器特异性覆盖了 HTML 布尔属性 `hidden` 的浏览器默认 `display: none`。导致正文视口 `#reader-viewport` 与两个空容器（`#openpageflip-wrap`、`#pdf-wrap`）在 `#reader-stage` 弹性布局下同屏垂直分摊，在小屏手机上直接将正文视口高度挤压为 0，呈现完全空白！
+   - **解决方案**：在 `reader.css` 头部补充最高优先级规则：`[hidden] { display: none !important; }`，并显式为 `.reader-viewport[hidden], .reader-openpageflip-wrap[hidden], .reader-pdf-wrap[hidden]` 声明 `display: none !important;`。
+   - **零宽排版崩溃自愈**：在 `updatePaginationMetrics` 中，手机端或切屏过渡瞬间 `viewport.clientWidth` 可能瞬时为 0，原代码将 `content.style.columnWidth` 设为 `0px` 导致多列排版崩溃文字消失。新增 `Math.max(260, rawWidth || fallbackWidth)` 兜底保护，并在 `rawWidth <= 0` 时通过 `requestAnimationFrame` 异步自愈重排。
+   - **3D 书卷翻页与书目加载防呆**：修复 `renderOpenPageFlipBook` 中先清空旧实例再解除隐藏的执行时序；在 `loadBook` 中遇到未知或受损书目时自动优雅降级兜底《小王子》全27章典藏版，杜绝任何早期 `return` 留白。
+2. 手机端顶部文字（蓝昴空间等）被状态栏/刘海屏遮挡专项治理（`style.css` / `mobile.css` / `reader.css` / `space.css` / `tools/tools.css`）：
+   - **首页 Navbar 与 Hero 避让**：在 `style.css` 中为 `.navbar` 原生注入 `padding-top: env(safe-area-inset-top, 0px); box-sizing: border-box;`；为 `.home-simple .hero` 增加顶部空间（`padding: calc(124px + env(safe-area-inset-top, 0px)) 22px 72px;`，小屏 `calc(128px + ...)`），并在 `mobile.css` 注入保障规则，确保「蓝昴空间」主标题从容下移，绝不与手机电量、时钟与刘海重叠。
+   - **书架大厅与阅读器顶栏避让**：为 `.shelf-header` 注入 `padding-top: env(safe-area-inset-top, 0px); min-height: calc(56px + env(safe-area-inset-top, 0px));`，为 `.reader-topbar` 注入 `padding-top: env(safe-area-inset-top, 0px); min-height: calc(52px + env(safe-area-inset-top, 0px));`，彻底消除返回链接「‹ 蓝昴空间」和「我的书架」被状态栏遮挡的问题。
+   - **阅读舞台避让**：将 `.reader-stage` 题头安全边距升级为 `padding-top: calc(max(28px, env(safe-area-inset-top, 28px)) + 8px);`。
+   - **成员空间与工具箱全局贯通**：在 `space.css`（`.space-nav`）与 `tools.css`（`.tools-shell`）中全面补充 `env(safe-area-inset-top, 0px)`，确保全站所有顶栏文字在全面屏/刘海屏/灵动岛机型下零遮挡。
+3. 全站 283 项功能与回归测试、代码语法检查与 clean `dist` 构建 100% 通过。
+
+---
+
 # 移动端顶栏重影与多行堆叠净化：商店、常见问题、头像与备忘录全量适配（2026-11-04 晚）
 
 本节优先于下方历史记录。针对商店页（`store.html`）、常见问题页（`faq.html`）、头像设置页（`profile.html`）与备忘录（`memo.html`）在手机窄屏下，顶部残留多达 5–6 个桌面端导航链接（导致折行堆叠 2–3 行并与底部 `mobile-dock` 形成严重视觉重影与导航冲突）的系统级 Bug 进行专项治理：
