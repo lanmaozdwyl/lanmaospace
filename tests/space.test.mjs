@@ -142,3 +142,50 @@ test('预览：切换后用安全 DOM 渲染，空内容给出提示，切回编
 test('发布成功后预览复位为编辑状态',async()=>{const f=await fixture();const area=f.get('post-body'),preview=f.get('post-preview');area.value='hello';f.get('post-md-bar').children[1].children[1].onclick();assert.equal(area.hidden,true);f.get('post-form').onsubmit({preventDefault(){}});for(let i=0;i<10;i++)await new Promise(r=>setImmediate(r));assert.equal(area.value,'');assert.equal(area.hidden,false);assert.equal(preview.hidden,true);});
 test('已发布动态按 Markdown 安全渲染，脚本字符只作文本',async()=>{const f=await fixture(false,{posts:[{...postFixture,body:'**b** <script>x</script>'}]});const text=f.get('post-list').children[0].children[1];assert(text.className.includes('md-rendered'));const para=text.children[0];assert.equal(para.tag,'p');assert.deepEqual(para.children.map(c=>c.tag),['strong','span']);assert.equal(para.children[1].textContent,' <script>x</script>');});
 test('Markdown 辅助代码不使用 innerHTML、eval 或内联脚本',()=>{for(const file of ['../lib/space-md.mjs','../space.js']){const src=readFileSync(new URL(file,import.meta.url),'utf8');assert.doesNotMatch(src,/innerHTML|outerHTML|insertAdjacentHTML|\beval\s*\(|new\s+Function|document\.write/);}const html=readFileSync(new URL('../space.html',import.meta.url),'utf8');assert.doesNotMatch(html,/<script(?![^>]*\bsrc=)[^>]*>/i);assert.match(html,/id=.post-md-bar./);assert.match(html,/id=.edit-preview./);});
+
+test('成员空间与账号安全页深色模式全量自适应：卡片、导航、输入控件与成员列表', () => {
+    const css = readFileSync(new URL('../space.css', import.meta.url), 'utf8');
+    assert(css.includes('body[data-theme="dark"]'), '需定义手动深色模式 body 基础主题');
+    assert(css.includes('body[data-theme="dark"] .space-nav'), '需适配深色模式导航背景');
+    assert(css.includes('body[data-theme="dark"] .space-card'), '需适配深色模式空间卡片暗底');
+    assert(css.includes('body[data-theme="dark"] .space-card input'), '需适配深色模式输入框暗色背景与边框');
+    assert(css.includes('body[data-theme="dark"] .space-shell button'), '需适配深色模式按钮色系');
+    assert(css.includes('body[data-theme="dark"] .member-grid a'), '需适配深色模式成员列表卡片');
+    assert(css.includes('@media (prefers-color-scheme: dark)'), '需适配系统级深色模式偏好');
+    assert(css.includes('body:not([data-theme="light"]) .space-card'), '需配置系统深色模式保底选择器');
+});
+
+test('成员空间主页编辑：简介 0/600 实时字数统计、未保存修改指示微徽章与离页守卫', async () => {
+    const html = readFileSync(new URL('../space.html', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../space.css', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../space.js', import.meta.url), 'utf8');
+
+    // 1. 结构与样式完整性验证
+    assert(html.includes('id="space-bio-count"'), '需包含简介字数计数器指示器');
+    assert(html.includes('id="space-dirty-badge"'), '需包含主页未保存修改指示微徽章');
+    assert(html.includes('class="space-dirty-badge"'), '需定义未保存修改徽章样式类');
+    assert(css.includes('.space-dirty-badge'), 'CSS 需定义空间脏状态徽章视觉规范');
+    assert(js.includes('checkProfileDirty'), '需包含主页修改基准对比与脏状态检测');
+    assert(js.includes('profileBaseline'), '需包含主页基准快照逻辑');
+
+    // 2. 行为验证：初始化、修改、脏徽章显示与恢复干净状态
+    const f = await fixture(false);
+    assert.equal(f.get('space-dirty-badge').hidden, true);
+
+    // 修改简介
+    f.get('space-bio').value = '这是全新的个人空间简介，用于深度学习与学术研究交流。';
+    f.get('space-form').oninput();
+    assert.equal(f.get('space-bio-count').textContent, '26 / 600');
+    assert.equal(f.get('space-dirty-badge').hidden, false);
+
+    // 临界告警 (≥570 字)
+    f.get('space-bio').value = 'y'.repeat(580);
+    f.get('space-form').oninput();
+    assert.equal(f.get('space-bio-count').textContent, '580 / 600');
+    assert.equal(f.get('space-bio-count').classList.contains('near-limit'), true);
+
+    // 恢复为与基准一致的内容，脏徽章应自动隐藏
+    f.get('space-bio').value = '<img onerror=alert(1)>';
+    f.get('space-form').oninput();
+    assert.equal(f.get('space-dirty-badge').hidden, true);
+});

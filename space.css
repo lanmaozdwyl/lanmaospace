@@ -76,6 +76,39 @@ body[data-theme=dark] .space-counter-badge {
     color: #8e8e93;
 }
 
+.space-form-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.space-dirty-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    padding: 6px 12px;
+    border-radius: 980px;
+    line-height: 1;
+}
+@media(prefers-color-scheme:dark){
+    body:not([data-theme=light]) .space-dirty-badge {
+        color: #fbbf24;
+        background: rgba(245, 158, 11, 0.18);
+        border-color: rgba(245, 158, 11, 0.45);
+    }
+}
+body[data-theme=dark] .space-dirty-badge {
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.45);
+}
+
 /* Markdown 排版工具栏与预览：用半透明中性色，明暗主题都能适配 */
 .md-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:6px 0}
 .md-tools,.md-tabs{display:inline-flex;gap:4px;flex-wrap:wrap}
@@ -92,3 +125,158 @@ body[data-theme=dark] .space-counter-badge {
 .md-rendered ul,.md-preview ul{margin:0 0 .6em;padding-left:1.4em}
 .md-rendered code,.md-preview code{padding:1px 6px;border-radius:6px;background:rgba(127,127,127,.2);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em}
 @media (max-width:600px){.md-btn,.md-tab{min-height:44px;min-width:44px}}
+
+/* 深色外观全量适配：覆盖空间与账号卡片、导航栏、表单控件与成员网格 */
+body[data-theme="dark"] {
+    background: #000000;
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .space-nav {
+    background: rgba(22, 22, 26, 0.85);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+body[data-theme="dark"] .space-nav a {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .space-card {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .space-eyebrow,
+body[data-theme="dark"] .space-post time,
+body[data-theme="dark"] #space-status,
+body[data-theme="dark"] #account-status {
+    color: #8e8e93;
+}
+body[data-theme="dark"] .space-shell p {
+    color: #d1d1d6;
+}
+body[data-theme="dark"] .space-shell h1,
+body[data-theme="dark"] .space-card h2,
+body[data-theme="dark"] .space-card h3 {
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .space-card input:not([type=checkbox]),
+body[data-theme="dark"] .space-card textarea,
+body[data-theme="dark"] .space-card select {
+    background: #2c2c2e;
+    border-color: rgba(255, 255, 255, 0.16);
+    color: #f5f5f7;
+}
+body[data-theme="dark"] .space-card input:focus-visible,
+body[data-theme="dark"] .space-card textarea:focus-visible,
+body[data-theme="dark"] .space-card select:focus-visible {
+    border-color: #2997ff;
+}
+body[data-theme="dark"] .space-shell button,
+body[data-theme="dark"] .space-nav button {
+    background: #1c2b3d;
+    color: #5ac8fa;
+    border: 1px solid rgba(41, 151, 255, 0.25);
+}
+body[data-theme="dark"] .space-shell button[type=submit] {
+    background: #0071e3;
+    color: #ffffff;
+    border: none;
+}
+body[data-theme="dark"] #edit-post-form {
+    background: #182230;
+    border-color: rgba(41, 151, 255, 0.35);
+}
+body[data-theme="dark"] #edit-post-status {
+    color: #5ac8fa;
+}
+body[data-theme="dark"] .space-post {
+    border-top-color: rgba(255, 255, 255, 0.1);
+}
+body[data-theme="dark"] .space-post form {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+}
+body[data-theme="dark"] .space-avatar {
+    background: #2c2c2e;
+}
+body[data-theme="dark"] .member-grid a {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: #242426;
+    color: #f5f5f7;
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) {
+        background: #000000;
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .space-nav {
+        background: rgba(22, 22, 26, 0.85);
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+    body:not([data-theme="light"]) .space-nav a {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .space-card {
+        background: #1c1c1e;
+        border-color: rgba(255, 255, 255, 0.12);
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .space-eyebrow,
+    body:not([data-theme="light"]) .space-post time,
+    body:not([data-theme="light"]) #space-status,
+    body:not([data-theme="light"]) #account-status {
+        color: #8e8e93;
+    }
+    body:not([data-theme="light"]) .space-shell p {
+        color: #d1d1d6;
+    }
+    body:not([data-theme="light"]) .space-shell h1,
+    body:not([data-theme="light"]) .space-card h2,
+    body:not([data-theme="light"]) .space-card h3 {
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .space-card input:not([type=checkbox]),
+    body:not([data-theme="light"]) .space-card textarea,
+    body:not([data-theme="light"]) .space-card select {
+        background: #2c2c2e;
+        border-color: rgba(255, 255, 255, 0.16);
+        color: #f5f5f7;
+    }
+    body:not([data-theme="light"]) .space-card input:focus-visible,
+    body:not([data-theme="light"]) .space-card textarea:focus-visible,
+    body:not([data-theme="light"]) .space-card select:focus-visible {
+        border-color: #2997ff;
+    }
+    body:not([data-theme="light"]) .space-shell button,
+    body:not([data-theme="light"]) .space-nav button {
+        background: #1c2b3d;
+        color: #5ac8fa;
+        border: 1px solid rgba(41, 151, 255, 0.25);
+    }
+    body:not([data-theme="light"]) .space-shell button[type=submit] {
+        background: #0071e3;
+        color: #ffffff;
+        border: none;
+    }
+    body:not([data-theme="light"]) #edit-post-form {
+        background: #182230;
+        border-color: rgba(41, 151, 255, 0.35);
+    }
+    body:not([data-theme="light"]) #edit-post-status {
+        color: #5ac8fa;
+    }
+    body:not([data-theme="light"]) .space-post {
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+    body:not([data-theme="light"]) .space-post form {
+        border-color: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+    }
+    body:not([data-theme="light"]) .space-avatar {
+        background: #2c2c2e;
+    }
+    body:not([data-theme="light"]) .member-grid a {
+        border-color: rgba(255, 255, 255, 0.12);
+        background: #242426;
+        color: #f5f5f7;
+    }
+}

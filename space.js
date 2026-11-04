@@ -8,21 +8,49 @@ let client,user,target,own,baseline=null,memberOffset=0,postOffset=0,busy=false,
 const linkInputs=[];
 let editPost=null,editDirty=false,reportOffset=0,editOpener=null;
 let targetBlocked=false,blockOffset=0;
-function updateTextareaCounter(textareaId, counterId) {
+function updateTextareaCounter(textareaId, counterId, max = 2000) {
  const textarea = $(textareaId), badge = $(counterId);
  if (!textarea || !badge) return;
  const len = textarea.value.length;
- badge.textContent = `${len} / 2000`;
+ badge.textContent = `${len} / ${max}`;
+ const nearThreshold = Math.floor(max * 0.95);
  if (badge.classList?.toggle) {
-  badge.classList.toggle('near-limit', len >= 1900 && len <= 2000);
-  badge.classList.toggle('over-limit', len > 2000);
+  badge.classList.toggle('near-limit', len >= nearThreshold && len <= max);
+  badge.classList.toggle('over-limit', len > max);
  } else {
   let cls = (badge.className || '').replace(/\b(near-limit|over-limit)\b/g, '').trim();
-  if (len >= 1900 && len <= 2000) cls += ' near-limit';
-  else if (len > 2000) cls += ' over-limit';
+  if (len >= nearThreshold && len <= max) cls += ' near-limit';
+  else if (len > max) cls += ' over-limit';
   badge.className = cls.trim();
  }
 }
+
+let profileBaseline = null;
+function getSpaceProfileSnapshot() {
+ return {
+  name: $('space-name')?.value || '',
+  bio: $('space-bio')?.value || '',
+  links: linkInputs.map(f => ({ label: f.label.value, url: f.url.value }))
+ };
+}
+
+function checkProfileDirty() {
+ if (!own) return false;
+ if (!profileBaseline) {
+  profileDirty = false;
+ } else {
+  const cur = getSpaceProfileSnapshot();
+  const nameChanged = cur.name !== profileBaseline.name;
+  const bioChanged = cur.bio !== profileBaseline.bio;
+  const linksChanged = JSON.stringify(cur.links) !== JSON.stringify(profileBaseline.links);
+  profileDirty = nameChanged || bioChanged || linksChanged;
+ }
+ const badge = $('space-dirty-badge');
+ if (badge) badge.hidden = !profileDirty;
+ updateDirty();
+ return profileDirty;
+}
+
 function updateDirty(){dirty=profileDirty||editDirty||!!$('post-body').value.trim();}
 function updatePostEditingState(){
  const list=$('post-list');if(!list)return;
@@ -68,7 +96,14 @@ async function loadSpace(){
  const links=$('member-links');links.replaceChildren();
  for(const item of row?.links||[]){try{const checked=cleanSpace({display_name:'校验',links:[item]}).links[0];const a=node('a',checked.label);a.href=checked.url;a.target='_blank';a.rel='noopener noreferrer';const li=node('li');li.append(a);links.append(li);}catch{}}
  $('member-permalink').href=`space.html?user=${target}`;
- if(own){$('space-name').value=row?.display_name||'';$('space-bio').value=row?.bio||'';linkInputs.forEach((fields,i)=>{fields.label.value=row?.links?.[i]?.label||'';fields.url.value=row?.links?.[i]?.url||'';});}
+ if(own){
+  $('space-name').value=row?.display_name||'';
+  $('space-bio').value=row?.bio||'';
+  linkInputs.forEach((fields,i)=>{fields.label.value=row?.links?.[i]?.label||'';fields.url.value=row?.links?.[i]?.url||'';});
+  updateTextareaCounter('space-bio','space-bio-count',600);
+  profileBaseline=getSpaceProfileSnapshot();
+  checkProfileDirty();
+ }
 }
 async function loadUsage(){
  if(!own||ended)return;
@@ -120,15 +155,27 @@ async function loadPosts(){
  $('posts-prev').hidden=postOffset===0;$('posts-next').hidden=(rows?.length||0)<20;
 }
 function makeLinkEditor(){for(let i=0;i<6;i++){const row=node('div');row.className='space-link-row';const label=node('input'),url=node('input');label.maxLength=40;label.placeholder=`链接 ${i+1} 名称`;label.setAttribute('aria-label',label.placeholder);url.type='url';url.maxLength=1000;url.placeholder='https://';url.setAttribute('aria-label',`链接 ${i+1} 网址`);linkInputs.push({label,url});row.append(label,url);$('link-editor').append(row);}}
-$('space-form').oninput=()=>{profileDirty=true;updateDirty();};$('post-body').oninput=()=>{updateTextareaCounter('post-body','post-body-count');updateDirty();};
+$('space-form').oninput=()=>{updateTextareaCounter('space-bio','space-bio-count',600);checkProfileDirty();};$('post-body').oninput=()=>{updateTextareaCounter('post-body','post-body-count');updateDirty();};
 $('edit-post-body').oninput=()=>{updateTextareaCounter('edit-post-body','edit-post-body-count');editDirty=!!editPost&&$('edit-post-body').value!==editPost.body;updateDirty();};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+if(typeof document.addEventListener==='function'){
+ document.addEventListener('click',e=>{
+  const a=e.target?.closest?e.target.closest('a[href], button[data-signout]'):null;
+  if(!a)return;
+  if(dirty){
+   if(!window.confirm('当前主页或动态修改尚未保存，确定要离开吗？未保存的内容将会丢失。')){
+    e.preventDefault();
+    e.stopPropagation();
+   }
+  }
+ },true);
+}
 $('space-form').onsubmit=e=>{e.preventDefault();task(async()=>{
  const links=linkInputs.filter(f=>f.label.value.trim()||f.url.value.trim()).map(f=>({label:f.label.value,url:f.url.value}));
  const values=cleanSpace({display_name:$('space-name').value,bio:$('space-bio').value,links});
  const changed=baseline?await result(client.from('user_spaces').update(values).eq('user_id',user.id).eq('updated_at',baseline).select('user_id')):await result(client.from('user_spaces').insert({user_id:user.id,...values}).select('user_id'));
  if(!changed?.length)throw Error('主页已在其他页面更新，请先复制保留当前编辑，再刷新。');
- await loadSpace();profileDirty=false;updateDirty();await loadMembers();message('主页已保存，登录成员现在可以看到。');
+ await loadSpace();profileBaseline=getSpaceProfileSnapshot();checkProfileDirty();await loadMembers();message('主页已保存，登录成员现在可以看到。');
 });};
 // 每次未确认的新发布复用同一编号；响应丢失后重试不会重复创建。
 let postAttempt=null;
