@@ -32,19 +32,26 @@
         </header>
 
         <div class="tools-controls">
-            <label class="tools-search-label" for="tools-search">搜索工具</label>
-            <input type="search" id="tools-search" class="tools-search" placeholder="输入工具名字或用途，比如 翻译" autocomplete="off" aria-keyshortcuts="/">
+            <div class="tools-search-wrap">
+                <label class="tools-search-label" for="tools-search">搜索工具</label>
+                <input type="search" id="tools-search" class="tools-search" placeholder="输入工具名字或用途，比如 翻译" autocomplete="off" aria-keyshortcuts="/">
+                <button type="button" id="tools-search-clear" class="tools-search-clear" aria-label="清空搜索" hidden>✕</button>
+            </div>
             <p class="tools-keyhint">键盘：数字 1–5 切换分类 · / 聚焦搜索 · Esc 清空搜索</p>
             <div class="tools-filters" role="group" aria-label="按分类筛选工具">
-                <button type="button" class="filter-btn active" data-filter="all" aria-pressed="true">全部</button>
-                <button type="button" class="filter-btn" data-filter="translate" aria-pressed="false">🌐 翻译</button>
-                <button type="button" class="filter-btn" data-filter="academic" aria-pressed="false">📝 学术写作</button>
-                <button type="button" class="filter-btn" data-filter="dev" aria-pressed="false">💻 编程开发</button>
-                <button type="button" class="filter-btn" data-filter="design" aria-pressed="false">🎨 设计 &amp; 效率</button>
+                <button type="button" class="filter-btn active" data-filter="all" aria-pressed="true">全部 <span class="filter-count">15</span></button>
+                <button type="button" class="filter-btn" data-filter="translate" aria-pressed="false">🌐 翻译 <span class="filter-count">4</span></button>
+                <button type="button" class="filter-btn" data-filter="academic" aria-pressed="false">📝 学术写作 <span class="filter-count">4</span></button>
+                <button type="button" class="filter-btn" data-filter="dev" aria-pressed="false">💻 编程开发 <span class="filter-count">4</span></button>
+                <button type="button" class="filter-btn" data-filter="design" aria-pressed="false">🎨 设计 &amp; 效率 <span class="filter-count">3</span></button>
             </div>
         </div>
 
-        <p class="tools-empty" id="tools-empty" hidden>没有匹配的工具，换个关键词或分类试试。</p>
+        <div class="tools-empty" id="tools-empty" hidden>
+            <span class="tools-empty-icon" aria-hidden="true">🔍</span>
+            <p class="tools-empty-text">没有匹配的工具，换个关键词或分类试试。</p>
+            <button type="button" class="tools-empty-reset" id="tools-empty-reset">清空搜索并查看全部</button>
+        </div>
 
         <div class="tools-category" data-category-group="translate">
             <h3 class="category-title">🌐 翻译</h3>

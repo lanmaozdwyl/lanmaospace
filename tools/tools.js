@@ -7,15 +7,35 @@
     var groups = Array.prototype.slice.call(document.querySelectorAll('.tools-category'));
     var search = document.getElementById('tools-search');
     var empty = document.getElementById('tools-empty');
+    var emptyReset = document.getElementById('tools-empty-reset');
+    var searchClear = document.getElementById('tools-search-clear');
     var requestedFilter = new URLSearchParams(window.location.search).get('category');
     var activeFilter = filterBtns.some(function (btn) { return btn.dataset.filter === requestedFilter; }) ? requestedFilter : 'all';
 
+    function updateCategoryCounts() {
+        var counts = { all: cards.length };
+        cards.forEach(function (card) {
+            var cat = card.dataset.category;
+            if (cat) counts[cat] = (counts[cat] || 0) + 1;
+        });
+        filterBtns.forEach(function (btn) {
+            var filter = btn.dataset.filter;
+            var total = counts[filter] || 0;
+            if (typeof btn.querySelector === 'function') {
+                var badge = btn.querySelector('.filter-count');
+                if (badge) {
+                    badge.textContent = String(total);
+                }
+            }
+        });
+    }
+
     function applyFilter() {
-        var query = search.value.trim().toLowerCase();
+        var query = search ? search.value.trim().toLowerCase() : '';
         var visibleCount = 0;
         cards.forEach(function (card) {
             var matchCategory = activeFilter === 'all' || card.dataset.category === activeFilter;
-            var haystack = (card.dataset.name + ' ' + card.textContent).toLowerCase();
+            var haystack = (card.dataset.name + ' ' + (card.textContent || '')).toLowerCase();
             var matchQuery = !query || haystack.indexOf(query) !== -1;
             var visible = matchCategory && matchQuery;
             card.classList.toggle('hidden', !visible);
@@ -25,7 +45,12 @@
             var anyVisible = group.querySelectorAll('.tool-card:not(.hidden)').length > 0;
             group.classList.toggle('hidden', !anyVisible);
         });
-        empty.hidden = visibleCount > 0;
+        if (empty) {
+            empty.hidden = visibleCount > 0;
+        }
+        if (searchClear && search) {
+            searchClear.hidden = !search.value;
+        }
     }
 
     function setFilter(btn) {
@@ -62,8 +87,42 @@
         btn.classList.toggle('active', active);
         btn.setAttribute('aria-pressed', String(active));
     });
+
+    updateCategoryCounts();
     applyFilter();
-    search.addEventListener('input', applyFilter);
+
+    if (search) {
+        search.addEventListener('input', applyFilter);
+    }
+
+    if (searchClear && search) {
+        searchClear.addEventListener('click', function () {
+            search.value = '';
+            applyFilter();
+            if (typeof search.focus === 'function') search.focus();
+        });
+    }
+
+    if (emptyReset) {
+        emptyReset.addEventListener('click', function () {
+            if (search) search.value = '';
+            var allBtn = null;
+            for (var i = 0; i < filterBtns.length; i++) {
+                if (filterBtns[i].dataset.filter === 'all') {
+                    allBtn = filterBtns[i];
+                    break;
+                }
+            }
+            if (allBtn) {
+                setFilter(allBtn);
+            } else {
+                applyFilter();
+            }
+            if (search && typeof search.focus === 'function') {
+                search.focus();
+            }
+        });
+    }
 
     document.addEventListener('keydown', function (e) {
         // 输入法组字、带修饰键的系统/浏览器快捷键、已被别处处理的事件，一律不介入
@@ -72,11 +131,11 @@
 
         if (e.key === 'Escape') {
             if (typing && e.target !== search) return;
-            if (search.value) {
+            if (search && search.value) {
                 e.preventDefault();
                 search.value = '';
                 applyFilter();
-            } else if (e.target === search) {
+            } else if (search && e.target === search && typeof search.blur === 'function') {
                 search.blur();
             }
             return;
@@ -86,8 +145,10 @@
         if (typing) return;
 
         if (e.key === '/') {
-            e.preventDefault();
-            search.focus();
+            if (search && typeof search.focus === 'function') {
+                e.preventDefault();
+                search.focus();
+            }
             return;
         }
 

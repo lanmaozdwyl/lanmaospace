@@ -5,17 +5,29 @@ import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../tools/tools.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('../tools/index.html',import.meta.url),'utf8');
 function fixture(query){
- const make=(dataset,textContent='')=>({dataset,textContent,attrs:{},handlers:{},hidden:false,classList:{values:new Set(),toggle(name,on){on?this.values.add(name):this.values.delete(name);},contains(name){return this.values.has(name);}},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){this.handlers[k]=fn;}});
+ const make=(dataset,textContent='')=>({dataset,textContent,attrs:{},handlers:{},hidden:false,classList:{values:new Set(),toggle(name,on){on?this.values.add(name):this.values.delete(name);},contains(name){return this.values.has(name);}},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){this.handlers[k]=fn;},querySelector(sel){if(sel==='.filter-count')return this.badge||(this.badge=make({},''));return null;}});
  const buttons=['all','translate','academic','dev','design'].map(filter=>make({filter}));
  const cards=[make({category:'translate',name:'deepl'},'DeepL'),make({category:'academic',name:'zotero'},'Zotero'),make({category:'dev',name:'github'},'GitHub')];
  const groups=cards.map(card=>({...make({}),querySelectorAll(){return card.classList.contains('hidden')?[]:[card];}}));
  const search=make({});search.value='';search.tagName='INPUT';search.focused=false;search.focus=function(){this.focused=true;};search.blur=function(){this.focused=false;};
  const empty=make({});
+ const emptyReset=make({});
+ const searchClear=make({});searchClear.hidden=true;
  const docHandlers={};
- const document={addEventListener(k,fn){docHandlers[k]=fn;},querySelectorAll(s){return s.includes('filter-btn')?buttons:s==='.tool-card'?cards:groups;},getElementById(id){return id==='tools-search'?search:empty;}};
+ const document={
+  addEventListener(k,fn){docHandlers[k]=fn;},
+  querySelectorAll(s){return s.includes('filter-btn')?buttons:s==='.tool-card'?cards:groups;},
+  getElementById(id){
+   if(id==='tools-search')return search;
+   if(id==='tools-empty')return empty;
+   if(id==='tools-empty-reset')return emptyReset;
+   if(id==='tools-search-clear')return searchClear;
+   return null;
+  }
+ };
  vm.runInNewContext(source,{document,window:{location:{search:query}},URLSearchParams});
  const press=(key,opts={})=>{const e={key,target:{tagName:'BODY'},defaultPrevented:false,preventDefault(){this.defaultPrevented=true;},...opts};docHandlers.keydown(e);return e;};
- return{buttons,cards,search,empty,groups,press,docHandlers};
+ return{buttons,cards,search,empty,emptyReset,searchClear,groups,press,docHandlers};
 }
 const vis=f=>f.cards.map(c=>!c.classList.contains('hidden'));
 test('分类直达时只显示匹配工具并同步按钮状态',()=>{const f=fixture('?category=academic');assert.deepEqual(f.cards.map(c=>!c.classList.contains('hidden')),[false,true,false]);assert.equal(f.buttons[2].attrs['aria-pressed'],'true');assert.equal(f.empty.hidden,true);});
@@ -33,3 +45,34 @@ test('带 Ctrl/Meta/Alt 的组合键与输入法组字、已处理事件都不�
 test('键盘切换后点击按钮仍然正常，两种入口共用同一套状态',()=>{const f=fixture('');f.press('2');assert.equal(f.buttons[1].attrs['aria-pressed'],'true');f.buttons[3].handlers.click();assert.equal(f.buttons[3].attrs['aria-pressed'],'true');assert.equal(f.buttons[1].attrs['aria-pressed'],'false');assert.deepEqual(vis(f),[false,false,true]);});
 test('键盘支持符合 CSP：脚本无 eval、Function、内联脚本，页面无内联事件属性',()=>{assert.doesNotMatch(source,/\beval\s*\(|new\s+Function|document\.write|innerHTML/);assert.doesNotMatch(html,/<script(?![^>]*\bsrc=)[^>]*>/i);assert.doesNotMatch(html,/<[^>]+\son[a-z]+\s*=/i);assert.match(html,/<script src="tools\.js"><\/script>/);});
 test('页面包含键盘提示与搜索框快捷键声明',()=>{assert.match(html,/class="tools-keyhint"/);assert.match(html,/aria-keyshortcuts="\/"/);});
+test('搜索无匹配时提供一键重置按钮，点击清空搜索词并还原为全部分类',()=>{
+ const f=fixture('?category=translate');
+ f.search.value='nonexistent';
+ f.search.handlers.input();
+ assert.equal(f.empty.hidden,false);
+ assert.equal(f.searchClear.hidden,false);
+ f.emptyReset.handlers.click();
+ assert.equal(f.search.value,'');
+ assert.equal(f.buttons[0].attrs['aria-pressed'],'true');
+ assert.equal(f.empty.hidden,true);
+ assert.equal(f.searchClear.hidden,true);
+ assert(f.cards.every(c=>!c.classList.contains('hidden')));
+ assert.equal(f.search.focused,true);
+});
+test('搜索输入框快捷清空按钮，点击即刻重置输入与筛选状态',()=>{
+ const f=fixture('');
+ f.search.value='deepl';
+ f.search.handlers.input();
+ assert.equal(f.searchClear.hidden,false);
+ f.searchClear.handlers.click();
+ assert.equal(f.search.value,'');
+ assert.equal(f.searchClear.hidden,true);
+ assert(f.cards.every(c=>!c.classList.contains('hidden')));
+ assert.equal(f.search.focused,true);
+});
+test('工具站分类数量智能徽章与空状态重置结构规范',()=>{
+ assert.match(html,/id="tools-empty-reset"/);
+ assert.match(html,/class="tools-search-clear"/);
+ assert.match(html,/class="filter-count"/);
+ assert.match(source,/updateCategoryCounts/);
+});
