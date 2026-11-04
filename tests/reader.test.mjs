@@ -737,3 +737,38 @@ test('体验优化：书架移动端底栏个人空间通道互联与抽屉关�
     assert(jsSource.includes('lastDrawerTrigger = triggerEl'), 'openDrawer 需捕获打开触发源元素');
     assert(jsSource.includes('lastDrawerTrigger.focus'), 'closeAllDrawers 关闭时焦点必须精准恢复至触发源');
 });
+
+test('划线笔记接入：标签页、浮动按钮、脚本顺序、模式开关与备份合并', () => {
+    // HTML：第三个标签页、列表面板、浮动按钮、模式开关
+    assert(htmlSource.includes('id="tab-btn-highlights"'), '需包含划线笔记标签页');
+    assert(htmlSource.includes('id="reader-highlights-list"'), '需包含划线笔记列表面板');
+    assert(htmlSource.includes('id="reader-highlight-fab"'), '需包含选区划线浮动按钮');
+    assert(htmlSource.includes('id="reader-btn-highlight-mode"'), '需包含划线模式开关按钮');
+    // reader-highlight.js 必须先于 reader.js 加载
+    const hlPos = htmlSource.indexOf('src="reader-highlight.js"');
+    const rdPos = htmlSource.indexOf('src="reader.js"');
+    assert(hlPos > 0 && rdPos > hlPos, 'reader-highlight.js 必须在 reader.js 之前引入');
+
+    // JS：存储、恢复、跳转、模式与备份
+    assert(jsSource.includes("'lanmao_reader_highlights_v1'"), '需使用独立的划线存储键');
+    assert(jsSource.includes('function applyChapterHighlights('), '需包含章节渲染后恢复划线的函数');
+    assert(jsSource.includes('function createHighlightFromSelection('), '需包含选区创建划线函数');
+    assert(jsSource.includes('function jumpToHighlight('), '需包含笔记列表跳转函数');
+    assert(jsSource.includes('function setHighlightMode('), '需包含划线模式开关函数');
+    assert(/content\.innerHTML = htmlParts\.join\('\\n'\);\s*applyChapterHighlights\(\);/.test(jsSource), 'renderChapter 渲染正文后必须恢复划线');
+    assert(jsSource.includes('if (state.highlightMode) return;'), '划线模式下必须暂停滑动翻页手势');
+    assert(/highlights: state\.highlights,/.test(jsSource), '书架备份必须导出划线');
+    assert(jsSource.includes('data.highlights'), '书架备份导入必须合并划线');
+    // 列表以 textContent 构建，不把用户选中的原文拼进 innerHTML
+    const listFn = jsSource.slice(jsSource.indexOf('function renderHighlightsList('), jsSource.indexOf('function bindHighlightEvents('));
+    assert(!listFn.includes('innerHTML'), '划线列表严禁使用 innerHTML 拼接用户文字');
+
+    // CSS
+    assert(cssSource.includes('.reader-stage.highlight-mode .reader-touch-zones'), '划线模式下触控热区需让出点击');
+    assert(cssSource.includes('.reader-highlight-fab'), '需包含浮动按钮样式');
+    assert(cssSource.includes('.highlight-card'), '需包含划线笔记卡片样式');
+
+    // 打包白名单
+    const buildSource = readFileSync(new URL('../scripts/build.mjs', import.meta.url), 'utf8');
+    assert(buildSource.includes("'reader-highlight.js'"), 'build.mjs 白名单需包含 reader-highlight.js');
+});

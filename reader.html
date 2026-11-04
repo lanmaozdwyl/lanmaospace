@@ -184,6 +184,9 @@
                     <span aria-hidden="true">🍅</span>
                     <span class="reader-tool-badge" id="reader-pomodoro-time">25:00</span>
                 </button>
+                <button type="button" class="reader-tool-btn" id="reader-btn-highlight-mode" title="划线模式：开启后可选中正文文字" aria-label="划线模式" aria-pressed="false">
+                    <span aria-hidden="true">✎</span>
+                </button>
                 <button type="button" class="reader-tool-btn" id="reader-btn-bookmark" title="收藏或取消当前页书签" aria-label="收藏书签">
                     <span aria-hidden="true">🔖</span>
                 </button>
@@ -298,12 +301,16 @@
             </div>
         </footer>
 
+        <!-- 选区划线浮动按钮：选中正文文字后出现 -->
+        <button type="button" class="reader-highlight-fab" id="reader-highlight-fab" aria-label="为选中文字添加划线" hidden>✎ 划线</button>
+
         <!-- 目录与书签抽屉 (左侧滑出) -->
         <aside class="reader-drawer drawer-left" id="drawer-toc" aria-label="书籍目录与书签" hidden>
             <div class="drawer-header">
                 <div class="drawer-tabs-segment" role="tablist" aria-label="目录与书签切换">
                     <button type="button" class="drawer-tab active" id="tab-btn-toc" role="tab" aria-selected="true" aria-controls="reader-toc-list">📑 目录大纲</button>
                     <button type="button" class="drawer-tab" id="tab-btn-bookmarks" role="tab" aria-selected="false" aria-controls="reader-bookmarks-list">🔖 珍藏书签 <span class="tab-count-badge" id="bookmark-count-badge">0</span></button>
+                    <button type="button" class="drawer-tab" id="tab-btn-highlights" role="tab" aria-selected="false" aria-controls="reader-highlights-list">✎ 划线笔记 <span class="tab-count-badge" id="highlight-count-badge">0</span></button>
                 </div>
                 <button type="button" class="drawer-close-btn" id="close-toc" aria-label="关闭目录与书签">✕</button>
             </div>
@@ -312,6 +319,9 @@
             </div>
             <div class="drawer-body bookmarks-list" id="reader-bookmarks-list" role="tabpanel" aria-labelledby="tab-btn-bookmarks" hidden>
                 <!-- 书签列表项 -->
+            </div>
+            <div class="drawer-body highlights-list" id="reader-highlights-list" role="tabpanel" aria-labelledby="tab-btn-highlights" hidden>
+                <!-- 划线笔记列表项 -->
             </div>
         </aside>
 
@@ -566,6 +576,7 @@
     <script type="module" src="auth-guard.js"></script>
     <script src="lib/openpageflip/openpageflip.js"></script>
     <script src="lib/pageflipopen/pageflipopen.js"></script>
+    <script src="reader-highlight.js"></script>
     <script src="reader.js"></script>
     <script type="module" src="reader-audio.js"></script>
 </body>

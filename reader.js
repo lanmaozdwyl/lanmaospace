@@ -552,7 +552,9 @@
         isPdfMode: false,
         dbLoaded: false,
         bookmarks: {},
-        activeTocTab: 'toc', // 'toc' | 'bookmarks'
+        highlights: {},
+        highlightMode: false,
+        activeTocTab: 'toc', // 'toc' | 'bookmarks' | 'highlights'
         settings: {
             theme: 'parchment', // parchment | green | white | dark
             fontSize: 18,        // 14 ~ 28
@@ -574,6 +576,7 @@
     const STORAGE_KEY_BOOK_PROGRESS = 'lanmao_reader_book_progress_v2';
     const STORAGE_KEY_CUSTOM_BOOKS = 'lanmao_reader_custom_books_v1';
     const STORAGE_KEY_BOOKMARKS = 'lanmao_reader_bookmarks_v1';
+    const STORAGE_KEY_HIGHLIGHTS = 'lanmao_reader_highlights_v1';
 
     let dbInstance = null;
 
@@ -1122,12 +1125,285 @@
         });
     }
 
+    // ===== 4.9 正文划线笔记引擎（锚定与还原算法见 reader-highlight.js） =====
+    const MAX_HIGHLIGHTS_PER_BOOK = 500;
+    const MAX_HIGHLIGHT_LENGTH = 2000;
+    let highlightFabHideTimer = null;
+    let pendingHighlightRange = null;
+
+    function loadHighlights() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_HIGHLIGHTS);
+            if (raw) {
+                const map = JSON.parse(raw);
+                if (map && typeof map === 'object' && !Array.isArray(map)) {
+                    state.highlights = map;
+                }
+            }
+        } catch (_) {}
+    }
+
+    function saveHighlights() {
+        let ok = true;
+        try {
+            localStorage.setItem(STORAGE_KEY_HIGHLIGHTS, JSON.stringify(state.highlights));
+        } catch (_) {
+            ok = false;
+        }
+        updateHighlightCountBadge();
+        return ok;
+    }
+
+    function getBookHighlights(bookId) {
+        bookId = bookId || state.currentBookId || 'prince';
+        if (!Array.isArray(state.highlights[bookId])) state.highlights[bookId] = [];
+        return state.highlights[bookId];
+    }
+
+    // 仅文字书籍的滑动/滚动模式支持划线；PDF 与 3D 翻书模式不渲染这套正文 DOM
+    function highlightsSupported() {
+        const book = state.currentBook;
+        return !!(book && book.format !== 'pdf' && !state.isPdfMode && !state.openPageFlipInstance && window.ReaderHighlight);
+    }
+
+    function applyChapterHighlights() {
+        const content = document.getElementById('reader-content');
+        if (!content || !highlightsSupported()) return;
+        const list = getBookHighlights().filter(h => h && h.chapterIndex === state.currentChapterIndex);
+        try {
+            window.ReaderHighlight.restoreHighlights(content, list, { chapterIndex: state.currentChapterIndex });
+        } catch (err) {
+            console.error('Highlight restore failed:', err);
+        }
+    }
+
+    function updateHighlightCountBadge() {
+        const badge = document.getElementById('highlight-count-badge');
+        if (!badge) return;
+        badge.textContent = String(getBookHighlights().length);
+    }
+
+    function hideHighlightFab(immediate) {
+        clearTimeout(highlightFabHideTimer);
+        const doHide = () => {
+            const fab = document.getElementById('reader-highlight-fab');
+            if (fab) fab.hidden = true;
+            pendingHighlightRange = null;
+        };
+        if (immediate) {
+            doHide();
+        } else {
+            // 触屏点按按钮会先让选区塌缩，延迟隐藏才能保证这次点击生效
+            highlightFabHideTimer = setTimeout(doHide, 300);
+        }
+    }
+
+    function setHighlightMode(on) {
+        if (on && !highlightsSupported()) {
+            showToast('划线仅支持文字书籍的滑动或滚动阅读模式');
+            return;
+        }
+        state.highlightMode = !!on;
+        const stage = document.getElementById('reader-stage');
+        if (stage) stage.classList.toggle('highlight-mode', state.highlightMode);
+        const btn = document.getElementById('reader-btn-highlight-mode');
+        if (btn) {
+            btn.classList.toggle('active', state.highlightMode);
+            btn.setAttribute('aria-pressed', String(state.highlightMode));
+        }
+        if (state.highlightMode) {
+            showToast('划线模式已开启：选中文字后点“划线”；再点 ✎ 退出后可滑动翻页', 3200);
+        } else {
+            hideHighlightFab(true);
+        }
+    }
+
+    function onHighlightSelectionChange() {
+        if (!state.highlightMode) return;
+        const content = document.getElementById('reader-content');
+        const fab = document.getElementById('reader-highlight-fab');
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!content || !fab || !sel) return;
+        if (sel.rangeCount === 0 || sel.isCollapsed) {
+            hideHighlightFab(false);
+            return;
+        }
+        const range = sel.getRangeAt(0);
+        if (!range.intersectsNode(content)) {
+            hideHighlightFab(false);
+            return;
+        }
+        clearTimeout(highlightFabHideTimer);
+        pendingHighlightRange = range.cloneRange();
+        fab.hidden = false;
+    }
+
+    function createHighlightFromSelection() {
+        const content = document.getElementById('reader-content');
+        if (!content || !highlightsSupported()) return;
+        const sel = window.getSelection ? window.getSelection() : null;
+        const range = (sel && sel.rangeCount > 0 && !sel.isCollapsed) ? sel.getRangeAt(0) : pendingHighlightRange;
+        if (!range) {
+            showToast('请先选中要划线的文字');
+            return;
+        }
+        const list = getBookHighlights();
+        if (list.length >= MAX_HIGHLIGHTS_PER_BOOK) {
+            showToast('本书划线已达 ' + MAX_HIGHLIGHTS_PER_BOOK + ' 条上限，请先删除部分旧划线');
+            return;
+        }
+        const anchor = window.ReaderHighlight.createHighlightAnchor(range, content, {
+            bookId: state.currentBookId,
+            chapterIndex: state.currentChapterIndex
+        });
+        if (!anchor) {
+            showToast('请先选中要划线的文字');
+            return;
+        }
+        if (anchor.exact.length > MAX_HIGHLIGHT_LENGTH) {
+            showToast('单次划线过长，请分段选择');
+            return;
+        }
+        const chapter = state.currentBook && state.currentBook.chapters && state.currentBook.chapters[state.currentChapterIndex];
+        anchor.chapterTitle = (chapter && chapter.title) ? chapter.title : ('第 ' + (state.currentChapterIndex + 1) + ' 章');
+        anchor.rawText = String(anchor.rawText || '').slice(0, MAX_HIGHLIGHT_LENGTH);
+
+        list.unshift(anchor);
+        if (!saveHighlights()) {
+            list.shift();
+            updateHighlightCountBadge();
+            showToast('本机存储空间不足，划线未能保存');
+            return;
+        }
+        if (sel && sel.removeAllRanges) sel.removeAllRanges();
+        hideHighlightFab(true);
+        applyChapterHighlights();
+        renderHighlightsList();
+        showToast('已添加划线');
+    }
+
+    function removeHighlight(highlightId) {
+        const list = getBookHighlights();
+        const idx = list.findIndex(h => h.id === highlightId);
+        if (idx < 0) return;
+        list.splice(idx, 1);
+        saveHighlights();
+        applyChapterHighlights();
+        renderHighlightsList();
+        showToast('划线已移除');
+    }
+
+    function jumpToHighlight(h) {
+        if (!highlightsSupported()) {
+            showToast('当前阅读模式暂不支持定位划线，请切换为滑动或滚动模式');
+            return;
+        }
+        closeAllDrawers();
+        const locate = () => {
+            const content = document.getElementById('reader-content');
+            if (!content) return;
+            const opts = {};
+            if (state.settings.mode !== 'scroll') {
+                // 分页是 CSS 多栏 + translateX：用相对正文容器的偏移量算出所在页，先翻页再闪烁
+                opts.reveal = (first) => {
+                    const viewport = document.getElementById('reader-viewport');
+                    if (!viewport) return;
+                    const gap = window.innerWidth >= 900 ? 60 : 48;
+                    const step = (viewport.clientWidth || 360) + gap;
+                    const rects = first.getClientRects();
+                    const rect = rects.length ? rects[0] : first.getBoundingClientRect();
+                    const rel = rect.left - content.getBoundingClientRect().left;
+                    goToPage(Math.floor(Math.max(0, rel) / step) + 1);
+                };
+            }
+            if (!window.ReaderHighlight.scrollToHighlight(content, h.id, opts)) {
+                showToast('这处划线的原文已无法定位，可能书籍内容有变动');
+            }
+        };
+        if (state.currentChapterIndex !== h.chapterIndex) {
+            goToChapter(h.chapterIndex, 1);
+            // renderChapter 在下一帧才完成分页测量，等两帧再定位
+            requestAnimationFrame(() => requestAnimationFrame(locate));
+        } else {
+            locate();
+        }
+    }
+
+    function createHlEl(tag, className, text) {
+        const el = document.createElement(tag);
+        if (className) el.className = className;
+        if (text != null) el.textContent = text;
+        return el;
+    }
+
+    function renderHighlightsList() {
+        const listEl = document.getElementById('reader-highlights-list');
+        if (!listEl) return;
+        const list = getBookHighlights();
+        listEl.textContent = '';
+
+        if (list.length === 0) {
+            const empty = createHlEl('div', 'bookmark-empty');
+            const icon = createHlEl('span', 'bookmark-empty-icon', '✎');
+            icon.setAttribute('aria-hidden', 'true');
+            empty.appendChild(icon);
+            empty.appendChild(createHlEl('p', '', '本书暂无划线笔记'));
+            empty.appendChild(createHlEl('small', '', '点击顶部 ✎ 开启划线模式，选中文字后点“划线”'));
+            listEl.appendChild(empty);
+            return;
+        }
+
+        list.forEach(h => {
+            const card = createHlEl('div', 'bookmark-card highlight-card');
+            card.setAttribute('role', 'button');
+            card.tabIndex = 0;
+            const info = createHlEl('div', 'bookmark-info');
+            const header = createHlEl('div', 'bookmark-header');
+            header.appendChild(createHlEl('span', 'bookmark-chapter', h.chapterTitle || ('第 ' + ((h.chapterIndex || 0) + 1) + ' 章')));
+            info.appendChild(header);
+            info.appendChild(createHlEl('p', 'bookmark-excerpt highlight-excerpt', h.rawText || h.exact || ''));
+            const del = createHlEl('button', 'bookmark-del-btn', '✕');
+            del.type = 'button';
+            del.title = '删除此划线';
+            del.setAttribute('aria-label', '删除划线');
+            card.appendChild(info);
+            card.appendChild(del);
+            card.addEventListener('click', () => jumpToHighlight(h));
+            card.addEventListener('keydown', (e) => {
+                if (e.target === card && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    jumpToHighlight(h);
+                }
+            });
+            del.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeHighlight(h.id);
+            });
+            listEl.appendChild(card);
+        });
+    }
+
+    function bindHighlightEvents() {
+        const tabBtn = document.getElementById('tab-btn-highlights');
+        if (tabBtn) tabBtn.addEventListener('click', () => switchTocTab('highlights'));
+        const modeBtn = document.getElementById('reader-btn-highlight-mode');
+        if (modeBtn) modeBtn.addEventListener('click', () => setHighlightMode(!state.highlightMode));
+        const fab = document.getElementById('reader-highlight-fab');
+        if (fab) {
+            fab.addEventListener('mousedown', (e) => e.preventDefault());
+            fab.addEventListener('click', createHighlightFromSelection);
+        }
+        document.addEventListener('selectionchange', onHighlightSelectionChange);
+    }
+
     function switchTocTab(tabName) {
         state.activeTocTab = tabName;
         const tabBtnToc = document.getElementById('tab-btn-toc');
         const tabBtnBm = document.getElementById('tab-btn-bookmarks');
         const listToc = document.getElementById('reader-toc-list');
         const listBm = document.getElementById('reader-bookmarks-list');
+        const tabBtnHl = document.getElementById('tab-btn-highlights');
+        const listHl = document.getElementById('reader-highlights-list');
 
         if (tabBtnToc) {
             tabBtnToc.classList.toggle('active', tabName === 'toc');
@@ -1139,8 +1415,15 @@
         }
         if (listToc) listToc.hidden = tabName !== 'toc';
         if (listBm) listBm.hidden = tabName !== 'bookmarks';
+        if (tabBtnHl) {
+            tabBtnHl.classList.toggle('active', tabName === 'highlights');
+            tabBtnHl.setAttribute('aria-selected', String(tabName === 'highlights'));
+        }
+        if (listHl) listHl.hidden = tabName !== 'highlights';
 
-        if (tabName === 'bookmarks') {
+        if (tabName === 'highlights') {
+            renderHighlightsList();
+        } else if (tabName === 'bookmarks') {
             renderBookmarksList();
         } else {
             highlightActiveToc(true);
@@ -1837,6 +2120,7 @@
         }
 
         content.innerHTML = htmlParts.join('\n');
+        applyChapterHighlights();
 
         // 重置滚动位置 (分页模式下归零；滚动模式下交由后续精确恢复)
         if (viewport && state.settings.mode !== 'scroll') {
@@ -1871,6 +2155,9 @@
     }
 
     function renderToc() {
+        // 切书或重建目录时，同步刷新该书的划线计数与列表
+        updateHighlightCountBadge();
+        renderHighlightsList();
         const tocList = document.getElementById('reader-toc-list');
         if (!tocList || !state.currentBook) return;
 
@@ -2474,6 +2761,7 @@
             customBooks: customBooks,
             bookProgress: bookProgress,
             bookmarks: state.bookmarks,
+            highlights: state.highlights,
             lastProgress: lastProgress,
             settings: settings
         };
@@ -2531,6 +2819,25 @@
                     state.bookmarks = Object.assign({}, state.bookmarks, data.bookmarks);
                     saveBookmarks();
                     renderBookmarksList();
+                }
+
+                if (data.highlights && typeof data.highlights === 'object' && !Array.isArray(data.highlights)) {
+                    Object.keys(data.highlights).forEach(bookId => {
+                        const incoming = Array.isArray(data.highlights[bookId]) ? data.highlights[bookId] : [];
+                        const existing = Array.isArray(state.highlights[bookId]) ? state.highlights[bookId] : [];
+                        const seen = new Set(existing.map(h => h && h.id));
+                        const merged = existing.slice();
+                        incoming.forEach(h => {
+                            if (h && typeof h.id === 'string' && typeof h.exact === 'string' && !seen.has(h.id)) {
+                                seen.add(h.id);
+                                merged.push(h);
+                            }
+                        });
+                        state.highlights[bookId] = merged.slice(0, MAX_HIGHLIGHTS_PER_BOOK);
+                    });
+                    saveHighlights();
+                    renderHighlightsList();
+                    applyChapterHighlights();
                 }
 
                 renderBookshelfGrid();
@@ -2874,6 +3181,7 @@
                 if (isFlipping) return;
                 if (state.isPdfMode || state.openPageFlipInstance) return;
                 // 忽略控制栏按钮与输入框
+                if (state.highlightMode) return; // 划线模式下交还给原生文字选择，不触发滑动翻页
                 if (target && (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('.reader-topbar') || target.closest('.reader-bottombar') || target.closest('.reader-drawer'))) {
                     return;
                 }
@@ -3100,6 +3408,8 @@
             tabBtnBm.addEventListener('click', () => switchTocTab('bookmarks'));
         }
 
+        bindHighlightEvents();
+
         const importTopBtn = document.getElementById('reader-import-btn');
         if (importTopBtn) {
             importTopBtn.addEventListener('click', () => openDrawer('drawer-bookshelf'));
@@ -3144,7 +3454,7 @@
         // 消除移动端长按选区及触控蓝块
         const readingArea = document.getElementById('reader-stage');
         if (readingArea) {
-            readingArea.addEventListener('contextmenu', (e) => e.preventDefault());
+            readingArea.addEventListener('contextmenu', (e) => { if (!state.highlightMode) e.preventDefault(); });
         }
         document.querySelectorAll('.touch-zone').forEach(z => {
             z.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -3723,6 +4033,7 @@
     function init() {
         loadSavedSettings();
         loadBookmarks();
+        loadHighlights();
         applySettings();
         bindEvents();
         initFloatingCompanionFAB();
