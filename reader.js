@@ -568,8 +568,7 @@
             mode: 'flip',        // flip | scroll
             animMode: 'slide',    // curl | slide | cover | scroll
             soundEnabled: true,   // 拟真纸张沙沙声
-            volumeKeyEnabled: false, // 手机硬件音量键翻页（默认关闭，需用户主动开启）
-            edgeRockerEnabled: false // 屏幕侧边单手虚拟翻页微动键
+            volumeKeyEnabled: false // 手机硬件音量键翻页（默认关闭，需用户主动开启）
         }
     };
 
@@ -688,9 +687,6 @@
                     }
                     if (typeof parsed.volumeKeyEnabled === 'boolean') {
                         state.settings.volumeKeyEnabled = parsed.volumeKeyEnabled;
-                    }
-                    if (typeof parsed.edgeRockerEnabled === 'boolean') {
-                        state.settings.edgeRockerEnabled = parsed.edgeRockerEnabled;
                     }
                 }
             }
@@ -2205,24 +2201,6 @@
             }
         }
 
-        // 单手侧边虚拟翻页键状态
-        const rocker = document.getElementById('reader-edge-rocker');
-        if (rocker) {
-            rocker.classList.toggle('hidden', !state.settings.edgeRockerEnabled || state.activeView !== 'reader');
-        }
-        const btnRocker = document.getElementById('btn-toggle-edge-rocker');
-        const rockerText = document.getElementById('edge-rocker-status-text');
-        if (btnRocker && rockerText) {
-            const isRockerActive = !!state.settings.edgeRockerEnabled;
-            btnRocker.classList.toggle('active', isRockerActive);
-            btnRocker.setAttribute('aria-pressed', String(isRockerActive));
-            rockerText.textContent = isRockerActive ? '已开启' : '已关闭';
-            const icon = btnRocker.querySelector('.sound-status-icon');
-            if (icon) {
-                icon.textContent = isRockerActive ? '📱' : '🔘';
-            }
-        }
-
         // 重新计算分页
         requestAnimationFrame(() => {
             updatePaginationMetrics();
@@ -2347,12 +2325,6 @@
                     window.history.replaceState(historyState, '', url.toString());
                 }
             } catch (_) {}
-        }
-
-        // 同步侧边微动翻页条显示状态
-        const edgeRocker = document.getElementById('reader-edge-rocker');
-        if (edgeRocker) {
-            edgeRocker.classList.toggle('hidden', !state.settings.edgeRockerEnabled || state.activeView !== 'reader');
         }
     }
 
@@ -2877,21 +2849,38 @@
         }
 
         try {
+            const isMobileScreen = window.innerWidth < 768;
             const pdfInstance = new window.PageFlipOpen(container, {
                 source: pdfSource,
                 flipDuration: 600,
                 startPage: Number(pageTarget) || 1,
                 autoLayout: true,
+                singlePageMode: isMobileScreen,
                 enableZoom: true,
                 enableKeyboard: true,
                 enableTouch: true,
                 toolbar: true,
                 onReady: () => {
                     if (state.pdfFlipInstance) {
-                        state.totalPages = state.pdfFlipInstance.totalPages || 1;
+                        const total = state.pdfFlipInstance.totalPages || 1;
+                        state.totalPages = total;
                         state.currentPage = state.pdfFlipInstance.currentPage || 1;
+                        book.totalPages = total;
+                        if (!book.chapters || book.chapters.length <= 1) {
+                            book.chapters = Array.from({ length: total }, (_, idx) => ({
+                                title: `第 ${idx + 1} 页`,
+                                page: idx + 1
+                            }));
+                        }
+                        state.currentChapterIndex = Math.max(0, Math.min(state.currentPage - 1, (book.chapters?.length || 1) - 1));
+                        renderToc();
+                        updateChapterNavButtons();
                         updateFooterInfo();
                         updateSlider();
+                        const headerChapter = document.getElementById('reader-header-chapter');
+                        if (headerChapter) {
+                            headerChapter.textContent = `${book.title} · 第 ${state.currentPage} / ${state.totalPages} 页`;
+                        }
                     }
                 },
                 onPageChange: (pageNum) => {
@@ -2899,6 +2888,14 @@
                     if (state.pdfFlipInstance) {
                         state.totalPages = state.pdfFlipInstance.totalPages || state.totalPages;
                     }
+                    if (book && book.chapters && book.chapters.length > 0) {
+                        state.currentChapterIndex = Math.max(0, Math.min(pageNum - 1, book.chapters.length - 1));
+                    }
+                    const headerChapter = document.getElementById('reader-header-chapter');
+                    if (headerChapter && book) {
+                        headerChapter.textContent = `${book.title} · 第 ${pageNum} / ${state.totalPages} 页`;
+                    }
+                    updateChapterNavButtons();
                     updateFooterInfo();
                     updateSlider();
                     saveProgress();
@@ -3061,11 +3058,30 @@
     function updateChapterNavButtons() {
         const prevBtn = document.getElementById('reader-prev-chapter');
         const nextBtn = document.getElementById('reader-next-chapter');
+        if (state.isPdfMode) {
+            if (prevBtn) {
+                prevBtn.title = '上一页';
+                prevBtn.textContent = '上一页';
+                prevBtn.disabled = state.currentPage <= 1;
+                prevBtn.style.opacity = prevBtn.disabled ? '0.45' : '1';
+            }
+            if (nextBtn) {
+                nextBtn.title = '下一页';
+                nextBtn.textContent = '下一页';
+                nextBtn.disabled = state.currentPage >= state.totalPages;
+                nextBtn.style.opacity = nextBtn.disabled ? '0.45' : '1';
+            }
+            return;
+        }
         if (prevBtn) {
+            prevBtn.title = '上一章';
+            prevBtn.textContent = '上一章';
             prevBtn.disabled = state.currentChapterIndex <= 0;
             prevBtn.style.opacity = prevBtn.disabled ? '0.45' : '1';
         }
         if (nextBtn && state.currentBook) {
+            nextBtn.title = '下一章';
+            nextBtn.textContent = '下一章';
             nextBtn.disabled = state.currentChapterIndex >= state.currentBook.chapters.length - 1;
             nextBtn.style.opacity = nextBtn.disabled ? '0.45' : '1';
         }
@@ -3459,6 +3475,13 @@
 
     function goToChapter(chapterIndex, pageTarget = 1) {
         if (!state.currentBook) return;
+        if (state.isPdfMode && state.pdfFlipInstance) {
+            state.currentChapterIndex = chapterIndex;
+            const targetPage = chapterIndex + 1;
+            state.pdfFlipInstance.flipTo(targetPage);
+            saveProgress();
+            return;
+        }
         if (chapterIndex < 0 || chapterIndex >= state.currentBook.chapters.length) return;
         renderChapter(chapterIndex, pageTarget);
         saveProgress();
@@ -3702,6 +3725,140 @@
                     ]
                 }
             ]
+        },
+        {
+            id: 'curated_nahan',
+            title: '呐喊',
+            author: '鲁迅',
+            tag: '现代文学',
+            description: '现代文学奠基之作，收录《狂人日记》《阿Q正传》《孔乙己》等经典篇章。',
+            coverTheme: 'morandi-crimson',
+            chapters: [
+                {
+                    title: '狂人日记',
+                    content: [
+                        '今天晚上，很好的月光。我不见他，已是三十多年；今天见了，精神分外爽快。才知道以前的三十多年，全是发昏；然而须十分小心。他们——何以借我的眼光，全是青面獠牙？',
+                        '今天全没月光，我知道不妙。早上小心出门，赵贵翁的眼色便怪：似乎怕我，似乎想害我。还有七八个人，交头接耳的议论我，张着嘴，对我笑了一笑；我便从头顶直冷到脚跟。',
+                        '凡事总须研究，才会明白。古来时常吃人，我也还记得，可是不甚清楚。我翻开历史一查，这历史没有年代，歪歪斜斜的每页上都写着“仁义道德”几个字。我横竖睡不着，仔细看了半夜，才从字缝里看出字来，满本都写着两个字是“吃人”！'
+                    ]
+                },
+                {
+                    title: '孔乙己',
+                    content: [
+                        '鲁镇的酒店的格局，是和别处不同的：都是当街一个曲尺形的大柜台，柜里面预备着热水，可以随时温酒。做工的人，傍午傍晚散了工，每每花四文铜钱，买一碗酒。',
+                        '孔乙己是站着喝酒而穿长衫的唯一的人。他身材很高大；青白脸色，皱纹间时常夹些伤痕；一部乱蓬蓬的花白的胡子。穿的虽然是长衫，可是又脏又破，似乎十多年没有补，也没有洗。',
+                        '他对人说话，总是满口之乎者也，教人半懂不懂的。因为他姓孔，别人便从描红纸上的“上大人孔乙己”这半懂不懂的话里，替他取下一个绰号，叫作孔乙己。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_liaozhai',
+            title: '聊斋志异',
+            author: '蒲松龄',
+            tag: '志怪名著',
+            description: '写鬼写妖高人一等，刺贪刺虐入骨三分。中国古典文言短篇小说巅峰之作。',
+            coverTheme: 'morandi-violet',
+            chapters: [
+                {
+                    title: '聂小倩',
+                    content: [
+                        '宁采臣，浙人。性慷爽，廉隅自重。每谓人曰：“生平无二色。”适赴金华，至北郭，解装兰若。寺中殿塔壮丽，然蓬蒿没人，晨夕无僧，只有一舍人寄寓东厢。',
+                        '至夜，有一小娘子，年约十七八，秀曼都雅，入室笑言：“月夜不寐，愿修燕好。”宁正容曰：“卿防德有亏，我防口及身。慎勿以此相浼！”女俯首沉吟，遂出。',
+                        '次夕，女复至，曰：“妾名小倩，姓聂氏。十八夭殁，葬寺旁，辄为妖物所胁，作贱事。今见君子至诚，不忍相害。兰若妖物甚恶，郎君明日速宜避去。”'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_rulin',
+            title: '儒林外史',
+            author: '吴敬梓',
+            tag: '讽刺文学',
+            description: '中国古典讽刺小说巅峰，深刻刻画科举制度下士林百态与范进中举。',
+            coverTheme: 'morandi-amber',
+            chapters: [
+                {
+                    title: '第三回 周学道校士拔真才 胡屠户行凶闹捷报',
+                    content: [
+                        '范进进学回家，母亲妻子俱各欢喜。正值乡试，范进瞒着丈人去应试。出榜那日，报录的人一片声叫道：“贵府老爷中了第七名亚元！”',
+                        '范进不看便罢，看了一遍，又念一遍，自己把两手拍了一下，笑了一声道：“噫！好了！我中了！”说着，往后一跤跌倒，牙关咬紧，不省人事。',
+                        '邻居都慌了，急去请胡屠户来。胡屠户作难道：“虽然是我女婿，如今却做了老爷，天上的文曲星是打不得的。”众人催逼不过，屠户只得凶神般走到跟前，一个大嘴巴打将过去，范进方才吐出一口痰来，清醒过来。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_fengshen',
+            title: '封神演义',
+            author: '许仲琳',
+            tag: '神魔巨著',
+            description: '商周交替、阐截斗法，哪吒闹海与姜子牙斩将封神的宏大神话史诗。',
+            coverTheme: 'morandi-indigo',
+            chapters: [
+                {
+                    title: '第十二回 陈塘关哪吒出世 乾元山太乙传道',
+                    content: [
+                        '话说商纣年间，陈塘关总兵李靖，夫人殷氏怀孕三年零六个月，生下一肉球。李靖大惊，按剑斩之，肉球裂开，跳出一个小儿，面如傅粉，右手套一金镯，肚腹围一块红绫，金光射目。',
+                        '乾元山金光洞太乙真人来贺，赐名哪吒，收为弟子。其金镯即乾坤圈，红绫即混天绫，皆阐教镇金仙之宝。',
+                        '及七岁，天热，哪吒往九湾河沐浴。将混天绫浸水一荡，水晶宫便晃荡不宁。东海龙王遣巡海夜叉李艮并三太子敖丙前来查问，哪吒性刚，起兵刃相向，打死夜叉，抽去敖丙龙筋。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_fusheng',
+            title: '浮生六记',
+            author: '沈复',
+            tag: '闺房清趣',
+            description: '自叙传散文典范，记述沈三白与芸娘深情笃厚的平凡诗意生活。',
+            coverTheme: 'morandi-teal',
+            chapters: [
+                {
+                    title: '卷一 闺房记乐',
+                    content: [
+                        '余生乾隆乙酉，岁在单阏，时宪书初一日。适值太平盛世，且家庭簪缨，天之厚我，可谓至矣。',
+                        '芸作新妇，初甚闲雅，整日默然，余视其眉弯目秀，神光炯炯，心甚怜之。',
+                        '是夜，送亲客散，新娘同余就寝。促膝相谈，忽若生人。余抚其肩曰：“今日喜相逢，真所谓‘一日不见，如三月兮’也。”芸微笑而已。此真所谓红妆白首，情深意笃者矣。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_shiji',
+            title: '史记精选',
+            author: '司马迁',
+            tag: '史家绝唱',
+            description: '史家之绝唱，无韵之离骚。精选项羽本纪、鸿门宴与刺客列传千古名篇。',
+            coverTheme: 'morandi-slate',
+            chapters: [
+                {
+                    title: '项羽本纪·鸿门宴',
+                    content: [
+                        '沛公旦日从百余骑来见项王，至鸿门，谢曰：“臣与将军戮力而攻秦，将军战河北，臣战河南，然不自意能先入关破秦，得复见将军于此。今者有小人之言，令将军与臣有郤。”',
+                        '项王曰：“此沛公左司马曹无伤言之；不然，籍何以至此？”项王即日因留沛公与饮。项王、项伯东向坐，亚父南向坐。亚父受玉玦，举所佩玉玦以示之者三，项王默然不应。',
+                        '范增起，出召项庄，谓曰：“君王为人不忍。若入前为寿，寿毕，请以剑舞，因击沛公于坐，杀之。不者，若属皆且为所虏！”庄入为寿。寿毕，曰：“军中无以为乐，请以剑舞。”项王曰：“诺。”项庄拔剑起舞，项伯亦拔剑起舞，常以身翼蔽沛公，庄不得击。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_zhuangzi',
+            title: '庄子·逍遥游',
+            author: '庄周',
+            tag: '先秦诸子',
+            description: '道家哲学千古名著，汪洋恣肆，借大鹏与斥鴳阐发绝对自由的精神境界。',
+            coverTheme: 'morandi-pine',
+            chapters: [
+                {
+                    title: '逍遥游 (北冥有鱼)',
+                    content: [
+                        '北冥有鱼，其名为鲲。鲲之大，不知其几千里也；化而为鸟，其名为鹏。鹏之背，不知其几千里也；怒而飞，其翼若垂天之云。是鸟也，海运则将徙于南冥。南冥者，天池也。',
+                        '《齐谐》者，志怪者也。《谐》之言曰：“鹏之徙于南冥也，水击三千里，抟扶摇而上者九万里，去以六月息者也。”野马也，尘埃也，生物之以息相吹也。天之苍苍，其正色邪？其远而无所至极邪？其视下也，亦若是则已矣。',
+                        '且夫水之积也不厚，则其负大舟也无力。覆杯水于坳堂之上，则芥为之舟；置杯焉则胶，水浅而舟大也。风之积也不厚，则其负大翼也无力。故九万里，则风斯在下矣，而后乃今培风；背负青天，而莫之夭阏者，而后乃今将图南。'
+                    ]
+                }
+            ]
         }
     ];
 
@@ -3830,6 +3987,8 @@
         // 切换搜索源标签
         const tabs = [
             document.getElementById('tab-online-classics'),
+            document.getElementById('tab-online-gutenberg'),
+            document.getElementById('tab-online-sources'),
             document.getElementById('tab-online-openlibrary'),
             document.getElementById('tab-online-url')
         ];
@@ -3850,6 +4009,15 @@
                 } else if (currentTab === 'classics') {
                     const q = searchInput ? searchInput.value.trim() : '';
                     renderOnlineClassicsList(q);
+                } else if (currentTab === 'gutenberg') {
+                    const q = searchInput ? searchInput.value.trim() : '';
+                    if (q) {
+                        performGutenbergSearch(q);
+                    } else {
+                        renderGutenbergPrompt();
+                    }
+                } else if (currentTab === 'sources') {
+                    renderSourcesGuide();
                 } else if (currentTab === 'openlibrary') {
                     const q = searchInput ? searchInput.value.trim() : '';
                     if (q) {
@@ -3866,6 +4034,14 @@
             const query = searchInput ? searchInput.value.trim() : '';
             if (currentTab === 'classics') {
                 renderOnlineClassicsList(query);
+            } else if (currentTab === 'gutenberg') {
+                if (!query) {
+                    renderGutenbergPrompt();
+                    return;
+                }
+                performGutenbergSearch(query);
+            } else if (currentTab === 'sources') {
+                renderSourcesGuide();
             } else if (currentTab === 'openlibrary') {
                 if (!query) {
                     showToast('请输入要搜索的书名或作者');
@@ -3951,6 +4127,227 @@
                 renderBookshelfGrid();
                 updateBookshelfHero();
                 showToast(`🎉 成功收录《${curatedBook.title}》至我的书架！`, 3200);
+            });
+        }
+
+        // 渲染古登堡计划提示与推荐搜索词
+        function renderGutenbergPrompt() {
+            if (!resultsContainer) return;
+            resultsContainer.innerHTML = `
+                <div class="online-empty-tip">
+                    <p style="font-size: 14.5px; font-weight: 600; margin-bottom: 6px;">📜 古登堡计划 (Project Gutenberg)</p>
+                    <p style="color: var(--r-text-muted); font-size: 12.5px; line-height: 1.5;">汇集全球逾 70,000 本正版公版经典原著，全库免费开放，支持免翻墙检索与一键解析全文章节入库。</p>
+                    <div style="margin-top: 14px; text-align: left;">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--r-text);">🔥 热门中文与世界经典推荐（点击即搜）：</span>
+                        <div class="online-chip-group">
+                            <button type="button" class="online-chip" data-q="聊斋志异">聊斋志异</button>
+                            <button type="button" class="online-chip" data-q="封神演义">封神演义</button>
+                            <button type="button" class="online-chip" data-q="道德经">道德经</button>
+                            <button type="button" class="online-chip" data-q="资治通鉴">资治通鉴</button>
+                            <button type="button" class="online-chip" data-q="Alice in Wonderland">爱丽丝梦游仙境</button>
+                            <button type="button" class="online-chip" data-q="Sherlock Holmes">福尔摩斯探案</button>
+                            <button type="button" class="online-chip" data-q="Pride and Prejudice">傲慢与偏见</button>
+                            <button type="button" class="online-chip" data-q="The Little Prince">小王子</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultsContainer.querySelectorAll('.online-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const q = chip.dataset.q;
+                    if (searchInput) searchInput.value = q;
+                    performGutenbergSearch(q);
+                });
+            });
+        }
+
+        // 请求 Gutendex API (Gutenberg REST API) 检索
+        async function performGutenbergSearch(query) {
+            if (!resultsContainer) return;
+            resultsContainer.innerHTML = '<div class="online-loading-spinner">⏳ 正在从古登堡全球书库检索，请稍候…</div>';
+
+            try {
+                const url = `https://gutendex.com/books/?search=${encodeURIComponent(query)}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const books = (data && data.results) ? data.results : [];
+
+                if (books.length === 0) {
+                    resultsContainer.innerHTML = '<div class="online-empty-tip">未在古登堡书库找到匹配书籍，请尝试更换关键词或在「开源小说书源导航」中查找</div>';
+                    return;
+                }
+
+                resultsContainer.innerHTML = '';
+                books.slice(0, 15).forEach((item) => {
+                    const title = item.title || 'Untitled';
+                    const author = (item.authors && item.authors.length) ? item.authors.map(a => a.name.split(',').reverse().join(' ').trim()).join(', ') : '佚名';
+                    const coverUrl = item.formats ? (item.formats['image/jpeg'] || '') : '';
+                    const textUrl = item.formats ? (item.formats['text/plain; charset=utf-8'] || item.formats['text/plain'] || item.formats['text/plain; charset=us-ascii'] || '') : '';
+                    const downloads = item.download_count ? ` · ⬇️ ${item.download_count}次下载` : '';
+                    const theme = getCoverThemeByTitle(title);
+                    const bookId = 'gb_' + item.id;
+                    const alreadyOnShelf = Boolean(state.books[bookId]);
+
+                    const card = document.createElement('div');
+                    card.className = 'online-book-card';
+                    card.innerHTML = `
+                        <div class="card-cover-wrap cover-style-${escapeHtml(theme)}" style="width: 50px; height: 70px; border-radius: 4px;">
+                            ${coverUrl ? `<img src="${escapeHtml(coverUrl)}" class="online-card-cover" alt="${escapeHtml(title)}" loading="lazy">` : `
+                                <div class="card-cover-generated" style="padding: 4px;">
+                                    <div class="cover-gen-frame" style="padding: 4px;">
+                                        <div class="cover-gen-title" style="font-size: 9.5px;">${escapeHtml(title)}</div>
+                                    </div>
+                                </div>
+                            `}
+                            <div class="card-cover-spine"></div>
+                        </div>
+                        <div class="online-card-info">
+                            <h4 class="online-card-title">${escapeHtml(title)}</h4>
+                            <span class="online-card-author">${escapeHtml(author)}${downloads}</span>
+                            <p class="online-card-desc">古登堡计划全权公版原著 · 原汁原味纯文本正版数字化</p>
+                            <button type="button" class="online-card-import-btn" data-book-id="${escapeHtml(bookId)}">
+                                ${alreadyOnShelf ? '✓ 已在书架中' : (textUrl ? '📥 一键解析并存入书架' : '📖 收录图书档案')}
+                            </button>
+                        </div>
+                    `;
+
+                    const importBtn = card.querySelector('.online-card-import-btn');
+                    if (importBtn) {
+                        if (alreadyOnShelf) importBtn.disabled = true;
+                        importBtn.addEventListener('click', async () => {
+                            if (alreadyOnShelf) return;
+                            importBtn.disabled = true;
+                            importBtn.textContent = '⏳ 正在极速抓取全文章节…';
+                            try {
+                                let chapters = [];
+                                if (textUrl) {
+                                    const textRes = await fetch(textUrl);
+                                    if (textRes.ok) {
+                                        const rawText = await textRes.text();
+                                        const parsed = parseUploadedFile(title, rawText);
+                                        if (parsed && parsed.chapters && parsed.chapters.length > 0) {
+                                            chapters = parsed.chapters;
+                                        }
+                                    }
+                                }
+                                if (chapters.length === 0) {
+                                    chapters = [{
+                                        title: '前言与原著文献说明',
+                                        content: [
+                                            `《${title}》由 ${author} 创作。`,
+                                            '本书来源于古登堡计划 (Project Gutenberg) 国际公版公益数字书库。',
+                                            '您已成功收录本书，可在书房中调整排版开启阅读。'
+                                        ]
+                                    }];
+                                }
+                                const newBook = {
+                                    id: bookId,
+                                    title: title,
+                                    author: author,
+                                    coverUrl: coverUrl,
+                                    coverTheme: theme,
+                                    tag: '古登堡公版',
+                                    addedAt: Date.now(),
+                                    chapters: chapters
+                                };
+                                saveCustomBook(newBook, () => {
+                                    renderBookshelfGrid();
+                                    updateBookshelfHero();
+                                    showToast(`🎉 成功收录《${title}》（共 ${chapters.length} 章节）！`, 3200);
+                                });
+                                importBtn.textContent = '✓ 已在书架中';
+                            } catch (err) {
+                                console.error('Gutenberg fetch error:', err);
+                                showToast('正文抓取超时，已转为图书档案收录');
+                                importBtn.textContent = '✓ 已在书架中';
+                            }
+                        });
+                    }
+                    resultsContainer.appendChild(card);
+                });
+            } catch (err) {
+                console.error('Gutenberg search error:', err);
+                resultsContainer.innerHTML = '<div class="online-empty-tip">检索古登堡书库超时或网络异常，可切换至「精选公版名著」或「开源小说书源导航」</div>';
+            }
+        }
+
+        // 渲染开源小说书源与检索平台导航
+        function renderSourcesGuide() {
+            if (!resultsContainer) return;
+            const sources = [
+                {
+                    name: '鸠摩搜书 (Jiumo Search)',
+                    badge: '国内知名 · 网盘聚合',
+                    desc: '国内使用最广泛的高效电子书检索工具，毫秒级聚合百度网盘、阿里云盘与公版电子书资源，支持 txt、pdf 直接下载。',
+                    url: 'https://www.jiumodiary.com'
+                },
+                {
+                    name: '苦瓜书盘 (KugaBook)',
+                    badge: '无广免注 · 6万+开源小说',
+                    desc: '优质电子书分享平台，专注高品质 6寸 原生排版电子书与网文、经典小说，支持直接下载 TXT 并拖入本站书架。',
+                    url: 'https://www.kgbook.com'
+                },
+                {
+                    name: '书格数字图书馆 (Shuge)',
+                    badge: '高清古籍 · 开放数字化',
+                    desc: '自由开放的在线古籍图书馆，致力于开放式分享公版古籍、善本名画与历史文学文献，包含丰富高清 PDF 图书。',
+                    url: 'https://shuge.org'
+                },
+                {
+                    name: '周读 (Zhoudou)',
+                    badge: '文学社科 · 免费好书',
+                    desc: '提供高质量的免费中外文学、哲学、社科开源书籍下载与在线检索，纯粹无干扰。',
+                    url: 'https://www.iread.cc'
+                },
+                {
+                    name: '开源笔趣阁小说检索',
+                    badge: '海量网络小说 · 直链导入',
+                    desc: '支持通过开源小说站查找热门网络长篇小说，直接复制单本章节文本或直链，通过右侧「🔗 直链导入」秒级存入个人书房！',
+                    url: 'https://www.biquge.tv'
+                }
+            ];
+
+            resultsContainer.innerHTML = `
+                <div style="margin-bottom: 8px;">
+                    <p style="font-size: 13px; color: var(--r-text); font-weight: 600; margin: 0 0 4px 0;">🧭 精选开源找书导航平台</p>
+                    <p style="font-size: 12px; color: var(--r-text-muted); margin: 0;">点击「前往找书」即可在心仪书库检索，下载 <code>.txt</code> 或 <code>.pdf</code> 后直接拖入书架或粘贴直链阅读！</p>
+                </div>
+            `;
+
+            sources.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'online-source-card';
+                card.innerHTML = `
+                    <div class="online-source-header">
+                        <span class="online-source-name">${escapeHtml(s.name)}</span>
+                        <span class="online-source-badge">${escapeHtml(s.badge)}</span>
+                    </div>
+                    <p class="online-source-desc">${escapeHtml(s.desc)}</p>
+                    <div class="online-source-actions">
+                        <a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer" class="online-source-btn primary">
+                            <span>🚀 前往找书</span>
+                        </a>
+                        <button type="button" class="online-source-btn btn-copy-source-url" data-url="${escapeHtml(s.url)}">
+                            <span>📋 复制网址</span>
+                        </button>
+                    </div>
+                `;
+                const copyBtn = card.querySelector('.btn-copy-source-url');
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', () => {
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(s.url).then(() => {
+                                showToast('📋 网址已复制到剪贴板！');
+                            }).catch(() => {
+                                showToast(`网址: ${s.url}`, 4000);
+                            });
+                        } else {
+                            showToast(`网址: ${s.url}`, 4000);
+                        }
+                    });
+                }
+                resultsContainer.appendChild(card);
             });
         }
 
@@ -4104,7 +4501,7 @@
                         });
                     } else {
                         const text = await res.text();
-                        const parsedBook = parseTxtBook(text, bookTitle);
+                        const parsedBook = parseUploadedFile(bookTitle, text);
                         parsedBook.addedAt = Date.now();
                         saveCustomBook(parsedBook, () => {
                             renderBookshelfGrid();
@@ -4613,7 +5010,7 @@
             const gestureEnabled = () => {
                 if (state.settings.mode === 'scroll') return false;
                 if (isFlipping) return false;
-                if (state.isPdfMode || state.openPageFlipInstance) return false;
+                if (state.openPageFlipInstance) return false;
                 if (state.highlightMode) return false; // 划线模式沿用原生文字选择，暂不介入
                 return true;
             };
@@ -4634,6 +5031,7 @@
                         else toggleMenu();
                     },
                     onSwipeStart: () => {
+                        if (state.isPdfMode) return;
                         swipeActive = true;
                         // 只在滑动开始时读取一次几何数据，避免 touchmove 中反复触发强制回流
                         cachedColWidth = viewport.clientWidth || 360;
@@ -4642,6 +5040,7 @@
                         currentEffectiveDelta = 0;
                     },
                     onSwipeMove: (dx) => {
+                        if (state.isPdfMode) return;
                         let effectiveDelta = dx;
                         // 边界阻尼
                         if (state.currentPage === 1 && dx > 0 && state.currentChapterIndex === 0) {
@@ -4662,6 +5061,18 @@
                         }
                     },
                     onSwipeEnd: (dx, cancelled) => {
+                        if (state.isPdfMode) {
+                            swipeActive = false;
+                            hasSwiped = true;
+                            setTimeout(() => { hasSwiped = false; }, 240);
+                            const threshold = 35;
+                            if (!cancelled && dx < -threshold) {
+                                nextPage();
+                            } else if (!cancelled && dx > threshold) {
+                                prevPage();
+                            }
+                            return;
+                        }
                         swipeActive = false;
                         // 标记已滑动，防止随后的 click 误开菜单
                         hasSwiped = true;
@@ -4789,6 +5200,10 @@
         const nextChapterBtn = document.getElementById('reader-next-chapter');
         if (prevChapterBtn) {
             prevChapterBtn.addEventListener('click', () => {
+                if (state.isPdfMode) {
+                    prevPage();
+                    return;
+                }
                 if (state.currentChapterIndex > 0) {
                     goToChapter(state.currentChapterIndex - 1, 1);
                 }
@@ -4796,6 +5211,10 @@
         }
         if (nextChapterBtn) {
             nextChapterBtn.addEventListener('click', () => {
+                if (state.isPdfMode) {
+                    nextPage();
+                    return;
+                }
                 if (state.currentBook && state.currentChapterIndex < state.currentBook.chapters.length - 1) {
                     goToChapter(state.currentChapterIndex + 1, 1);
                 }
@@ -5179,33 +5598,12 @@
                 applySettings();
                 saveSettings();
                 if (state.settings.volumeKeyEnabled) {
-                    showToast('📱 已开启音量键翻页（提示：部分手机浏览器会拦截硬件键，若无反应可开启下方的侧边虚拟微动键）', 3800);
+                    showToast('📱 已开启音量键翻页（可通过手机物理音量键轻按翻页）', 3200);
                 } else {
                     showToast('已关闭音量键翻页');
                 }
             });
         }
-
-        // 单手侧边虚拟翻页键设置切换
-        const btnRockerToggle = document.getElementById('btn-toggle-edge-rocker');
-        if (btnRockerToggle) {
-            btnRockerToggle.addEventListener('click', () => {
-                state.settings.edgeRockerEnabled = !state.settings.edgeRockerEnabled;
-                applySettings();
-                saveSettings();
-                if (state.settings.edgeRockerEnabled) {
-                    showToast('📱 已开启侧边虚拟微动翻页键，单手拇指轻触即可翻页！');
-                } else {
-                    showToast('已关闭侧边虚拟翻页键');
-                }
-            });
-        }
-
-        // 侧边虚拟按键点击翻页
-        const rockerPrev = document.getElementById('rocker-btn-prev');
-        const rockerNext = document.getElementById('rocker-btn-next');
-        if (rockerPrev) rockerPrev.addEventListener('click', () => prevPage());
-        if (rockerNext) rockerNext.addEventListener('click', () => nextPage());
 
         // 内置书籍选择
         document.querySelectorAll('.shelf-book-item').forEach(item => {

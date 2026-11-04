@@ -323,18 +323,18 @@ test('全局自由拖拽伴读悬浮窗 (FAB) 与本地位置持久化', () => {
     assert(jsSource.includes("fab.addEventListener('mousedown'"), '需支持桌面鼠标拖拽');
 });
 
-test('单手侧边虚拟微动翻页条与无硬件音量键降级支持', () => {
-    // 1. DOM 结构
-    assert(htmlSource.includes('id="reader-edge-rocker"'), '阅读界面必须提供侧边虚拟微动翻页条');
-    assert(htmlSource.includes('id="rocker-btn-prev"'), '微动条包含上一页按键');
-    assert(htmlSource.includes('id="rocker-btn-next"'), '微动条包含下一页按键');
-    assert(htmlSource.includes('id="btn-toggle-edge-rocker"'), '设置抽屉中包含侧边微动条开关');
+test('移除冗余侧边虚拟微动翻页条（遵从用户精简意图，彻底删除相关 DOM 与设置逻辑）', () => {
+    // 1. DOM 结构中不再包含冗余侧边翻页条及开关
+    assert(!htmlSource.includes('id="reader-edge-rocker"'), '阅读界面必须已彻底移除侧边虚拟微动翻页条');
+    assert(!htmlSource.includes('id="rocker-btn-prev"'), '微动条上一页按键已彻底移除');
+    assert(!htmlSource.includes('id="rocker-btn-next"'), '微动条下一页按键已彻底移除');
+    assert(!htmlSource.includes('id="btn-toggle-edge-rocker"'), '设置抽屉中侧边微动条开关已彻底移除');
 
-    // 2. JS 状态管理与设置记忆
-    assert(jsSource.includes('edgeRockerEnabled: false'), '默认侧边微动条提供可控开关');
-    assert(jsSource.includes('parsed.edgeRockerEnabled'), '设置记忆读取需覆盖 edgeRockerEnabled');
-    assert(jsSource.includes("rockerPrev.addEventListener('click'"), '绑定上一页微动触发');
-    assert(jsSource.includes("rockerNext.addEventListener('click'"), '绑定下一页微动触发');
+    // 2. JS 状态管理与设置中已彻底清理
+    assert(!jsSource.includes('edgeRockerEnabled:'), '默认设置对象中已彻底清除 edgeRockerEnabled');
+    assert(!jsSource.includes('parsed.edgeRockerEnabled'), '设置记忆读取中已清除 edgeRockerEnabled');
+    assert(!jsSource.includes("rockerPrev.addEventListener('click'"), '微动条事件绑定已彻底清除');
+    assert(!jsSource.includes("rockerNext.addEventListener('click'"), '微动条事件绑定已彻底清除');
 });
 
 test('EPUB 与 ZIP 压缩二进制严格拦截校验（拒绝乱码并给出友好提示）', () => {
@@ -666,6 +666,22 @@ test('缺陷修复：PDF 刷新路由异步竞态防死锁与离线加载平滑�
     assert(jsSource.includes('正在从本机离线数据库加载 PDF'), '需展示离线数据库读取过渡提示，杜绝报错假死');
 });
 
+test('缺陷修复：PDF 多页快速加载与底部上一页/下一页、手势联动全量打通', () => {
+    // 1. PageFlipOpen 快速通道
+    const pfoSource = readFileSync(new URL('../lib/pageflipopen/pageflipopen.js', import.meta.url), 'utf8');
+    assert(pfoSource.includes('numPages <= 8'), '需提供多页 PDF 快速构建 pageMap 机制，杜绝阻塞 worker 循环');
+    assert(pfoSource.includes('containerW < 768'), '小屏移动端需自适应 singlePageMode 单页排版');
+
+    // 2. reader.js 中 PDF 目录与总页数即时同步
+    assert(jsSource.includes('book.totalPages = total'), 'onReady 需同步更新 book.totalPages');
+    assert(jsSource.includes('book.chapters = Array.from({ length: total }'), '需根据总页数即时生成 PDF 各页章节目录');
+    assert(jsSource.includes('state.isPdfMode && state.pdfFlipInstance'), 'goToChapter 需对 PDF 模式直接调用 flipTo');
+
+    // 3. 底部导航栏在 PDF 模式下切换为上一页/下一页
+    assert(jsSource.includes("prevBtn.title = '上一页'"), 'PDF 模式下底部导航按钮需变为上一页');
+    assert(jsSource.includes("nextBtn.title = '下一页'"), 'PDF 模式下底部导航按钮需变为下一页');
+});
+
 test('体验优化：大文件导入反馈 Loading 遮罩与防重点击保护及 PDF 排版设置防呆', () => {
     // 1. 书架与抽屉导入容器包含 Loading 遮罩节点
     assert(htmlSource.includes('id="shelf-import-overlay"'), '书架导入卡片需配置 Loading 遮罩');
@@ -832,10 +848,12 @@ test('微信读书封面系统：莫兰迪 8 大高级色系精装算法封面�
     assert(jsSource.includes('已读'), '卡片元数据中需展示已读百分比');
 });
 
-test('在线开源书库：精选公版典藏、Open Library 检索、直链导入与 CSP 授权', () => {
+test('在线开源书库：精选公版典藏、古登堡7万+书库、开源小说导航、Open Library 检索、直链导入与 CSP 授权', () => {
     // 1. HTML 抽屉与标签页
     assert(htmlSource.includes('id="drawer-online-search"'), '需包含在线开源书库搜索抽屉');
     assert(htmlSource.includes('id="tab-online-classics"'), '需包含精选公版名著标签');
+    assert(htmlSource.includes('id="tab-online-gutenberg"'), '需包含古登堡计划标签');
+    assert(htmlSource.includes('id="tab-online-sources"'), '需包含开源小说书源导航标签');
     assert(htmlSource.includes('id="tab-online-openlibrary"'), '需包含 Open Library 国际书库标签');
     assert(htmlSource.includes('id="tab-online-url"'), '需包含直链导入标签');
     assert(htmlSource.includes('id="online-search-results"'), '需包含搜索结果渲染容器');
@@ -844,9 +862,14 @@ test('在线开源书库：精选公版典藏、Open Library 检索、直链导�
     const headersSource = readFileSync(new URL('../_headers', import.meta.url), 'utf8');
     assert(headersSource.includes('https://openlibrary.org'), 'CSP connect-src 需授权 openlibrary.org');
     assert(headersSource.includes('https://archive.org'), 'CSP connect-src 需授权 archive.org');
+    assert(headersSource.includes('https://gutendex.com'), 'CSP connect-src 需授权 gutendex.com');
+    assert(headersSource.includes('https://www.gutenberg.org'), 'CSP connect-src 需授权 gutenberg.org');
 
     // 3. JS 内置公版典藏与搜索总装
     assert(jsSource.includes('CURATED_OPEN_BOOKS'), '需内置高质量公版典藏书目');
+    assert(jsSource.includes('curated_nahan') && jsSource.includes('curated_liaozhai'), '公版典藏需扩充鲁迅、聊斋等名作');
+    assert(jsSource.includes('function performGutenbergSearch('), '需支持古登堡 REST API 免翻墙检索');
+    assert(jsSource.includes('function renderSourcesGuide()'), '需支持开源找书导航平台');
     assert(jsSource.includes('function initOnlineBookSearch()'), '需包含在线书库搜索与导入引擎');
     assert(jsSource.includes('function importCuratedBook('), '需支持精选公版书一键存入书架');
 });

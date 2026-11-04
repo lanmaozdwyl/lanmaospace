@@ -279,18 +279,7 @@
                 <div class="touch-zone touch-next" id="zone-next" title="点击或右滑下一页"></div>
             </div>
 
-            <!-- 单手侧边虚拟翻页条 (替代手机物理音量键，单手大拇指轻触即翻) -->
-            <aside class="reader-edge-rocker hidden" id="reader-edge-rocker" aria-label="单手侧边翻页键">
-                <button type="button" class="rocker-btn rocker-up" id="rocker-btn-prev" title="上一页 (对应音量+)" aria-label="上一页">
-                    <span aria-hidden="true">▲</span>
-                    <span class="rocker-hint">上页</span>
-                </button>
-                <div class="rocker-divider" aria-hidden="true"></div>
-                <button type="button" class="rocker-btn rocker-down" id="rocker-btn-next" title="下一页 (对应音量-)" aria-label="下一页">
-                    <span aria-hidden="true">▼</span>
-                    <span class="rocker-hint">下页</span>
-                </button>
-            </aside>
+
         </main>
 
         <!-- 底部控制栏 -->
@@ -516,17 +505,7 @@
                     </button>
                 </div>
 
-                <!-- 单手侧边虚拟翻页键设置 -->
-                <div class="setting-group setting-row-between">
-                    <div>
-                        <span class="setting-title-inline">侧边虚拟翻页键</span>
-                        <span class="setting-desc-inline">单手握持微动条 · 模拟音量键</span>
-                    </div>
-                    <button type="button" class="sound-toggle-btn" id="btn-toggle-edge-rocker" aria-pressed="false" title="开启后在屏幕边缘显示单手翻页微动键">
-                        <span class="sound-status-icon" aria-hidden="true">🔘</span>
-                        <span id="edge-rocker-status-text">已关闭</span>
-                    </button>
-                </div>
+
 
                 <!-- 一键恢复排版默认值 -->
                 <div class="setting-group setting-group-reset">
@@ -609,6 +588,8 @@
                     </div>
                     <div class="online-tabs-row" role="tablist">
                         <button type="button" class="online-tab-btn active" id="tab-online-classics" data-tab="classics" role="tab" aria-selected="true">📚 精选公版名著</button>
+                        <button type="button" class="online-tab-btn" id="tab-online-gutenberg" data-tab="gutenberg" role="tab" aria-selected="false">📜 古登堡计划 (7万+免费原著)</button>
+                        <button type="button" class="online-tab-btn" id="tab-online-sources" data-tab="sources" role="tab" aria-selected="false">🧭 开源小说书源导航</button>
                         <button type="button" class="online-tab-btn" id="tab-online-openlibrary" data-tab="openlibrary" role="tab" aria-selected="false">🏛️ Open Library 国际书库</button>
                         <button type="button" class="online-tab-btn" id="tab-online-url" data-tab="url" role="tab" aria-selected="false">🔗 直链导入</button>
                     </div>
