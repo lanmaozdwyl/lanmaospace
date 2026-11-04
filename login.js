@@ -55,23 +55,74 @@ function authErrorMessage(error) {
     return "操作失败，请检查网络或 Supabase 项目是否暂停，刷新后再试。";
 }
 
+function clearPasswordInputs() {
+    const list = [
+        ...document.querySelectorAll('input[type="password"]'),
+        ...(document.querySelectorAll?.('input[data-password-field]') || [])
+    ];
+    const seen = new Set();
+    for (const input of list) {
+        if (!input || seen.has(input)) continue;
+        seen.add(input);
+        input.value = "";
+        if (input.type === 'text') {
+            input.type = 'password';
+            const btn = document.querySelector?.(`.password-toggle-btn[data-target="${input.id}"]`);
+            if (btn) {
+                btn.setAttribute?.('aria-label', '显示密码');
+                btn.setAttribute?.('title', '显示密码');
+                btn.classList?.remove?.('revealed');
+                const icon = btn.querySelector?.('.password-toggle-icon');
+                if (icon) icon.textContent = '👁️';
+            }
+        }
+    }
+}
+
+function initPasswordToggles() {
+    const toggleButtons = document.querySelectorAll?.('.password-toggle-btn') || [];
+    toggleButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.dataset?.target || btn.getAttribute?.('data-target');
+            const input = targetId ? $(targetId) : null;
+            if (!input) return;
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            btn.setAttribute?.('aria-label', isPassword ? '隐藏密码' : '显示密码');
+            btn.setAttribute?.('title', isPassword ? '隐藏密码' : '显示密码');
+            if (isPassword) {
+                btn.classList?.add?.('revealed');
+            } else {
+                btn.classList?.remove?.('revealed');
+            }
+            const icon = btn.querySelector?.('.password-toggle-icon');
+            if (icon) icon.textContent = isPassword ? '🙈' : '👁️';
+            input.focus?.({ preventScroll: true });
+        });
+    });
+}
+
 $("go-register").addEventListener("click", () => {
     $("register-status").textContent = "";
+    clearPasswordInputs();
     showOnly("register");
     $("register-email").focus();
 });
 $("back-to-login").addEventListener("click", () => {
     $("login-status").textContent = "";
+    clearPasswordInputs();
     showOnly("login");
     $("login-email").focus();
 });
 $("go-forgot").addEventListener("click", () => {
     $("forgot-status").textContent = "";
+    clearPasswordInputs();
     showOnly("forgot");
     $("forgot-email").focus();
 });
 $("forgot-back").addEventListener("click", () => {
     $("login-status").textContent = "";
+    clearPasswordInputs();
     showOnly("login");
 });
 
@@ -92,7 +143,7 @@ $("login-form").addEventListener("submit", async (event) => {
         console.warn("认证请求未完成，请查看页面提示。");
         $("login-status").textContent = authErrorMessage(error);
     } finally {
-        document.querySelectorAll('input[type="password"]').forEach(input => { input.value = ""; });
+        clearPasswordInputs();
         button.disabled = false;
     }
 });
@@ -132,7 +183,7 @@ $("register-form").addEventListener("submit", async (event) => {
                 ? "两次输入的密码不一致，请重新输入。"
                 : authErrorMessage(error);
     } finally {
-        document.querySelectorAll('input[type="password"]').forEach(input => { input.value = ""; });
+        clearPasswordInputs();
         button.disabled = false;
     }
 });
@@ -171,7 +222,7 @@ $("forgot-form").addEventListener("submit", async (event) => {
         console.warn("认证请求未完成，请查看页面提示。");
         $("forgot-status").textContent = authErrorMessage(error);
     } finally {
-        document.querySelectorAll('input[type="password"]').forEach(input => { input.value = ""; });
+        clearPasswordInputs();
         button.disabled = false;
     }
 });
@@ -198,12 +249,13 @@ $("recovery-form").addEventListener("submit", async (event) => {
                 ? "两次输入的密码不一致，请重新输入。"
                 : authErrorMessage(error);
     } finally {
-        document.querySelectorAll('input[type="password"]').forEach(input => { input.value = ""; });
+        clearPasswordInputs();
         button.disabled = false;
     }
 });
 
 async function init() {
+    initPasswordToggles();
     const isRecovery = /(^|[#&])type=recovery([&]|$)/.test(window.location.hash);
     if (!isConfigured()) {
         $("login-status").textContent = getConfigError();
