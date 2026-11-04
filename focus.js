@@ -1,6 +1,7 @@
 import {getSupabase} from './lib/supabase-client.js';
 import {MODES,freshFocus,readFocus,reconcileFocus,changeFocus} from './lib/focus.mjs';
 const $=id=>document.getElementById(id);
+const originalTitle=typeof document!=='undefined'?document.title:'';
 let state=freshFocus(Date.now()),key=null,ended=false,working=false,audio=null,timer=null,lastSignal=null;
 const status=$('focus-storage-status');
 function notify(text){if(status)status.textContent=text;}
@@ -24,7 +25,7 @@ function paint(allowStart=false){
  for(const btn of document.querySelectorAll('.pomodoro-mode-btn,.focus-mode-btn')){const active=Number(btn.dataset.time)===MODES[state.mode];btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active));}
  const circle=$('focus-progress-circle');if(circle){circle.style.strokeDashoffset=String(653.45*(1-sec/MODES[state.mode]));circle.style.stroke=state.mode==='focus'?'#0071e3':state.mode==='short-break'?'#34c759':'#af52de';}
  const signal=state.isRunning+':'+state.mode;if(signal!==lastSignal){lastSignal=signal;window.dispatchEvent(new CustomEvent('lanmao-focus-state',{detail:{running:state.isRunning,mode:state.mode,allowStart}}));}
- document.title=state.isRunning?'('+str+') 蓝昴空间 · 专注中':'Lanmao Space | 蓝昴空间';
+ document.title=state.isRunning?'('+str+') 蓝昴空间 · 专注中':(originalTitle||'Lanmao Space | 蓝昴空间');
 }
 function load(){try{return readFocus(localStorage.getItem(key),Date.now());}catch{notify('浏览器禁止保存；本次计时仅保留在当前页面。');return state;}}
 function persist(){try{localStorage.setItem(key,JSON.stringify(state));}catch{notify('保存失败；离开页面后可能丢失本次计时。');}}
@@ -46,7 +47,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')panel(false);});
 async function init(){try{
  const client=await getSupabase(),{data,error}=await client.auth.getSession();if(error||!data.session)return;
  const uid=data.session.user.id;key='lanmao_focus_v3_'+uid;state=reconcileFocus(load(),Date.now()).state;persist();
- client.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||(session?.user?.id&&session.user.id!==uid)){ended=true;clearInterval(timer);state=freshFocus(Date.now());paint();panel(false);audio?.close().catch(()=>{});}});
+ client.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||(session?.user?.id&&session.user.id!==uid)){ended=true;clearInterval(timer);state=freshFocus(Date.now());document.title=originalTitle||'Lanmao Space | 蓝昴空间';paint();panel(false);audio?.close().catch(()=>{});}});
  notify('仅保存于此账号的当前浏览器；手机 App 与其他设备分别计时。锁屏提示受系统限制。');
  paint();timer=setInterval(pulse,1000);
 }catch{notify('专注钟暂不可用，请联网并登录后重试。');}}

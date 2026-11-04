@@ -13,3 +13,12 @@ test('更多菜单可打开、关闭并恢复按钮焦点',()=>{const f=fixture(
 test('输入时键盘缩小视窗会隐藏底部栏，退出输入后恢复',()=>{const f=fixture();f.document.activeElement={matches:()=>true};f.viewport.height=450;f.events.resize();assert(f.body.classes.has('mobile-keyboard'));f.document.activeElement=null;f.events.focusout();assert(!f.body.classes.has('mobile-keyboard'));});
 test('新缓存策略不会缓存配置、登录回跳地址或私有数据',async()=>{const handlers={},ctx={URL,self:{location:{origin:'https://lanmaospace.pages.dev'},addEventListener:(k,fn)=>handlers[k]=fn}};vm.runInNewContext(fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8'),ctx);for(const path of ['/memo-config.js','/login?code=example','/space?user=example','/lib/focus.mjs']){let handled=false;handlers.fetch({request:{url:'https://lanmaospace.pages.dev'+path,method:'GET',mode:'cors'},respondWith(){handled=true;}});assert.equal(handled,false,path);}});
 test('断网导航只返回离线说明，不取已缓存用户页面',async()=>{const handlers={},calls=[],offline={offline:true},ctx={URL,self:{location:{origin:'https://lanmaospace.pages.dev'},addEventListener:(k,fn)=>handlers[k]=fn},fetch:async()=>{throw Error('offline');},caches:{match:async p=>{calls.push(p);return offline;}}};vm.runInNewContext(fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8'),ctx);let response;handlers.fetch({request:{url:'https://lanmaospace.pages.dev/memo?user=example',method:'GET',mode:'navigate'},respondWith:p=>response=p});assert.equal(await response,offline);assert.deepEqual(calls,['/offline.html']);});
+
+test('手机底栏支持专注模块滚动视口相交动态同步高亮',()=>{
+ const focusCode=fs.readFileSync(new URL('../focus.js',import.meta.url),'utf8');
+ assert(focusCode.includes('originalTitle'),'focus.js 必须缓存并保留页面原始 document.title');
+ assert(focusCode.includes('(originalTitle||'),'非运行状态下必须优先恢复页面原始标题');
+ const navCode=fs.readFileSync(new URL('../mobile-nav.js',import.meta.url),'utf8');
+ assert(navCode.includes('IntersectionObserver'),'mobile-nav.js 需支持视口相交监听器');
+ assert(navCode.includes("getElementById('focus')"),'需监听专注钟模块节点');
+});

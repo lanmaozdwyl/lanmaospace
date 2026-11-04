@@ -11,8 +11,35 @@ function active(path){
  if(path==='/space.html')return ['/space','/account','/profile','/memo'].includes(p);
  return p===path.replace(/\.html$/,'');
 }
-function updateDock(){for(const [a,href] of dockLinks){if(active(href))a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');}}
-window.addEventListener?.('hashchange',updateDock);
+function updateDock(overrideFocus=null){
+ for(const [a,href] of dockLinks){
+  let isAct=false;
+  if(overrideFocus!==null){
+   if(href==='/#focus')isAct=overrideFocus;
+   else if(href==='/')isAct=!overrideFocus;
+   else isAct=active(href);
+  }else{
+   isAct=active(href);
+  }
+  if(isAct)a.setAttribute('aria-current','page');
+  else a.removeAttribute('aria-current');
+ }
+}
+window.addEventListener?.('hashchange',()=>updateDock());
+if(typeof IntersectionObserver==='function'){
+ try{
+  const focusSec=document.getElementById('focus');
+  if(focusSec){
+   const obs=new IntersectionObserver((entries)=>{
+    for(const e of entries){
+     if(e.isIntersecting&&e.intersectionRatio>=0.35)updateDock(true);
+     else if(!e.isIntersecting)updateDock(false);
+    }
+   },{threshold:[0.35]});
+   obs.observe(focusSec);
+  }
+ }catch(_){}
+}
 for(const [href,label,icon] of items){const a=document.createElement('a');a.href=href;dockLinks.push([a,href]);if(active(href))a.setAttribute('aria-current','page');const symbol=document.createElement('span');symbol.className='dock-symbol';symbol.textContent=icon;symbol.setAttribute('aria-hidden','true');const name=document.createElement('span');name.textContent=label;a.append(symbol,name);nav.append(a);}
 const more=document.createElement('button');more.type='button';more.innerHTML='<span class="dock-symbol" aria-hidden="true">•••</span><span>更多</span>';more.setAttribute('aria-haspopup','dialog');nav.append(more);
 const sheet=document.createElement('dialog');sheet.className='mobile-sheet';sheet.id='mobile-menu';sheet.setAttribute('aria-labelledby','mobile-menu-title');more.setAttribute('aria-controls',sheet.id);more.setAttribute('aria-expanded','false');
