@@ -27,3 +27,59 @@ dialog { max-height: 85dvh; overflow-y: auto; }
 
 @media(prefers-color-scheme:dark){body:not([data-theme=light]) .service-pill{background:#1c1c1e;border-color:rgba(255,255,255,.12);color:#a1a1a6}body:not([data-theme=light]) .shop-filters button{background:#2c2c2e;color:#d2d2d7}body:not([data-theme=light]) .shop-filters button[aria-pressed=true]{background:#2997ff;color:#fff}}
 body[data-theme=dark] .service-pill{background:#1c1c1e;border-color:rgba(255,255,255,.12);color:#a1a1a6}body[data-theme=dark] .shop-filters button{background:#2c2c2e;color:#d2d2d7}body[data-theme=dark] .shop-filters button[aria-pressed=true]{background:#2997ff;color:#fff}
+
+.shop-action-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 24px;
+}
+.shop-action-group .shop-button {
+    margin-top: 0;
+}
+.shop-button.secondary-button {
+    background: #f5f5f7;
+    color: #1d1d1f;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.shop-button.secondary-button:hover {
+    background: #e8e8ed;
+}
+.shop-button.secondary-button.copied {
+    background: #e8f5e9;
+    color: #1b5e20;
+    border-color: #a5d6a7;
+}
+@media (min-width: 480px) {
+    .shop-action-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+}
+@media(prefers-color-scheme:dark){
+    body:not([data-theme=light]) .shop-button.secondary-button {
+        background: #2c2c2e;
+        color: #f5f5f7;
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+    body:not([data-theme=light]) .shop-button.secondary-button.copied {
+        background: #1b3820;
+        color: #81c784;
+        border-color: #2e7d32;
+    }
+}
+body[data-theme=dark] .shop-button.secondary-button {
+    background: #2c2c2e;
+    color: #f5f5f7;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+body[data-theme=dark] .shop-button.secondary-button.copied {
+    background: #1b3820;
+    color: #81c784;
+    border-color: #2e7d32;
+}

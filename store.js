@@ -158,12 +158,82 @@ async function refreshCatalog() {
     if (!ok) { document.getElementById("empty").hidden = true; document.getElementById("result-count").textContent = "商品加载失败，请重试。"; }
     retry.disabled = false;
 }
+async function copyQQNumber() {
+    const qq = "3126477562";
+    let ok = false;
+    try {
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(qq);
+            ok = true;
+        }
+    } catch (_) {}
+    if (!ok && typeof document !== "undefined" && typeof document.createElement === "function") {
+        try {
+            const ta = document.createElement("textarea");
+            ta.value = qq;
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            if (document.body?.appendChild) {
+                document.body.appendChild(ta);
+                ta.select?.();
+                ok = document.execCommand?.("copy");
+                document.body.removeChild(ta);
+            }
+        } catch (_) {}
+    }
+    const btn = document.getElementById("copy-qq-btn");
+    const feedback = document.getElementById("copy-qq-feedback");
+    if (btn) {
+        if (btn.classList?.add) {
+            btn.classList.add("copied");
+        } else {
+            btn.className = (btn.className + " copied").trim();
+        }
+        btn.textContent = "已复制 QQ 号 (3126477562)";
+        setTimeout(() => {
+            if (btn) {
+                if (btn.classList?.remove) {
+                    btn.classList.remove("copied");
+                } else {
+                    btn.className = btn.className.replace(/\bcopied\b/g, "").trim();
+                }
+                btn.textContent = "复制 QQ 号 (3126477562)";
+            }
+        }, 2500);
+    }
+    if (feedback) {
+        feedback.textContent = "已复制 QQ 号：3126477562，打开 QQ 搜索即可添加店主咨询。";
+        setTimeout(() => {
+            if (feedback) {
+                feedback.textContent = "接单 QQ：3126477562。若无法打开 QQ，请在 QQ 中搜索此号码添加，备注商品名称。";
+            }
+        }, 4000);
+    }
+    return ok;
+}
+
 async function init() {
     document.getElementById("catalog-retry").onclick = refreshCatalog;
     await refreshCatalog();
     search.addEventListener("input", render);
     document.getElementById("close").onclick = () => detail.close();
     detail.addEventListener("close", () => opener?.focus());
+    detail.addEventListener("click", (e) => {
+        if (e.target !== detail) return;
+        if (typeof detail.getBoundingClientRect !== "function") return;
+        const rect = detail.getBoundingClientRect();
+        const isOutside = (
+            e.clientX < rect.left ||
+            e.clientX > rect.right ||
+            e.clientY < rect.top ||
+            e.clientY > rect.bottom
+        );
+        if (isOutside) {
+            detail.close();
+        }
+    });
+    const copyBtn = document.getElementById("copy-qq-btn");
+    if (copyBtn) copyBtn.onclick = copyQQNumber;
 }
 
 init();

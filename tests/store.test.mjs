@@ -32,10 +32,20 @@ class El {
     setAttribute(k, v) { this.attrs[k] = String(v); }
     getAttribute(k) { return this.attrs[k]; }
     addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); }
-    fire(name) { for (const fn of this.listeners[name] ?? []) fn(); }
+    fire(name, ...args) { for (const fn of this.listeners[name] ?? []) fn(...args); }
     focus() { this.focused = true; }
     showModal() { this.open = true; }
     close() { this.open = false; this.fire('close'); }
+    getBoundingClientRect() {
+        return { left: 100, right: 400, top: 100, bottom: 500, width: 300, height: 400 };
+    }
+    get classList() {
+        return {
+            add: (...classes) => { const set = new Set(this.className.split(/\s+/).filter(Boolean)); classes.forEach(c => set.add(c)); this.className = [...set].join(' '); },
+            remove: (...classes) => { const set = new Set(this.className.split(/\s+/).filter(Boolean)); classes.forEach(c => set.delete(c)); this.className = [...set].join(' '); },
+            contains: c => this.className.split(/\s+/).includes(c),
+        };
+    }
 }
 
 const flush = async (n = 6) => { for (let i = 0; i < n; i++) await new Promise(r => setImmediate(r)); };
@@ -47,21 +57,29 @@ async function runStore(fetchImpl) {
         return elements.get(id);
     };
     const filters = new El('div');
+    const body = new El('body');
+    let copiedText = '';
+    const navigator = {
+        clipboard: {
+            writeText: async (t) => { copiedText = t; }
+        }
+    };
     const document = {
         getElementById: get,
         querySelector: sel => (sel === '.shop-filters' ? filters : new El('div')),
         createElement: tag => new El(tag),
+        body,
     };
     const source = readFileSync(new URL('../store.js', import.meta.url), 'utf8')
         .replace(/^import .*;\r?\n/m, '');
     const ctx = vm.createContext({
-        document, console, AbortSignal,
+        document, console, AbortSignal, navigator,
         fetch: (...args) => fetchImpl(...args),
         validateCatalog, productDetails, availabilityLabels,
         setTimeout, clearTimeout,
     });
     const done = vm.runInContext(`(async()=>{${source}\n})()`, ctx);
-    return {elements, get, filters, done, flush};
+    return {elements, get, filters, done, flush, getCopiedText: () => copiedText};
 }
 
 const successFetch = () => async () => ({ok: true, json: async () => structuredClone(catalogData)});
@@ -157,4 +175,36 @@ test('无质保与已填写质保商品展示对应说明',async()=>{
  const {get,done}=await runStore(async()=>({ok:true,json:async()=>rows}));await done;await flush();
  get('products').children[0].children[4].onclick();assert.equal(get('detail-warranty-text').className,'warranty-none');
  get('products').children[1].children[4].onclick();assert.match(get('detail-warranty-text').textContent,/质保 1 个月/);assert.equal(get('detail-warranty-text').className,'');
+});
+
+test('商品详情弹窗支持点击遮罩底板关闭与原位焦点恢复', async () => {
+    const {get, done} = await runStore(successFetch());
+    await done; await flush();
+    const card = get('products').children[0];
+    const button = card.children[4];
+    button.onclick();
+    const detail = get('detail');
+    assert.equal(detail.open, true);
+
+    // 1. 点击弹窗内容区域内（例如 x=200, y=200），不应关闭弹窗
+    detail.fire('click', {target: detail, clientX: 200, clientY: 200});
+    assert.equal(detail.open, true);
+
+    // 2. 点击弹窗外部遮罩（例如 x=50, y=50，小于 rect.left=100），触发关闭并恢复触发按钮焦点
+    detail.fire('click', {target: detail, clientX: 50, clientY: 50});
+    assert.equal(detail.open, false);
+    assert.equal(button.focused, true);
+});
+
+test('一键快捷复制 QQ 号并提供友好提示反馈', async () => {
+    const {get, done, getCopiedText} = await runStore(successFetch());
+    await done; await flush();
+    const copyBtn = get('copy-qq-btn');
+    assert.equal(typeof copyBtn.onclick, 'function');
+
+    await copyBtn.onclick();
+    assert.equal(getCopiedText(), '3126477562');
+    assert.match(copyBtn.textContent, /已复制 QQ 号/);
+    assert.equal(copyBtn.classList.contains('copied'), true);
+    assert.match(get('copy-qq-feedback').textContent, /3126477562/);
 });
