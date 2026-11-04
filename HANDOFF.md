@@ -1,3 +1,23 @@
+# 书架在线找书与全局抽屉层级修复（2026-11-04 晚）
+
+本节优先于下方历史记录。解决移动端书架大厅点击「在线找书」无响应与抽屉被隐藏视图遮蔽缺陷（`reader.html` / `reader.css` / `reader.js` / `tests/reader.test.mjs`）：
+1. 架构级根因（DOM 视图嵌套陷阱）：
+   - 原先全局抽屉（`drawer-toc`、`reader-search-dock`、`drawer-settings`、`drawer-bookshelf`、`drawer-online-search`）全部被嵌套在 `<div class="reader-view-container" id="view-reader" hidden>` 容器内；
+   - 当用户处于「我的书架」总览大厅时，`view-reader` 带有 `hidden` 属性（触发 `display: none !important`）；
+   - 导致即使 JS 执行 `openDrawer('drawer-online-search')` 移除了抽屉本身的 `hidden` 并唤起遮罩底板，但抽屉的祖先容器仍处于 `display: none`，抽屉在移动端与桌面端书架均无法显示！
+2. DOM 视图隔离与抽屉顶层化重构：
+   - 将全部通用抽屉（包括目录、设置、书架大纲以及在线开源书库抽屉）全部提升至 `<body>` 直属子节点，与 `#view-bookshelf` 和 `#view-reader` 平级；
+   - 使得抽屉显示状态仅由自身的 `hidden` 属性与 `openDrawer()` / `closeDrawer()` 决定，彻底免受双视图切换的层级污染。
+3. JS 抽屉回收体系补全：
+   - 补齐 `closeDrawer(drawerId)` 导出与调用，消除 `closeDrawer is not defined` 潜在隐患；
+   - 在 `closeAllDrawers()` 回收列表数组中补齐 `'drawer-online-search'`，保证点击遮罩底板或外部关闭时 100% 同步关闭。
+4. 移动端 CSS 视口变量保底：
+   - 在 `:root` 中补齐 `--ui-top: 0px`、`--ui-left: 0px`、`--ui-width: 100vw`、`--ui-height: 100vh` 变量兜底；
+   - 修复 `@media (max-width: 820px)` 下 `calc(var(--ui-top) + ...)` 因变量未定义而导致整个属性在计算期失效的 CSS 缺陷；为移动端 600px 以下配置 `width: 100%; max-width: 100vw` 满宽抽屉呈现。
+5. 全量 60 项 reader 自动化测试 PASS。
+
+---
+
 # 个人头像设置：未保存修改防丢失拦截与离页守卫（2026-11-04 晚）
 
 本节优先于下方历史记录。基于 63b3c74 为个人头像设置（`profile.html` / `profile.js` / `profile.css` / `tests/avatar.test.mjs`）构建全生命周期未保存修改防丢失防御与视觉反馈体系：

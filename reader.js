@@ -2250,7 +2250,7 @@
     }
 
     function closeAllDrawers() {
-        const drawers = ['drawer-toc', 'drawer-settings', 'drawer-bookshelf'];
+        const drawers = ['drawer-toc', 'drawer-settings', 'drawer-bookshelf', 'drawer-online-search'];
         drawers.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.hidden = true;
@@ -2263,6 +2263,14 @@
             try { lastDrawerTrigger.focus({ preventScroll: true }); } catch (_) {}
             lastDrawerTrigger = null;
         }
+    }
+
+    function closeDrawer(drawerId) {
+        if (drawerId) {
+            const el = document.getElementById(drawerId);
+            if (el) el.hidden = true;
+        }
+        closeAllDrawers();
     }
 
     

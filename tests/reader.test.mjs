@@ -851,6 +851,26 @@ test('在线开源书库：精选公版典藏、Open Library 检索、直链导�
     assert(jsSource.includes('function importCuratedBook('), '需支持精选公版书一键存入书架');
 });
 
+test('缺陷修复：书架在线找书抽屉与全局浮层严禁嵌套于隐藏视图，确保移动端书架大厅点击即时唤起与关闭', () => {
+    // 1. DOM 层级架构核查：确保抽屉绝不能被嵌套在带有 hidden 的 view-reader 内部
+    const readerStart = htmlSource.indexOf('id="view-reader"');
+    const drawerToc = htmlSource.indexOf('id="drawer-toc"');
+    const drawerOnline = htmlSource.indexOf('id="drawer-online-search"');
+    assert(readerStart > 0, '需包含 view-reader');
+    assert(drawerOnline > 0, '需包含 drawer-online-search');
+    // view-reader 在 drawer-toc 之前已关闭
+    assert(drawerToc > readerStart, 'drawer-toc 必须脱离 view-reader 独立存在');
+    assert(drawerOnline > readerStart, 'drawer-online-search 必须脱离 view-reader 独立存在');
+
+    // 2. 闭环函数与统一抽屉回收列表
+    assert(jsSource.includes("const drawers = ['drawer-toc', 'drawer-settings', 'drawer-bookshelf', 'drawer-online-search']"), 'closeAllDrawers 必须完整回收所有抽屉包括 drawer-online-search');
+    assert(jsSource.includes('function closeDrawer('), '必须定义 closeDrawer 供关闭按钮调用');
+
+    // 3. 移动端 CSS 视口变量兜底防御
+    assert(cssSource.includes('--ui-top: 0px'), ':root 需具备移动端视口兜底变量');
+    assert(cssSource.includes('var(--ui-top, 0px)'), '媒体查询需具备默认兜底安全值以防无效 calc');
+});
+
 test('正文全文检索与上下文跳转系统：秒级全文检索、章节高亮定位、浮动导航与一键原位返回', () => {
     // 1. HTML 节点结构与无障碍标记
     assert(htmlSource.includes('id="reader-btn-search"'), '阅读器顶栏需包含正文搜索按钮');
