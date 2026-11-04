@@ -555,6 +555,8 @@
         highlights: {},
         highlightMode: false,
         activeTocTab: 'toc', // 'toc' | 'bookmarks' | 'highlights'
+        shelfViewMode: 'grid', // 'grid' | 'list' | 'shelf'
+        shelfSortBy: 'recent', // 'recent' | 'progress' | 'date' | 'title'
         settings: {
             theme: 'parchment', // parchment | green | white | dark
             fontSize: 18,        // 14 ~ 28
@@ -577,6 +579,46 @@
     const STORAGE_KEY_CUSTOM_BOOKS = 'lanmao_reader_custom_books_v1';
     const STORAGE_KEY_BOOKMARKS = 'lanmao_reader_bookmarks_v1';
     const STORAGE_KEY_HIGHLIGHTS = 'lanmao_reader_highlights_v1';
+    const STORAGE_KEY_SHELF_VIEW = 'lanmao_shelf_view_v1';
+    const STORAGE_KEY_SHELF_SORT = 'lanmao_shelf_sort_v1';
+
+    const MORANDI_COVER_THEMES = [
+        'morandi-pine',
+        'morandi-indigo',
+        'morandi-crimson',
+        'morandi-amber',
+        'morandi-slate',
+        'morandi-violet',
+        'morandi-sand',
+        'morandi-ink'
+    ];
+
+    function getCoverThemeByTitle(title) {
+        if (!title) return MORANDI_COVER_THEMES[0];
+        let hash = 0;
+        for (let i = 0; i < title.length; i++) {
+            hash = (hash << 5) - hash + title.charCodeAt(i);
+            hash |= 0;
+        }
+        const index = Math.abs(hash) % MORANDI_COVER_THEMES.length;
+        return MORANDI_COVER_THEMES[index];
+    }
+
+    function formatTimeAgo(ts) {
+        if (!ts) return '未读';
+        const now = Date.now();
+        const diff = Math.max(0, now - ts);
+        const min = Math.floor(diff / 60000);
+        if (min < 5) return '刚刚阅读';
+        if (min < 60) return `${min} 分钟前`;
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return `${hr} 小时前`;
+        const day = Math.floor(hr / 24);
+        if (day === 1) return '昨天';
+        if (day < 30) return `${day} 天前`;
+        const d = new Date(ts);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
 
     let dbInstance = null;
 
@@ -650,6 +692,17 @@
                         state.settings.edgeRockerEnabled = parsed.edgeRockerEnabled;
                     }
                 }
+            }
+        } catch (_) {}
+
+        try {
+            const savedView = localStorage.getItem(STORAGE_KEY_SHELF_VIEW);
+            if (['grid', 'list', 'shelf'].includes(savedView)) {
+                state.shelfViewMode = savedView;
+            }
+            const savedSort = localStorage.getItem(STORAGE_KEY_SHELF_SORT);
+            if (['recent', 'progress', 'date', 'title'].includes(savedSort)) {
+                state.shelfSortBy = savedSort;
             }
         } catch (_) {}
     }
@@ -1844,40 +1897,163 @@
         const grid = document.getElementById('shelf-books-grid');
         if (!grid) return;
 
+        const mode = state.shelfViewMode || 'grid';
+        grid.className = 'shelf-books-grid view-' + mode;
+
+        // 同步视图切换按钮激活态与无障碍状态
+        document.querySelectorAll('#shelf-view-switcher .view-switch-btn').forEach(btn => {
+            const isActive = btn.dataset.mode === mode;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-checked', String(isActive));
+        });
+
+        // 同步排序下拉选框值
+        const sortSelect = document.getElementById('shelf-sort-select');
+        if (sortSelect && sortSelect.value !== state.shelfSortBy) {
+            sortSelect.value = state.shelfSortBy || 'recent';
+        }
+
         const bookKeys = Object.keys(state.books);
-        const customKeys = bookKeys.filter(k => !BUILTIN_BOOKS[k]);
+        const bookList = bookKeys.map(k => state.books[k]).filter(Boolean);
 
-        grid.querySelectorAll('.book-card-item.custom-card').forEach(el => el.remove());
+        // 统一提取每本书的最新进度、百分比与时间戳
+        const bookMetaMap = {};
+        bookList.forEach(b => {
+            const prog = loadBookProgress(b.id);
+            const pct = prog ? calculateReadingProgress(b, prog.chapterIndex, prog.page, prog.totalPages) : 0;
+            const ts = prog && prog.timestamp ? prog.timestamp : (b.addedAt || 0);
+            bookMetaMap[b.id] = { pct, ts, prog };
+        });
 
-        customKeys.forEach(k => {
-            const b = state.books[k];
+        // 按指定策略排序
+        const sortBy = state.shelfSortBy || 'recent';
+        bookList.sort((a, b) => {
+            const metaA = bookMetaMap[a.id] || { pct: 0, ts: 0 };
+            const metaB = bookMetaMap[b.id] || { pct: 0, ts: 0 };
+            if (sortBy === 'recent') {
+                return (metaB.ts || 0) - (metaA.ts || 0);
+            }
+            if (sortBy === 'progress') {
+                return (metaB.pct || 0) - (metaA.pct || 0);
+            }
+            if (sortBy === 'date') {
+                return (b.addedAt || 0) - (a.addedAt || 0);
+            }
+            if (sortBy === 'title') {
+                return (a.title || '').localeCompare(b.title || '', 'zh-CN');
+            }
+            return 0;
+        });
+
+        // 更新书籍计数徽章
+        const countBadge = document.getElementById('shelf-books-count');
+        if (countBadge) {
+            countBadge.textContent = `(${bookList.length} 本)`;
+        }
+
+        grid.innerHTML = '';
+
+        bookList.forEach(b => {
+            const isCustom = !BUILTIN_BOOKS[b.id];
             const isPdf = b.format === 'pdf';
-            const tagLabel = isPdf ? 'PDF 3D' : '本地离线';
-            const coverEmoji = b.coverEmoji || (isPdf ? '📑' : '📄');
+            const meta = bookMetaMap[b.id] || { pct: 0, ts: 0 };
+            const pct = meta.pct || 0;
+            const tagLabel = isPdf ? 'PDF 3D' : (b.tag || (isCustom ? '本地离线' : '典藏'));
+            const theme = b.coverTheme || getCoverThemeByTitle(b.title);
+            const coverImg = b.coverUrl || b.cover;
+
             const card = document.createElement('div');
-            card.className = 'book-card-item custom-card';
+            card.className = `book-card-item ${isCustom ? 'custom-card' : 'builtin-card'}`;
             card.dataset.book = b.id;
             card.tabIndex = 0;
             card.setAttribute('role', 'button');
-            card.innerHTML = `
-                <button type="button" class="card-delete-btn" data-delete-book="${escapeHtml(b.id)}" title="移除此本地书籍" aria-label="移除此书籍">✕</button>
-                <div class="card-cover-wrap cover-custom">
-                    <span class="card-cover-emoji">${escapeHtml(coverEmoji)}</span>
+
+            // 微信读书风格立体精装封面
+            const coverHtml = `
+                <div class="card-cover-wrap cover-style-${escapeHtml(theme)}">
+                    ${coverImg ? `<img src="${escapeHtml(coverImg)}" class="card-cover-img" alt="${escapeHtml(b.title)}" loading="lazy">` : `
+                        <div class="card-cover-generated">
+                            <div class="cover-gen-frame">
+                                <div class="cover-gen-title">${escapeHtml(b.title)}</div>
+                                <div class="cover-gen-author">${escapeHtml(b.author || '佚名')}</div>
+                            </div>
+                            <div class="cover-gen-bottom-tag">${escapeHtml(isPdf ? 'PDF' : (b.tag || '经典'))}</div>
+                        </div>
+                    `}
                     <div class="card-cover-spine"></div>
-                </div>
-                <div class="card-meta">
-                    <h4 class="card-title">${escapeHtml(b.title)}</h4>
-                    <p class="card-author">${escapeHtml(b.author || (isPdf ? '本地 PDF' : '本地导入'))}</p>
-                    <span class="card-tag">${escapeHtml(tagLabel)}</span>
+                    <div class="card-cover-edge"></div>
                 </div>
             `;
-            const delBtn = card.querySelector('.card-delete-btn');
-            if (delBtn) {
-                delBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteCustomBook(b.id);
-                });
+
+            const delButtonHtml = isCustom
+                ? `<button type="button" class="card-delete-btn" data-delete-book="${escapeHtml(b.id)}" title="移除此本地书籍" aria-label="移除此书籍">✕</button>`
+                : '';
+
+            const progressBadgeHtml = `
+                <div class="card-progress-pill">
+                    <div class="card-progress-bar"><div class="card-progress-fill" style="width: ${Math.min(100, pct)}%"></div></div>
+                    <span>${pct > 0 ? (pct >= 100 ? '已读完' : `已读 ${pct}%`) : '未读'}</span>
+                </div>
+            `;
+
+            if (mode === 'list') {
+                // 列表视图
+                card.innerHTML = `
+                    ${delButtonHtml}
+                    ${coverHtml}
+                    <div class="card-meta">
+                        <div class="list-row-top">
+                            <h4 class="card-title">${escapeHtml(b.title)}</h4>
+                            <span class="card-tag">${escapeHtml(tagLabel)}</span>
+                        </div>
+                        <div class="list-row-mid">
+                            <span class="card-author">${escapeHtml(b.author || '佚名')}</span>
+                            <span>·</span>
+                            <span>${b.chapters ? `共 ${b.chapters.length} 章` : '单文件'}</span>
+                            <span>·</span>
+                            <span>${formatTimeAgo(meta.ts)}</span>
+                        </div>
+                        <div class="list-row-bottom">
+                            ${progressBadgeHtml}
+                        </div>
+                    </div>
+                `;
+            } else if (mode === 'shelf') {
+                // 实木层架视图
+                card.innerHTML = `
+                    ${delButtonHtml}
+                    ${coverHtml}
+                    <div class="card-meta">
+                        <h4 class="card-title">${escapeHtml(b.title)}</h4>
+                        <p class="card-author">${escapeHtml(b.author || '佚名')}</p>
+                    </div>
+                `;
+            } else {
+                // 默认网格大封面视图
+                card.innerHTML = `
+                    ${delButtonHtml}
+                    ${coverHtml}
+                    <div class="card-meta">
+                        <h4 class="card-title">${escapeHtml(b.title)}</h4>
+                        <p class="card-author">${escapeHtml(b.author || (isPdf ? '本地 PDF' : '本地导入'))}</p>
+                        <div class="card-meta-bottom">
+                            <span class="card-tag">${escapeHtml(tagLabel)}</span>
+                            ${progressBadgeHtml}
+                        </div>
+                    </div>
+                `;
             }
+
+            if (isCustom) {
+                const delBtn = card.querySelector('.card-delete-btn');
+                if (delBtn) {
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        deleteCustomBook(b.id);
+                    });
+                }
+            }
+
             grid.appendChild(card);
         });
     }
@@ -2817,14 +2993,144 @@
     }
 
 
-    // ===== 9.5 书架搜索与过滤引擎 =====
-    function initShelfSearch() {
+    // ===== 9.5 精选公版典藏书目元数据 =====
+    const CURATED_OPEN_BOOKS = [
+        {
+            id: 'curated_sanguo',
+            title: '三国演义',
+            author: '罗贯中',
+            tag: '古典名著',
+            description: '中国古典四大名著之一，讲述东汉末年至西晋初年群雄割据的宏伟史诗。',
+            coverTheme: 'morandi-crimson',
+            chapters: [
+                {
+                    title: '第一回 宴桃园豪杰三结义 斩黄巾英雄首立功',
+                    content: [
+                        '滚滚长江东逝水，浪花淘尽英雄。是非成败转头空。青山依旧在，几度夕阳红。',
+                        '白发渔樵江渚上，惯看秋月春风。一壶浊酒喜相逢。古今多少事，都付笑谈中。',
+                        '话说天下大势，分久必合，合久必分。周末七国分争，并入于秦。及秦灭之后，楚、汉分争，又并入于汉。汉朝自高祖斩白蛇而起义，一统天下，迨后光武中兴，传至献帝，遂分为三国。',
+                        '推其致乱之由，殆始于桓、灵二帝。桓帝禁锢善类，崇信宦官。及桓帝崩，灵帝即位，大将军窦武、太傅陈蕃共相辅佐。时有宦官曹节等弄权，窦武、陈蕃谋诛之，机事不密，反为所害，中涓自此愈横。',
+                        '建宁二年四月望日，帝御温德殿。方升座，殿角狂风骤起。只见一条大青蛇，从梁上飞将下来，蟠于椅上。帝惊倒，左右急救入宫，百官俱奔避。须臾，蛇不见了。骤雨大雹，战栗四起，屋宇倾颓，死者不可胜数。',
+                        '中平元年秋七月，神仙于吉自吴会来，传妖术惑众，号为“太平道”。玄德见榜，慨然长叹。随后张飞、关羽相继而至，三人意气相投，同往桃园结义，誓同生死，救困扶危。'
+                    ]
+                },
+                {
+                    title: '第二回 张翼德怒鞭督邮 何国舅谋诛宦竖',
+                    content: [
+                        '却说封谞、段珪等弄权，祸乱朝政。玄德等三人，投刘虞立功，除授安喜县尉。',
+                        '玄德到县，署理县事，与关、张食则同桌，寝则同床。玄德出郭迎接督邮，见督邮拜于道旁。督邮傲然而立，问曰：“刘县尉是何出身？”玄德曰：“备乃中山靖王之后，自涿郡破黄巾立功，官迁现在。”',
+                        '督邮大喝曰：“汝诈称皇亲，虚报功绩！目今朝廷降诏，正要清理这等滥官污吏！”玄德勉强唯唯而退。张飞大怒，直入驿馆，将督邮扯出，缚于马桩之上，折柳条痛打，一连打折柳条十数枝。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_honglou',
+            title: '红楼梦',
+            author: '曹雪芹',
+            tag: '世情典藏',
+            description: '举世公认的中国古典小说巅峰，贾史王薛四大家族兴衰与木石前盟。',
+            coverTheme: 'morandi-violet',
+            chapters: [
+                {
+                    title: '第一回 甄士隐梦幻识通灵 贾雨村风尘怀闺秀',
+                    content: [
+                        '开辟鸿蒙，谁为情种？都只为风月情浓。趁着这奈何天，伤怀日，寂寥时，试遣愚衷。因此上，演出这怀金悼玉的《红楼梦》。',
+                        '此开卷第一回也。作者自云：曾历过一番梦幻之后，故将真事隐去，而借“通灵”说此《石头记》一书也，故曰“甄士隐”云云。',
+                        '看官，你道此书从何而来？说起根由，虽近荒唐，细按则深有趣味。待在下将此来历注明，方使阅者了然不惑。',
+                        '原来女娲氏炼石补天之时，于大荒山无稽崖炼成高经十二丈、方经二十四丈顽石三万六千五百零一块。娲皇氏只用了三万六千五百块，只单单剩了一块未用，便弃在此山青埂峰下。',
+                        '此石自经煅炼之后，灵性已通，因见众石俱得补天，独自己无材不堪入选，遂自怨自叹，日夜悲号惭愧。一日，正当嗟悼之际，俄见一僧一道远远而来，生得骨格不凡，丰神迥异。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_xiyou',
+            title: '西游记',
+            author: '吴承恩',
+            tag: '神魔志怪',
+            description: '唐僧师徒历经九九八十一难，往西天拜佛求经的奇幻神话经典。',
+            coverTheme: 'morandi-amber',
+            chapters: [
+                {
+                    title: '第一回 灵根育孕源流出 心性修持大道生',
+                    content: [
+                        '混沌未分天地乱，茫茫渺渺无人见。自从盘古破鸿蒙，开辟从兹清浊辨。',
+                        '覆载群生仰至德，发明万物皆成善。欲知造化会元功，须看西游释厄传。',
+                        '盖闻天地之数，有十二万九千六百岁为一元。将一元分为十二会，乃子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥之十二支也。每会该一万八百岁。',
+                        '感盘古开辟，三皇治世，五帝分伦，世界之间，遂分为四大部洲：曰东胜神洲，曰西牛贺洲，曰南赡部洲，曰北俱芦洲。这部书单表东胜神洲。海外有一国土，名曰傲来国。国近大海，海中有一座名山，唤为花果山。',
+                        '那座山，正当顶上，有一块仙石。其石有三丈六尺五寸高，按周天三百六十五度；二丈四尺围圆，按政历二十四气。上有九窍八孔，按九宫八卦。四面更无树木遮阴，左右倒有芝兰相衬。盖自开辟以来，每受天真地秀，日精月华，感之既久，遂有灵通之意。内育仙胞，一日迸裂，产一石卵，似圆球样大。因见风，化作一个石猴。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_shuihu',
+            title: '水浒传',
+            author: '施耐庵',
+            tag: '英雄传奇',
+            description: '北宋末年水泊梁山一百单八条好汉聚义替天行道、除暴安良的英雄传奇。',
+            coverTheme: 'morandi-indigo',
+            chapters: [
+                {
+                    title: '第一回 张天师祈禳瘟疫 洪太尉误走妖魔',
+                    content: [
+                        '试看书林隐处，几多俊逸儒流。虚名薄利不关愁，裁冰及剪雪，谈笑看吴钩。',
+                        '评议前王并后帝，分真伪，辨荣枯。境界何如，山水自相逢。',
+                        '话说大宋仁宗天子在位，嘉祐三年三月三日五更三点，天子驾坐紫宸殿，受百官朝贺。忽见近侍奏道：目今天下瘟疫盛行，军民受害甚多，请旨降香祈禳。',
+                        '天子命洪太尉为使，前往江西信州龙虎山，宣请张天师进京禳除瘟疫。太尉到得龙虎山，游至伏魔之殿，见重重封锁，铁锁如斛。太尉不听真人劝阻，强拆封皮，掘开石碣。只听得一声巨响，天崩地裂，一道黑气直冲半天空中，化作百十道金光，望四面八方散去了。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_chaohua',
+            title: '朝花夕拾',
+            author: '鲁迅',
+            tag: '现代散文',
+            description: '鲁迅先生回忆童年与青年时期生活的经典散文集，文笔深沉温馨。',
+            coverTheme: 'morandi-slate',
+            chapters: [
+                {
+                    title: '从百草园到三味书屋',
+                    content: [
+                        '我家的后面有一个很大的园，相传叫作百草园。现在是早已并屋子一起卖给朱姓的子孙了，连那最末次的相见也已经隔了七八年，其中似乎确凿只有一些野草；但那时却是我的乐园。',
+                        '不必说碧绿的菜畦，光滑的石井栏，高大的皂荚树，紫红的桑椹；也不必说鸣蝉在树叶里长吟，肥胖的黄蜂伏在菜花上，轻捷的叫天子（云雀）忽然从草间直窜向云霄里去了。单是周围的短短的泥墙根一带，就有无限趣味。',
+                        '油蛉在这里低唱，蟋蟀们在这里弹琴。翻开断砖来，有时会遇见蜈蚣；还有斑蝥，倘若用手指按住它的脊梁，便会啪的一声，从后窍喷出一阵烟雾。',
+                        '冬天的百草园比较的无味；雪一下，可就两样了。拍雪人和塑雪罗汉需要人们鉴赏，这是荒园，人迹罕至，所以不相宜，只好来捕鸟。'
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'curated_sherlock',
+            title: '福尔摩斯探案集',
+            author: '阿瑟·柯南·道尔',
+            tag: '侦探经典',
+            description: '世界侦探文学不朽神作，贝克街221B神探歇洛克·福尔摩斯的惊奇冒险。',
+            coverTheme: 'morandi-pine',
+            chapters: [
+                {
+                    title: '血字的研究 (A Study in Scarlet)',
+                    content: [
+                        '在1878年，我获得了伦敦大学的医学博士学位，随后前往内特利完成了军医规定的培训课程。',
+                        '在贝克街221号B，我结识了歇洛克·福尔摩斯先生。他身材瘦削，目光敏锐，那双鹰钩鼻赋予了他一种机警而决断的神采。',
+                        '“一个逻辑学家，”福尔摩斯说，“如果能从一滴水推断出大西洋或尼亚加拉大瀑布的存在，即使他从未见过其中之一，那么他在思想上就已经跨越了平凡的生活。”',
+                        '“你从阿富汗来吧？”这是他对我说的第一句话。那一瞬间的惊讶至今仍深刻地留在我的脑海中。'
+                    ]
+                }
+            ]
+        }
+    ];
+
+    // ===== 9.5 书架控制矩阵 (搜索/排序/多视图切换/在线搜书) =====
+    function initShelfControls() {
         const searchInput = document.getElementById('shelf-search-input');
         const clearBtn = document.getElementById('shelf-search-clear');
         const grid = document.getElementById('shelf-books-grid');
-        if (!searchInput || !grid) return;
 
         const performSearch = () => {
+            if (!searchInput || !grid) return;
             const query = searchInput.value.trim().toLowerCase();
             if (clearBtn) clearBtn.hidden = !query;
 
@@ -2850,7 +3156,9 @@
             emptyTip.hidden = matchCount > 0 || !query;
         };
 
-        searchInput.addEventListener('input', performSearch);
+        if (searchInput) {
+            searchInput.addEventListener('input', performSearch);
+        }
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
                 searchInput.value = '';
@@ -2858,6 +3166,385 @@
                 searchInput.focus();
             });
         }
+
+        // 排序方式下拉选框切换
+        const sortSelect = document.getElementById('shelf-sort-select');
+        if (sortSelect) {
+            sortSelect.value = state.shelfSortBy || 'recent';
+            sortSelect.addEventListener('change', (e) => {
+                state.shelfSortBy = e.target.value;
+                try {
+                    localStorage.setItem(STORAGE_KEY_SHELF_SORT, state.shelfSortBy);
+                } catch (_) {}
+                renderBookshelfGrid();
+                performSearch();
+                const sortDesc = {
+                    recent: '⏱️ 按最近阅读排序',
+                    progress: '📊 按阅读进度排序',
+                    date: '📅 按添加时间排序',
+                    title: '🔤 按书名字母排序'
+                };
+                showToast(sortDesc[state.shelfSortBy] || '已更新排序');
+            });
+        }
+
+        // 视图切换胶囊按钮 (网格 / 列表 / 实木层架)
+        document.querySelectorAll('#shelf-view-switcher .view-switch-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                if (mode && ['grid', 'list', 'shelf'].includes(mode)) {
+                    state.shelfViewMode = mode;
+                    try {
+                        localStorage.setItem(STORAGE_KEY_SHELF_VIEW, state.shelfViewMode);
+                    } catch (_) {}
+                    renderBookshelfGrid();
+                    performSearch();
+                    const viewDesc = {
+                        grid: '📱 已切换为微信读书大封面网格',
+                        list: '📑 已切换为详细列表视图',
+                        shelf: '🪵 已切换为实木书房层架视图'
+                    };
+                    showToast(viewDesc[mode] || '已切换视图');
+                }
+            });
+        });
+
+        // 在线找书入口按钮
+        const onlineBtn = document.getElementById('shelf-btn-online-search');
+        if (onlineBtn) {
+            onlineBtn.addEventListener('click', () => {
+                openDrawer('drawer-online-search', onlineBtn);
+                const resultsContainer = document.getElementById('online-search-results');
+                if (resultsContainer && !resultsContainer.hasChildNodes()) {
+                    const searchInputEl = document.getElementById('online-book-search-input');
+                    const q = searchInputEl ? searchInputEl.value.trim() : '';
+                    if (window._renderOnlineClassics) window._renderOnlineClassics(q);
+                }
+            });
+        }
+    }
+
+    // ===== 9.6 在线开源书库搜索与一键导入 =====
+    function initOnlineBookSearch() {
+        const drawer = document.getElementById('drawer-online-search');
+        const closeBtn = document.getElementById('close-online-search');
+        const searchInput = document.getElementById('online-book-search-input');
+        const searchBtn = document.getElementById('online-book-search-btn');
+        const resultsContainer = document.getElementById('online-search-results');
+        const urlPanel = document.getElementById('online-url-import-panel');
+        const customUrlInput = document.getElementById('online-custom-url-input');
+        const customTitleInput = document.getElementById('online-custom-title-input');
+        const customFetchBtn = document.getElementById('online-custom-fetch-btn');
+
+        let currentTab = 'classics'; // 'classics' | 'openlibrary' | 'url'
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => closeDrawer('drawer-online-search'));
+        }
+
+        // 暴露渲染公版典藏方法供在线搜书入口唤起
+        window._renderOnlineClassics = renderOnlineClassicsList;
+
+        // 切换搜索源标签
+        const tabs = [
+            document.getElementById('tab-online-classics'),
+            document.getElementById('tab-online-openlibrary'),
+            document.getElementById('tab-online-url')
+        ];
+
+        tabs.forEach(tab => {
+            if (!tab) return;
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => {
+                    if (t) {
+                        t.classList.toggle('active', t === tab);
+                        t.setAttribute('aria-selected', String(t === tab));
+                    }
+                });
+                currentTab = tab.dataset.tab;
+                if (urlPanel) urlPanel.hidden = currentTab !== 'url';
+                if (currentTab === 'url') {
+                    if (resultsContainer) resultsContainer.innerHTML = '';
+                } else if (currentTab === 'classics') {
+                    const q = searchInput ? searchInput.value.trim() : '';
+                    renderOnlineClassicsList(q);
+                } else if (currentTab === 'openlibrary') {
+                    const q = searchInput ? searchInput.value.trim() : '';
+                    if (q) {
+                        performOpenLibrarySearch(q);
+                    } else {
+                        renderOpenLibraryPrompt();
+                    }
+                }
+            });
+        });
+
+        // 搜索触发
+        const triggerSearch = () => {
+            const query = searchInput ? searchInput.value.trim() : '';
+            if (currentTab === 'classics') {
+                renderOnlineClassicsList(query);
+            } else if (currentTab === 'openlibrary') {
+                if (!query) {
+                    showToast('请输入要搜索的书名或作者');
+                    return;
+                }
+                performOpenLibrarySearch(query);
+            }
+        };
+
+        if (searchBtn) searchBtn.addEventListener('click', triggerSearch);
+        if (searchInput) {
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') triggerSearch();
+            });
+        }
+
+        // 渲染精选公版典藏列表
+        function renderOnlineClassicsList(keyword) {
+            if (!resultsContainer) return;
+            const kw = (keyword || '').toLowerCase();
+            const list = CURATED_OPEN_BOOKS.filter(b => {
+                if (!kw) return true;
+                return b.title.toLowerCase().includes(kw) ||
+                       b.author.toLowerCase().includes(kw) ||
+                       (b.description && b.description.toLowerCase().includes(kw));
+            });
+
+            if (list.length === 0) {
+                resultsContainer.innerHTML = '<div class="online-empty-tip">未找到匹配的公版典藏，可切换到「Open Library」搜索海量国际藏书</div>';
+                return;
+            }
+
+            resultsContainer.innerHTML = '';
+            list.forEach(b => {
+                const alreadyOnShelf = Boolean(state.books[b.id]);
+                const theme = b.coverTheme || getCoverThemeByTitle(b.title);
+                const card = document.createElement('div');
+                card.className = 'online-book-card';
+                card.innerHTML = `
+                    <div class="card-cover-wrap cover-style-${escapeHtml(theme)}" style="width: 50px; height: 70px; border-radius: 4px;">
+                        <div class="card-cover-generated" style="padding: 4px;">
+                            <div class="cover-gen-frame" style="padding: 4px;">
+                                <div class="cover-gen-title" style="font-size: 10px;">${escapeHtml(b.title)}</div>
+                            </div>
+                        </div>
+                        <div class="card-cover-spine"></div>
+                    </div>
+                    <div class="online-card-info">
+                        <h4 class="online-card-title">${escapeHtml(b.title)}</h4>
+                        <span class="online-card-author">${escapeHtml(b.author)} · ${escapeHtml(b.tag || '名著')}</span>
+                        <p class="online-card-desc">${escapeHtml(b.description || '')}</p>
+                        <button type="button" class="online-card-import-btn" data-book-id="${escapeHtml(b.id)}">
+                            ${alreadyOnShelf ? '✓ 已在书架中' : '📥 一键存入书架'}
+                        </button>
+                    </div>
+                `;
+                const importBtn = card.querySelector('.online-card-import-btn');
+                if (importBtn) {
+                    if (alreadyOnShelf) importBtn.disabled = true;
+                    importBtn.addEventListener('click', () => {
+                        importCuratedBook(b);
+                        importBtn.textContent = '✓ 已在书架中';
+                        importBtn.disabled = true;
+                    });
+                }
+                resultsContainer.appendChild(card);
+            });
+        }
+
+        // 导入精选公版书
+        function importCuratedBook(curatedBook) {
+            const bookToSave = {
+                id: curatedBook.id,
+                title: curatedBook.title,
+                author: curatedBook.author,
+                tag: curatedBook.tag,
+                coverTheme: curatedBook.coverTheme,
+                description: curatedBook.description,
+                chapters: curatedBook.chapters,
+                addedAt: Date.now()
+            };
+            saveCustomBook(bookToSave, () => {
+                renderBookshelfGrid();
+                updateBookshelfHero();
+                showToast(`🎉 成功收录《${curatedBook.title}》至我的书架！`, 3200);
+            });
+        }
+
+        // 渲染 Open Library 提示
+        function renderOpenLibraryPrompt() {
+            if (!resultsContainer) return;
+            resultsContainer.innerHTML = `
+                <div class="online-empty-tip">
+                    <p style="font-size: 14px; margin-bottom: 6px;">🏛️ Open Library 汇聚全球数百万公版书籍与图书档案</p>
+                    <p style="color: var(--r-text-muted);">请输入英文或中文书名搜索，如: <em>Little Prince</em>, <em>Hamlet</em>, <em>Three Kingdoms</em></p>
+                </div>
+            `;
+        }
+
+        // 请求 Open Library API 检索
+        async function performOpenLibrarySearch(query) {
+            if (!resultsContainer) return;
+            resultsContainer.innerHTML = '<div class="online-loading-spinner">⏳ 正在从 Open Library 检索全球书库，请稍候…</div>';
+
+            try {
+                const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const docs = (data && data.docs) ? data.docs : [];
+
+                if (docs.length === 0) {
+                    resultsContainer.innerHTML = '<div class="online-empty-tip">未在 Open Library 找到相关书籍，请尝试更换关键词</div>';
+                    return;
+                }
+
+                resultsContainer.innerHTML = '';
+                docs.forEach((item, idx) => {
+                    const title = item.title || 'Untitled';
+                    const author = Array.isArray(item.author_name) ? item.author_name.join(', ') : (item.author_name || 'Unknown Author');
+                    const year = item.first_publish_year ? `${item.first_publish_year}年` : '未知年份';
+                    const coverUrl = item.cover_i ? `https://covers.openlibrary.org/b/id/${item.cover_i}-M.jpg` : '';
+                    const theme = getCoverThemeByTitle(title);
+                    const bookId = 'ol_' + (item.cover_edition_key || item.key ? item.key.replace(/\//g, '_') : Date.now() + '_' + idx);
+                    const alreadyOnShelf = Boolean(state.books[bookId]);
+
+                    const card = document.createElement('div');
+                    card.className = 'online-book-card';
+                    card.innerHTML = `
+                        <div class="card-cover-wrap cover-style-${escapeHtml(theme)}" style="width: 50px; height: 70px; border-radius: 4px;">
+                            ${coverUrl ? `<img src="${escapeHtml(coverUrl)}" class="online-card-cover" alt="${escapeHtml(title)}" loading="lazy">` : `
+                                <div class="card-cover-generated" style="padding: 4px;">
+                                    <div class="cover-gen-frame" style="padding: 4px;">
+                                        <div class="cover-gen-title" style="font-size: 9.5px;">${escapeHtml(title)}</div>
+                                    </div>
+                                </div>
+                            `}
+                            <div class="card-cover-spine"></div>
+                        </div>
+                        <div class="online-card-info">
+                            <h4 class="online-card-title">${escapeHtml(title)}</h4>
+                            <span class="online-card-author">${escapeHtml(author)} · ${escapeHtml(year)}</span>
+                            <p class="online-card-desc">Open Library 国际公开藏书档案 · 自由借阅与离线伴读</p>
+                            <button type="button" class="online-card-import-btn">
+                                ${alreadyOnShelf ? '✓ 已在书架中' : '📥 收录至书架'}
+                            </button>
+                        </div>
+                    `;
+
+                    const importBtn = card.querySelector('.online-card-import-btn');
+                    if (importBtn) {
+                        if (alreadyOnShelf) importBtn.disabled = true;
+                        importBtn.addEventListener('click', () => {
+                            const newBook = {
+                                id: bookId,
+                                title: title,
+                                author: author,
+                                coverUrl: coverUrl,
+                                coverTheme: theme,
+                                tag: 'Open Library',
+                                addedAt: Date.now(),
+                                chapters: [
+                                    {
+                                        title: '前言与档案概述',
+                                        content: [
+                                            `《${title}》由 ${author} 创作，首次出版于 ${year}。`,
+                                            '本书档案来源于 Open Library (开放图书馆) 全球公益图书文献库。',
+                                            '您已成功将本书收录至个人数字书房。您可以通过顶部阅读设置随时调整字号、行距与排版，开启沉浸式研读。'
+                                        ]
+                                    }
+                                ]
+                            };
+                            saveCustomBook(newBook, () => {
+                                renderBookshelfGrid();
+                                updateBookshelfHero();
+                                showToast(`🎉 成功将《${title}》收录入书架！`, 3200);
+                            });
+                            importBtn.textContent = '✓ 已在书架中';
+                            importBtn.disabled = true;
+                        });
+                    }
+
+                    resultsContainer.appendChild(card);
+                });
+            } catch (err) {
+                resultsContainer.innerHTML = `<div class="online-empty-tip">网络连接受限或 Open Library 响应异常：${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        // 自定义直链导入逻辑
+        if (customFetchBtn) {
+            customFetchBtn.addEventListener('click', async () => {
+                const url = customUrlInput ? customUrlInput.value.trim() : '';
+                const customTitle = customTitleInput ? customTitleInput.value.trim() : '';
+                if (!url) {
+                    showToast('请输入有效的网络电子书直链地址');
+                    return;
+                }
+                customFetchBtn.disabled = true;
+                customFetchBtn.textContent = '⏳ 正在抓取网络数据…';
+
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`HTTP 状态异常 ${res.status}`);
+                    const contentType = res.headers.get('content-type') || '';
+                    const isPdf = url.toLowerCase().endsWith('.pdf') || contentType.includes('pdf');
+
+                    let bookTitle = customTitle;
+                    if (!bookTitle) {
+                        try {
+                            const urlObj = new URL(url);
+                            const pathname = urlObj.pathname;
+                            bookTitle = decodeURIComponent(pathname.split('/').pop().replace(/\.[^/.]+$/, '')) || '网络导入书籍';
+                        } catch (_) {
+                            bookTitle = '网络导入书籍';
+                        }
+                    }
+
+                    if (isPdf) {
+                        const buffer = await res.arrayBuffer();
+                        const pdfBook = {
+                            id: 'pdf_url_' + Date.now(),
+                            title: bookTitle,
+                            author: '网络直链导入',
+                            coverEmoji: '📑',
+                            format: 'pdf',
+                            pdfData: buffer,
+                            chapters: [{ title: '完整 PDF 画册文档', content: ['在线 PDF 已加载至本地内存'] }],
+                            addedAt: Date.now()
+                        };
+                        saveCustomBook(pdfBook, () => {
+                            renderBookshelfGrid();
+                            updateBookshelfHero();
+                            closeDrawer('drawer-online-search');
+                            showToast(`🎉 成功导入 PDF《${bookTitle}》！`, 3500);
+                        });
+                    } else {
+                        const text = await res.text();
+                        const parsedBook = parseTxtBook(text, bookTitle);
+                        parsedBook.addedAt = Date.now();
+                        saveCustomBook(parsedBook, () => {
+                            renderBookshelfGrid();
+                            updateBookshelfHero();
+                            closeDrawer('drawer-online-search');
+                            showToast(`🎉 成功抓取并导入《${bookTitle}》！`, 3500);
+                        });
+                    }
+                } catch (err) {
+                    showToast(`导入失败: ${err.message}`, 3500);
+                } finally {
+                    customFetchBtn.disabled = false;
+                    customFetchBtn.textContent = '📥 抓取并导入书架';
+                }
+            });
+        }
+    }
+
+    // ===== 9.7 书架搜索总装 =====
+    function initShelfSearch() {
+        initShelfControls();
+        initOnlineBookSearch();
     }
 
     // ===== 9.6 书架数据主权：备份导出与恢复 =====

@@ -790,3 +790,63 @@ test('划线笔记进阶：支持全书 Markdown 导出与单条书摘卡片复�
     assert(cssSource.includes('.bookmark-copy-btn'), '需包含书摘复制按钮样式');
     assert(cssSource.includes('.highlights-toolbar'), '需包含划线顶部工具栏样式');
 });
+
+test('微信读书书架升级：多视图排版切换（网格/列表/实木层架）与排序矩阵及本地持久化', () => {
+    // 1. HTML 节点完备性
+    assert(htmlSource.includes('id="shelf-view-switcher"'), '需包含三视图切换容器');
+    assert(htmlSource.includes('id="btn-view-grid"'), '需包含经典网格视图按钮');
+    assert(htmlSource.includes('id="btn-view-list"'), '需包含详细列表视图按钮');
+    assert(htmlSource.includes('id="btn-view-shelf"'), '需包含实木层架视图按钮');
+    assert(htmlSource.includes('id="shelf-sort-select"'), '需包含书架排序选择下拉框');
+    assert(htmlSource.includes('id="shelf-btn-online-search"'), '需包含在线找书入口按钮');
+
+    // 2. CSS 样式支持
+    assert(cssSource.includes('.shelf-books-grid.view-grid'), '需定义网格视图样式');
+    assert(cssSource.includes('.shelf-books-grid.view-list'), '需定义列表视图样式');
+    assert(cssSource.includes('.shelf-books-grid.view-shelf'), '需定义实木层架视图样式与木纹光影');
+    assert(cssSource.includes('.shelf-view-switcher'), '需定义视图切换胶囊组件样式');
+    assert(cssSource.includes('.shelf-sort-select'), '需定义排序下拉框美化样式');
+
+    // 3. JS 状态流与持久化
+    assert(jsSource.includes("shelfViewMode: 'grid'"), '默认视图状态需为 grid');
+    assert(jsSource.includes("shelfSortBy: 'recent'"), '默认排序状态需为 recent');
+    assert(jsSource.includes('STORAGE_KEY_SHELF_VIEW'), '需定义视图模式本地持久化键');
+    assert(jsSource.includes('STORAGE_KEY_SHELF_SORT'), '需定义排序方式本地持久化键');
+    assert(jsSource.includes('function initShelfControls()'), '需包含书架控制矩阵初始化函数');
+});
+
+test('微信读书封面系统：莫兰迪 8 大高级色系精装算法封面与阅读进度胶囊', () => {
+    // 1. 莫兰迪色系与算法封面
+    assert(jsSource.includes('MORANDI_COVER_THEMES'), '需定义莫兰迪 8 大高级色系主题');
+    assert(jsSource.includes('function getCoverThemeByTitle('), '需包含书名哈希匹配色系封面函数');
+    assert(cssSource.includes('.cover-style-morandi-pine'), 'CSS 需支持松柏青绿书封');
+    assert(cssSource.includes('.cover-style-morandi-indigo'), 'CSS 需支持黛蓝深邃书封');
+    assert(cssSource.includes('.cover-style-morandi-crimson'), 'CSS 需支持朱砂赤红书封');
+    assert(cssSource.includes('.card-cover-generated'), '需支持纯 CSS 算法精装书封');
+    assert(cssSource.includes('.card-cover-spine'), '需支持拟真立体书脊光影');
+    assert(cssSource.includes('.card-cover-edge'), '需支持拟真书页厚度反光边');
+
+    // 2. 阅读进度条与胶囊
+    assert(cssSource.includes('.card-progress-pill'), '需定义阅读进度胶囊徽章');
+    assert(cssSource.includes('.card-progress-fill'), '需定义进度条填充动画样式');
+    assert(jsSource.includes('已读'), '卡片元数据中需展示已读百分比');
+});
+
+test('在线开源书库：精选公版典藏、Open Library 检索、直链导入与 CSP 授权', () => {
+    // 1. HTML 抽屉与标签页
+    assert(htmlSource.includes('id="drawer-online-search"'), '需包含在线开源书库搜索抽屉');
+    assert(htmlSource.includes('id="tab-online-classics"'), '需包含精选公版名著标签');
+    assert(htmlSource.includes('id="tab-online-openlibrary"'), '需包含 Open Library 国际书库标签');
+    assert(htmlSource.includes('id="tab-online-url"'), '需包含直链导入标签');
+    assert(htmlSource.includes('id="online-search-results"'), '需包含搜索结果渲染容器');
+
+    // 2. CSP 授权放行
+    const headersSource = readFileSync(new URL('../_headers', import.meta.url), 'utf8');
+    assert(headersSource.includes('https://openlibrary.org'), 'CSP connect-src 需授权 openlibrary.org');
+    assert(headersSource.includes('https://archive.org'), 'CSP connect-src 需授权 archive.org');
+
+    // 3. JS 内置公版典藏与搜索总装
+    assert(jsSource.includes('CURATED_OPEN_BOOKS'), '需内置高质量公版典藏书目');
+    assert(jsSource.includes('function initOnlineBookSearch()'), '需包含在线书库搜索与导入引擎');
+    assert(jsSource.includes('function importCuratedBook('), '需支持精选公版书一键存入书架');
+});

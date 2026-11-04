@@ -2515,3 +2515,697 @@ body.reader-body dialog.reader-audio-panel { background: var(--r-bg); color: var
     color: var(--r-text);
     background: var(--r-card-bg);
 }
+
+/* ==================== 微信读书风格书架 · 多视图与立体精装书封 ==================== */
+
+/* 书架顶部控制矩阵 */
+.shelf-section-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.shelf-heading-group {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.shelf-books-count {
+    font-size: 13px;
+    color: var(--r-text-muted);
+}
+
+.shelf-controls-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 排序下拉选择框 */
+.shelf-sort-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.shelf-sort-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--r-card-bg);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 999px;
+    padding: 6px 28px 6px 14px;
+    font-size: 12.5px;
+    color: var(--r-text);
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    transition: border-color 0.18s ease;
+}
+
+.shelf-sort-select:hover,
+.shelf-sort-select:focus {
+    border-color: var(--r-accent);
+    outline: none;
+}
+
+/* 三视图切换胶囊 (网格 / 列表 / 层架) */
+.shelf-view-switcher {
+    display: inline-flex;
+    background: var(--r-card-bg);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 999px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.view-switch-btn {
+    border: 0;
+    background: transparent;
+    color: var(--r-text-muted);
+    font-size: 13.5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.view-switch-btn:hover {
+    color: var(--r-text);
+}
+
+.view-switch-btn.active {
+    background: var(--r-accent);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* 在线找书按钮 */
+.shelf-online-search-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--r-bar-border);
+    background: var(--r-card-bg);
+    color: var(--r-text);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.shelf-online-search-btn:hover {
+    border-color: var(--r-accent);
+    color: var(--r-accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* 微信读书立体精装书封生成系统 */
+.card-cover-wrap {
+    position: relative;
+    box-shadow: -3px 5px 12px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.22s ease;
+}
+
+.card-cover-wrap:hover {
+    box-shadow: -4px 8px 18px rgba(0, 0, 0, 0.22);
+}
+
+.card-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* 莫兰迪 8 大高级色系精装底色 */
+.cover-style-morandi-pine { background: linear-gradient(145deg, #2d5a4c, #16362c); }
+.cover-style-morandi-indigo { background: linear-gradient(145deg, #244163, #122235); }
+.cover-style-morandi-crimson { background: linear-gradient(145deg, #7c2d2d, #481515); }
+.cover-style-morandi-amber { background: linear-gradient(145deg, #996515, #553505); }
+.cover-style-morandi-slate { background: linear-gradient(145deg, #475569, #1e293b); }
+.cover-style-morandi-violet { background: linear-gradient(145deg, #5b3256, #32162e); }
+.cover-style-morandi-sand { background: linear-gradient(145deg, #8c7853, #4c3e27); }
+.cover-style-morandi-ink { background: linear-gradient(145deg, #262626, #0f0f0f); }
+
+/* 微信读书纯 CSS 算法精装书封内构 */
+.card-cover-generated {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 8px 7px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: center;
+    color: #f7eedc;
+    position: relative;
+}
+
+.cover-gen-frame {
+    border: 1px solid rgba(247, 238, 220, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(247, 238, 220, 0.15);
+    border-radius: 3px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 6px;
+    gap: 4px;
+}
+
+.cover-gen-title {
+    font-family: "Noto Serif SC", "Songti SC", "SimSun", "STSong", serif;
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.35;
+    letter-spacing: 0.04em;
+    color: #fffaf0;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    word-break: break-all;
+}
+
+.cover-gen-author {
+    font-size: 10px;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+    letter-spacing: 0.02em;
+}
+
+.cover-gen-bottom-tag {
+    font-size: 8.5px;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+/* 拟真书脊立体折痕 */
+.card-cover-spine {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 9px;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.35), rgba(255, 255, 255, 0.14) 30%, rgba(0, 0, 0, 0.12) 75%, transparent);
+    pointer-events: none;
+}
+
+/* 拟真书页厚度反光边 */
+.card-cover-edge {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    right: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #ded2c0, #eee3d3, #ded2c0);
+    box-shadow: inset -1px 0 1px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+}
+
+/* 阅读进度胶囊徽章 */
+.card-progress-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--r-accent);
+    background: rgba(194, 91, 59, 0.08);
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-weight: 600;
+}
+
+.card-progress-bar {
+    width: 32px;
+    height: 3.5px;
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.card-progress-fill {
+    height: 100%;
+    background: var(--r-accent);
+    border-radius: 2px;
+}
+
+/* ==================== 1. 经典网格视图 (Grid View - 默认) ==================== */
+.shelf-books-grid.view-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+    gap: 22px 16px;
+}
+
+.shelf-books-grid.view-grid .book-card-item {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px;
+    background: var(--r-card-bg);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 14px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.shelf-books-grid.view-grid .book-card-item:hover {
+    transform: translateY(-4px);
+    border-color: var(--r-accent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.shelf-books-grid.view-grid .card-cover-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1.42;
+    height: auto;
+    border-radius: 4px 10px 10px 4px;
+}
+
+.shelf-books-grid.view-grid .card-meta {
+    width: 100%;
+    margin-top: 10px;
+    gap: 4px;
+}
+
+.shelf-books-grid.view-grid .card-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.shelf-books-grid.view-grid .card-author {
+    font-size: 11px;
+    color: var(--r-text-muted);
+}
+
+.shelf-books-grid.view-grid .card-meta-bottom {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+/* ==================== 2. 详细列表视图 (List View) ==================== */
+.shelf-books-grid.view-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.shelf-books-grid.view-list .book-card-item {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    background: var(--r-card-bg);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.shelf-books-grid.view-list .book-card-item:hover {
+    transform: translateX(4px);
+    border-color: var(--r-accent);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.shelf-books-grid.view-list .card-cover-wrap {
+    width: 58px;
+    height: 82px;
+    flex-shrink: 0;
+    border-radius: 3px 8px 8px 3px;
+}
+
+.shelf-books-grid.view-list .card-cover-wrap .cover-gen-title {
+    font-size: 11px;
+    -webkit-line-clamp: 2;
+}
+
+.shelf-books-grid.view-list .card-meta {
+    flex: 1;
+    min-width: 0;
+    gap: 6px;
+}
+
+.shelf-books-grid.view-list .list-row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.shelf-books-grid.view-list .card-title {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.shelf-books-grid.view-list .list-row-mid {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--r-text-muted);
+}
+
+.shelf-books-grid.view-list .list-row-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+}
+
+/* ==================== 3. 实木层架视图 (Shelf View) ==================== */
+.shelf-books-grid.view-shelf {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 36px 18px;
+    position: relative;
+    padding: 16px 8px 28px 8px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.shelf-books-grid.view-shelf::after {
+    content: "";
+    position: absolute;
+    bottom: 8px;
+    left: -6px;
+    right: -6px;
+    height: 12px;
+    background: linear-gradient(180deg, #b08968 0%, #7f5539 70%, #58311d 100%);
+    border-radius: 3px;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+}
+
+.shelf-books-grid.view-shelf .book-card-item {
+    flex-direction: column;
+    align-items: center;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    cursor: pointer;
+    position: relative;
+}
+
+.shelf-books-grid.view-shelf .card-cover-wrap {
+    width: 100px;
+    height: 142px;
+    border-radius: 3px 8px 8px 3px;
+    box-shadow: -4px 6px 14px rgba(0, 0, 0, 0.32);
+    transform-origin: bottom center;
+    transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.22s ease;
+}
+
+.shelf-books-grid.view-shelf .book-card-item:hover .card-cover-wrap {
+    transform: translateY(-8px) scale(1.03);
+    box-shadow: -6px 12px 22px rgba(0, 0, 0, 0.38);
+}
+
+.shelf-books-grid.view-shelf .card-meta {
+    margin-top: 8px;
+    text-align: center;
+    align-items: center;
+    width: 100%;
+}
+
+.shelf-books-grid.view-shelf .card-title {
+    font-size: 12.5px;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shelf-books-grid.view-shelf .card-author {
+    font-size: 10.5px;
+}
+
+/* ==================== 在线开源书库搜索抽屉 ==================== */
+.online-search-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px 20px;
+    overflow-y: auto;
+}
+
+.online-search-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: var(--r-card-bg);
+    padding-bottom: 8px;
+    z-index: 2;
+}
+
+.online-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--r-bg);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 12px;
+    padding: 4px 6px 4px 12px;
+    transition: border-color 0.2s ease;
+}
+
+.online-input-wrap:focus-within {
+    border-color: var(--r-accent);
+}
+
+.online-search-input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--r-text);
+    font-size: 14px;
+    padding: 8px 0;
+    outline: none;
+}
+
+.online-search-submit-btn {
+    border: 0;
+    background: var(--r-accent);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.online-search-submit-btn:hover {
+    opacity: 0.9;
+}
+
+.online-tabs-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.online-tab-btn {
+    border: 1px solid var(--r-bar-border);
+    background: var(--r-bg);
+    color: var(--r-text-muted);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+}
+
+.online-tab-btn.active {
+    background: var(--r-accent);
+    color: #ffffff;
+    border-color: var(--r-accent);
+    font-weight: 600;
+}
+
+.online-url-import-panel {
+    background: var(--r-bg);
+    border: 1px dashed var(--r-bar-border);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.online-url-tip {
+    font-size: 12.5px;
+    color: var(--r-text-muted);
+    margin: 0;
+}
+
+.online-url-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.online-url-input {
+    border: 1px solid var(--r-bar-border);
+    background: var(--r-card-bg);
+    color: var(--r-text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+}
+
+.online-url-input:focus {
+    border-color: var(--r-accent);
+}
+
+.online-url-btn {
+    background: var(--r-accent);
+    color: #ffffff;
+    border: 0;
+    padding: 9px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* 在线搜索结果列表 */
+.online-results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.online-book-card {
+    display: flex;
+    gap: 14px;
+    padding: 12px;
+    background: var(--r-bg);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 12px;
+    align-items: center;
+    transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.online-book-card:hover {
+    border-color: var(--r-accent);
+    transform: translateY(-1px);
+}
+
+.online-card-cover {
+    width: 52px;
+    height: 74px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+    box-shadow: -1px 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.online-card-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.online-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--r-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.online-card-author {
+    font-size: 12px;
+    color: var(--r-text-muted);
+    margin: 0;
+}
+
+.online-card-desc {
+    font-size: 11px;
+    color: var(--r-text-muted);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+}
+
+.online-card-import-btn {
+    align-self: flex-start;
+    margin-top: 4px;
+    background: var(--r-accent);
+    color: #ffffff;
+    border: 0;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.18s ease;
+}
+
+.online-card-import-btn:hover {
+    opacity: 0.9;
+}
+
+.online-card-import-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.online-loading-spinner {
+    text-align: center;
+    padding: 24px;
+    color: var(--r-text-muted);
+    font-size: 13px;
+}
+
+.online-empty-tip {
+    text-align: center;
+    padding: 30px 16px;
+    color: var(--r-text-muted);
+    font-size: 13px;
+}

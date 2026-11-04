@@ -79,11 +79,32 @@
             <!-- 我的书库网格 -->
             <section class="shelf-grid-section">
                 <div class="shelf-section-bar">
-                    <h3 class="shelf-grid-heading">精选伴读典藏</h3>
-                    <div class="shelf-search-wrap">
-                        <span class="shelf-search-icon" aria-hidden="true">🔍</span>
-                        <input type="search" id="shelf-search-input" class="shelf-search-input" placeholder="搜索书名或作者…" aria-label="搜索书架书籍">
-                        <button type="button" id="shelf-search-clear" class="shelf-search-clear" aria-label="清空搜索" hidden>✕</button>
+                    <div class="shelf-heading-group">
+                        <h3 class="shelf-grid-heading">精选伴读典藏</h3>
+                        <span class="shelf-books-count" id="shelf-books-count">(3 本)</span>
+                    </div>
+                    <div class="shelf-controls-group">
+                        <div class="shelf-search-wrap">
+                            <span class="shelf-search-icon" aria-hidden="true">🔍</span>
+                            <input type="search" id="shelf-search-input" class="shelf-search-input" placeholder="搜索书名或作者…" aria-label="搜索书架书籍">
+                            <button type="button" id="shelf-search-clear" class="shelf-search-clear" aria-label="清空搜索" hidden>✕</button>
+                        </div>
+                        <div class="shelf-sort-wrap">
+                            <select id="shelf-sort-select" class="shelf-sort-select" aria-label="书籍排序方式">
+                                <option value="recent">⏱️ 最近阅读</option>
+                                <option value="progress">📊 阅读进度</option>
+                                <option value="date">📅 添加时间</option>
+                                <option value="title">🔤 书名排序</option>
+                            </select>
+                        </div>
+                        <div class="shelf-view-switcher" id="shelf-view-switcher" role="radiogroup" aria-label="书架视图">
+                            <button type="button" class="view-switch-btn active" id="btn-view-grid" data-mode="grid" title="微信读书网格大封面" aria-label="网格视图" role="radio" aria-checked="true">☵</button>
+                            <button type="button" class="view-switch-btn" id="btn-view-list" data-mode="list" title="详细列表视图" aria-label="列表视图" role="radio" aria-checked="false">☰</button>
+                            <button type="button" class="view-switch-btn" id="btn-view-shelf" data-mode="shelf" title="实木层架视图" aria-label="层架视图" role="radio" aria-checked="false">☶</button>
+                        </div>
+                        <button type="button" class="shelf-online-search-btn" id="shelf-btn-online-search" title="在线开源书库搜索与一键导入" aria-label="在线搜书">
+                            <span aria-hidden="true">🌐</span> <span>在线找书</span>
+                        </button>
                     </div>
                     <span class="shelf-zero-quota-tip"><span aria-hidden="true">🔒</span> 本地离线解析 · 数据仅存本机</span>
                 </div>
@@ -529,6 +550,46 @@
                             <p>蓝昴精选 · 沉浸式阅读与知识管理方法论</p>
                         </div>
                     </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 在线开源图书搜索与一键导入抽屉 -->
+        <aside class="reader-drawer drawer-right" id="drawer-online-search" aria-label="在线开源书库搜索与导入" hidden>
+            <div class="drawer-header">
+                <div class="drawer-title-group">
+                    <h3>🌐 在线开源书库</h3>
+                    <span class="drawer-subtitle">免注册 · 免费公版好书 · 一键存入书架</span>
+                </div>
+                <button type="button" class="drawer-close-btn" id="close-online-search" aria-label="关闭在线书库">✕</button>
+            </div>
+            <div class="drawer-body online-search-body">
+                <div class="online-search-form">
+                    <div class="online-input-wrap">
+                        <span class="online-search-icon" aria-hidden="true">🔍</span>
+                        <input type="search" id="online-book-search-input" class="online-search-input" placeholder="输入书名、作者或关键词 (如: 三国, 鲁迅, Prince)..." aria-label="搜索开源书籍">
+                        <button type="button" id="online-book-search-btn" class="online-search-submit-btn">搜索</button>
+                    </div>
+                    <div class="online-tabs-row" role="tablist">
+                        <button type="button" class="online-tab-btn active" id="tab-online-classics" data-tab="classics" role="tab" aria-selected="true">📚 精选公版名著</button>
+                        <button type="button" class="online-tab-btn" id="tab-online-openlibrary" data-tab="openlibrary" role="tab" aria-selected="false">🏛️ Open Library 国际书库</button>
+                        <button type="button" class="online-tab-btn" id="tab-online-url" data-tab="url" role="tab" aria-selected="false">🔗 直链导入</button>
+                    </div>
+                </div>
+
+                <!-- 直链导入输入框面板 (默认 hidden) -->
+                <div class="online-url-import-panel" id="online-url-import-panel" hidden>
+                    <p class="online-url-tip">支持直接粘贴开源公版 <code>.txt</code> 或 <code>.pdf</code> 直链地址：</p>
+                    <div class="online-url-form">
+                        <input type="url" id="online-custom-url-input" class="online-url-input" placeholder="https://example.com/book.txt">
+                        <input type="text" id="online-custom-title-input" class="online-url-input" placeholder="书籍名称 (选填)">
+                        <button type="button" id="online-custom-fetch-btn" class="online-url-btn">📥 抓取并导入书架</button>
+                    </div>
+                </div>
+
+                <!-- 搜索结果 / 推荐卡片列表 -->
+                <div class="online-results-container" id="online-search-results">
+                    <!-- 动态挂载卡片 -->
                 </div>
             </div>
         </aside>
