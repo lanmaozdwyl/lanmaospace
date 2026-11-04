@@ -23,6 +23,46 @@ let selectedEmoji = AVATAR_EMOJIS[0];
 let selectedColor = AVATAR_COLORS[0];
 let selectedFile = null;
 let previewObjectUrl = null;
+let dirty = false;
+let baselineState = null;
+
+function setDirtyBadge(isDirty) {
+    const badge = document.getElementById("avatar-dirty-badge");
+    if (badge) badge.hidden = !isDirty;
+}
+
+function captureBaseline() {
+    if (!currentProfile) {
+        baselineState = { kind: "none", emoji: selectedEmoji, color: selectedColor };
+    } else if (currentProfile.avatar_kind === "upload") {
+        baselineState = { kind: "upload", path: currentProfile.avatar_path };
+    } else {
+        baselineState = { kind: "emoji", emoji: currentProfile.avatar_emoji, color: currentProfile.avatar_color };
+    }
+    dirty = false;
+    setDirtyBadge(false);
+}
+
+function checkDirty() {
+    if (!baselineState) return false;
+    if (selectedFile) return true;
+    if (baselineState.kind === "upload") {
+        return dirty;
+    }
+    return selectedEmoji !== baselineState.emoji || selectedColor !== baselineState.color;
+}
+
+function updateDirty() {
+    dirty = checkDirty();
+    setDirtyBadge(dirty);
+}
+
+function canLeave() {
+    if (dirty && !window.confirm("当前头像修改尚未保存，确定要离开吗？未保存的内容将会丢失。")) {
+        return false;
+    }
+    return true;
+}
 
 function setStatus(message) {
     const status = document.getElementById("avatar-status");
@@ -75,6 +115,8 @@ function renderPresets() {
             if (input) input.value = "";
             const note = document.getElementById("avatar-file-note");
             if (note) note.hidden = true;
+            dirty = true;
+            updateDirty();
             renderPresets();
             renderPreview();
         });
@@ -91,6 +133,8 @@ function renderPresets() {
         if (color === selectedColor) button.classList.add("is-selected");
         button.addEventListener("click", () => {
             selectedColor = color;
+            dirty = true;
+            updateDirty();
             renderPresets();
             renderPreview();
         });
@@ -179,6 +223,7 @@ async function saveAvatar() {
         const note = document.getElementById("avatar-file-note");
         if (note) note.hidden = true;
         refreshHeaderAvatar();
+        captureBaseline();
         setStatus("头像已保存，页头和留言旁都会显示新头像。");
     } catch (error) {
         console.error(error);
@@ -210,6 +255,7 @@ async function resetAvatar() {
         renderPresets();
         renderPreview();
         refreshHeaderAvatar();
+        captureBaseline();
         setStatus("已恢复默认头像。");
     } catch (error) {
         console.error(error);
@@ -305,6 +351,7 @@ async function init() {
             if (!file) {
                 selectedFile = null;
                 if (note) note.hidden = true;
+                updateDirty();
                 renderPreview();
                 return;
             }
@@ -314,6 +361,7 @@ async function init() {
                 input.value = "";
                 selectedFile = null;
                 if (note) note.hidden = true;
+                updateDirty();
                 renderPreview();
                 return;
             }
@@ -323,6 +371,8 @@ async function init() {
                 note.textContent = `已选：${file.name}（${(file.size / 1024).toFixed(0)} KB），保存后上传。`;
             }
             setStatus("");
+            dirty = true;
+            updateDirty();
             renderPreview();
         });
     }
@@ -338,6 +388,22 @@ async function init() {
         renderPresets();
         renderPreview();
     }
+    captureBaseline();
+
+    window.addEventListener("beforeunload", (e) => {
+        if (dirty) {
+            e.preventDefault();
+            e.returnValue = "";
+        }
+    });
+
+    document.addEventListener("click", (e) => {
+        const a = e.target.closest && e.target.closest("a[href], button[data-signout]");
+        if (a && !a.hasAttribute("download") && !canLeave()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }, true);
 }
 
 init();

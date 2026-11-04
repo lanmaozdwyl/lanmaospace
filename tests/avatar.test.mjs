@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
     ALLOWED_AVATAR_TYPES,
     AVATAR_COLORS,
@@ -92,4 +93,25 @@ test("fetchProfile returns null when the user has no profile row", async () => {
         })
     };
     assert.equal(await fetchProfile(fake, "uid-1"), null);
+});
+
+test("个人头像设置：未保存修改防丢失拦截、离页守卫与状态指示微徽章", () => {
+    const html = readFileSync(new URL("../profile.html", import.meta.url), "utf8");
+    const css = readFileSync(new URL("../profile.css", import.meta.url), "utf8");
+    const js = readFileSync(new URL("../profile.js", import.meta.url), "utf8");
+
+    // 1. HTML 与 CSS 节点与样式验证
+    assert(html.includes('id="avatar-dirty-badge"'), "需包含未保存修改微徽章");
+    assert(html.includes('class="profile-dirty-badge"'), "需声明 profile-dirty-badge 类名");
+    assert(css.includes(".profile-dirty-badge"), "CSS 需定义未保存修改微徽章样式");
+    assert(css.includes(".profile-dirty-badge[hidden]"), "CSS 需支持 hidden 属性隐藏");
+
+    // 2. JS 离页保护与脏状态逻辑验证
+    assert(js.includes("function captureBaseline()"), "需包含基准状态快照函数");
+    assert(js.includes("function checkDirty()"), "需包含动态脏状态计算函数");
+    assert(js.includes("function updateDirty()"), "需包含脏状态同步与徽章更新函数");
+    assert(js.includes("function canLeave()"), "需包含二次确认拦截判断函数");
+    assert(js.includes('window.addEventListener("beforeunload"'), "需监听 beforeunload 原生弹窗保护");
+    assert(js.includes('document.addEventListener("click"'), "需捕获 a 标签与 signout 按钮的点击拦截");
+    assert(js.includes('captureBaseline();'), "保存与重置成功后需刷新基准快照");
 });
