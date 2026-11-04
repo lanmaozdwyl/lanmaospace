@@ -30,17 +30,75 @@ test('浏览器原生 fetch 和计时器不被播放器重新绑定接收者',as
  } finally {Object.assign(globalThis,saved);}
 });
 test('缓存最多两段；离开页面清理节点和缓存',async()=>{const f=fixture();for(const id of ['stream','forest','waves'])await f.player.play(id);assert.deepEqual([...f.player.cache.keys()],['forest','waves']);f.player.dispose();assert.equal(f.player.cache.size,0);assert.equal(f.player.retiring.size,0);assert(f.nodes.every(n=>n.stops===1));});
-function uiFixture(){
+function uiFixture(o = {}){
  const elements=new Map(),handlers={},tasks=new Map();let now=0,task=0;
+ const storage = o.storage || new Map();
+ const localStorage = {
+  getItem: k => (storage.has(k) ? storage.get(k) : null),
+  setItem: (k, v) => storage.set(k, String(v)),
+  removeItem: k => storage.delete(k)
+ };
  const el=id=>{if(!elements.has(id))elements.set(id,{value:'40',checked:true,dataset:{},events:{},textContent:'',attrs:{},classList:{toggle(){}},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){this.events[k]=fn;},append(){},focus(){this.focused=true;}});return elements.get(id);};
  const cards=AMBIENT_SOUNDS.map(s=>Object.assign(el(s.id),{dataset:{sound:s.id}}));const pills=[0,900,1800,3600].map(n=>Object.assign(el(String(n)),{dataset:{timer:String(n)}}));
  const f=fixture();class Player{constructor({onState}){f.player.onState=onState;return f.player;}}
  const document={getElementById:el,createElement:el,querySelectorAll:s=>s.includes('sound-card')?cards:pills,addEventListener:(k,fn)=>handlers[k]=fn};
  const code=fs.readFileSync(new URL('../ambient.js',import.meta.url),'utf8').replace(/^import .*;\s*/,'');
- vm.runInNewContext(code,{AMBIENT_SOUNDS,AmbientPlayer:Player,document,window:{addEventListener:(k,fn)=>handlers[k]=fn},Date:{now:()=>now},setTimeout:fn=>{tasks.set(++task,fn);return task;},clearTimeout:id=>tasks.delete(id)});
- return {...f,el,cards,pills,signal:d=>handlers['lanmao-focus-state']({detail:d}),advance:ms=>{now+=ms;handlers.visibilitychange();}};
+ vm.runInNewContext(code,{AMBIENT_SOUNDS,AmbientPlayer:Player,document,window:{addEventListener:(k,fn)=>handlers[k]=fn},Date:{now:()=>now},setTimeout:fn=>{tasks.set(++task,fn);return task;},clearTimeout:id=>tasks.delete(id),localStorage});
+ return {...f,el,cards,pills,storage,signal:d=>handlers['lanmao-focus-state']({detail:d}),advance:ms=>{now+=ms;handlers.visibilitychange();}};
 }
 test('仅本页主动开始专注才播放，跨标签恢复不播放，休息暂停',async()=>{const f=uiFixture();f.signal({running:true,mode:'focus',allowStart:false});await tick();assert.equal(f.nodes.length,0);f.signal({running:true,mode:'focus',allowStart:true});await tick();assert.equal(f.player.state,'playing');f.signal({running:false,mode:'break'});assert.equal(f.player.state,'paused');f.el('ambient-pomodoro-sync').checked=false;f.signal({running:true,mode:'focus',allowStart:true});await tick();assert.equal(f.player.state,'paused');});
 test('键盘切换更新焦点和单选状态，点击当前声音暂停',async()=>{const f=uiFixture();f.cards[0].events.keydown({key:'End',preventDefault(){}});await tick();assert.equal(f.player.current,'forest');assert(f.cards.at(-1).focused);assert.equal(f.cards.at(-1).attrs['aria-checked'],'true');f.cards.at(-1).events.click();assert.equal(f.player.state,'paused');});
 test('后台恢复时按真实截止时间停止定时播放',async()=>{const f=uiFixture();f.el('ambient-master-play').events.click();await tick();f.pills[1].events.click();f.advance(901000);assert.equal(f.player.state,'paused');assert.match(f.el('ambient-current-status').textContent,/定时已结束/);assert.equal(f.pills[0].attrs['aria-pressed'],'true');});
 test('8段音频授权、哈希、体积和雨声强弱顺序正确',()=>{const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),manifest=JSON.parse(fs.readFileSync(new URL('../audio/manifest.json',import.meta.url)));assert.equal(AMBIENT_SOUNDS.length,8);assert.equal(manifest.length,8);let bytes=0;for(const s of AMBIENT_SOUNDS){assert(html.includes(`data-sound="${s.id}"`));assert(s.credits.every(c=>c.author&&c.url.startsWith('https://')&&c.licenseUrl));const e=manifest.find(m=>m.id===s.id),data=fs.readFileSync(new URL('..'+s.url,import.meta.url));assert.equal(createHash('sha256').update(data).digest('hex'),e.sha256);assert(e.bytes<600000&&e.seconds>=40&&e.peak<.85);bytes+=data.length;}assert(bytes<4600000);const rms=id=>manifest.find(m=>m.id===id).rms;assert(rms('rain-light')<rms('rain-medium'));assert(rms('rain-medium')<rms('rain-heavy'));});
+
+test('伴读声音系统升级：音量数值实时反馈、本地持久化记忆与一键静音/恢复', () => {
+    const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const css = fs.readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+
+    // 1. 结构与样式完整性验证
+    assert(html.includes('id="ambient-vol-mute"'), '需包含静音/恢复控制按钮');
+    assert(html.includes('id="ambient-vol-icon"'), '需包含音量图标标识');
+    assert(html.includes('id="ambient-vol-value"'), '需包含音量百分比实时数值标签');
+    assert(css.includes('.ambient-vol-btn'), '需定义音量控制按钮样式');
+    assert(css.includes('.ambient-vol-value'), '需定义音量数值显示样式');
+
+    // 2. 初始默认渲染（40% 音量）
+    const f1 = uiFixture();
+    assert.equal(f1.el('ambient-vol-value').textContent, '40%');
+    assert.equal(f1.el('ambient-vol-icon').textContent, '🔉');
+    assert.equal(f1.el('ambient-vol-mute').attrs['aria-label'], '静音声音');
+    assert.equal(f1.player.volume, 0.4);
+
+    // 3. 拖动调节音量与状态持久化
+    f1.el('ambient-volume').value = '80';
+    f1.el('ambient-volume').events.input({ target: { value: '80' } });
+    assert.equal(f1.el('ambient-vol-value').textContent, '80%');
+    assert.equal(f1.el('ambient-vol-icon').textContent, '🔊');
+    assert.equal(f1.player.volume, 0.8);
+    assert.equal(f1.storage.get('lanmao_ambient_vol_v1'), '80');
+
+    // 4. 一键极速静音与恢复
+    f1.el('ambient-vol-mute').events.click();
+    assert.equal(f1.el('ambient-volume').value, '0');
+    assert.equal(f1.el('ambient-vol-value').textContent, '0%');
+    assert.equal(f1.el('ambient-vol-icon').textContent, '🔇');
+    assert.equal(f1.el('ambient-vol-mute').attrs['aria-label'], '恢复音量');
+    assert.equal(f1.player.volume, 0);
+    assert.equal(f1.storage.get('lanmao_ambient_vol_v1'), '0');
+
+    // 再次点击：恢复至静音前的 80%
+    f1.el('ambient-vol-mute').events.click();
+    assert.equal(f1.el('ambient-volume').value, '80');
+    assert.equal(f1.el('ambient-vol-value').textContent, '80%');
+    assert.equal(f1.el('ambient-vol-icon').textContent, '🔊');
+    assert.equal(f1.el('ambient-vol-mute').attrs['aria-label'], '静音声音');
+    assert.equal(f1.player.volume, 0.8);
+    assert.equal(f1.storage.get('lanmao_ambient_vol_v1'), '80');
+
+    // 5. 跨会话/刷新恢复已有音量记忆
+    const customStorage = new Map([['lanmao_ambient_vol_v1', '15']]);
+    const f2 = uiFixture({ storage: customStorage });
+    assert.equal(f2.el('ambient-vol-value').textContent, '15%');
+    assert.equal(f2.el('ambient-vol-icon').textContent, '🔉');
+    assert.equal(f2.player.volume, 0.15);
+});

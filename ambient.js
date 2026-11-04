@@ -40,8 +40,62 @@ if (play) {
             player.play(cards[next].dataset.sound);
         });
     });
-    byId('ambient-volume').addEventListener('input', event => player.setVolume(Number(event.target.value) / 100));
-    player.setVolume(Number(byId('ambient-volume').value) / 100);
+    const STORAGE_KEY_AMBIENT_VOL = 'lanmao_ambient_vol_v1';
+    let savedVol = null;
+    try {
+        if (typeof localStorage !== 'undefined') {
+            savedVol = localStorage.getItem(STORAGE_KEY_AMBIENT_VOL);
+        }
+    } catch (_) {}
+    let initialVol = savedVol !== null && !isNaN(Number(savedVol)) ? Math.max(0, Math.min(100, Number(savedVol))) : 40;
+    let lastNonZeroVol = initialVol > 0 ? initialVol : 40;
+
+    function syncVolumeDisplay(vol) {
+        const volInput = byId('ambient-volume');
+        const volVal = byId('ambient-vol-value');
+        const volIcon = byId('ambient-vol-icon');
+        const muteBtn = byId('ambient-vol-mute');
+        if (volInput && Number(volInput.value) !== vol) {
+            volInput.value = String(vol);
+        }
+        if (volVal) {
+            volVal.textContent = `${vol}%`;
+        }
+        if (volIcon) {
+            volIcon.textContent = vol === 0 ? '🔇' : vol < 50 ? '🔉' : '🔊';
+        }
+        if (muteBtn) {
+            muteBtn.setAttribute('aria-label', vol === 0 ? '恢复音量' : '静音声音');
+            muteBtn.setAttribute('title', vol === 0 ? '恢复音量' : '静音声音');
+        }
+    }
+
+    function setVol(vol, persist = true) {
+        vol = Math.max(0, Math.min(100, Math.round(vol)));
+        player.setVolume(vol / 100);
+        syncVolumeDisplay(vol);
+        if (vol > 0) lastNonZeroVol = vol;
+        if (persist) {
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem(STORAGE_KEY_AMBIENT_VOL, String(vol));
+                }
+            } catch (_) {}
+        }
+    }
+
+    byId('ambient-volume')?.addEventListener('input', event => setVol(Number(event.target.value)));
+    byId('ambient-vol-mute')?.addEventListener('click', () => {
+        const currentVal = Number(byId('ambient-volume')?.value ?? 40);
+        if (currentVal > 0) {
+            lastNonZeroVol = currentVal;
+            setVol(0, true);
+        } else {
+            setVol(lastNonZeroVol || 40, true);
+        }
+    });
+
+    setVol(initialVol, false);
     const clearTimer = () => {
         clearTimeout(timerId);
         deadline = 0;

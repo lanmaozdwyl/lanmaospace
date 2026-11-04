@@ -238,9 +238,11 @@
                             <span id="ambient-play-label">开启声音</span>
                         </button>
                         <div class="ambient-vol-wrap">
-                            <span class="ambient-vol-icon" aria-hidden="true">🔉</span>
+                            <button type="button" class="ambient-vol-btn" id="ambient-vol-mute" aria-label="静音声音" title="静音 / 恢复音量">
+                                <span class="ambient-vol-icon" id="ambient-vol-icon" aria-hidden="true">🔉</span>
+                            </button>
                             <input type="range" id="ambient-volume" min="0" max="100" value="40" class="ambient-vol-slider" aria-label="白噪声主音量">
-                            <span class="ambient-vol-icon" aria-hidden="true">🔊</span>
+                            <span class="ambient-vol-value" id="ambient-vol-value" aria-live="polite">40%</span>
                         </div>
                     </div>
                 </div>
