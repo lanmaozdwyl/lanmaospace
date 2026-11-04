@@ -4078,13 +4078,63 @@
     }
 
     // ===== 9.6 书架数据主权：备份导出与恢复 =====
-    function exportBookshelfBackup() {
-        const customBooksRaw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+    async function exportBookshelfBackup() {
+        showToast('⏳ 正在整理书架全量图书与进度备份…', 1500);
+
+        let customBooks = [];
+        // 1. 优先从 IndexedDB 全量提取大文件和所有自定义书目（突破 localStorage 2MB 阈值）
+        if (dbInstance) {
+            try {
+                customBooks = await new Promise((resolve) => {
+                    const tx = dbInstance.transaction('custom_books', 'readonly');
+                    const store = tx.objectStore('custom_books');
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => resolve([]);
+                });
+            } catch (_) {}
+        }
+        // 2. 若 IndexedDB 提取为空，从内存 state.books 兜底提取全部自定义书目
+        if (!customBooks || customBooks.length === 0) {
+            customBooks = Object.values(state.books).filter(b => b && b.id && !BUILTIN_BOOKS[b.id]);
+        }
+        // 3. 若内存中仍为空，尝试从 localStorage 镜像提取
+        if (!customBooks || customBooks.length === 0) {
+            try {
+                const customBooksRaw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+                if (customBooksRaw) {
+                    const list = JSON.parse(customBooksRaw);
+                    if (Array.isArray(list)) customBooks = list;
+                }
+            } catch (_) {}
+        }
+
+        // 4. 对自定义书籍列表进行安全克隆与序列化增强，支持 PDF 二进制 ArrayBuffer 跨机导出
+        const safeCustomBooks = (customBooks || []).map(book => {
+            if (!book) return null;
+            const clone = Object.assign({}, book);
+            if (clone.pdfData && typeof clone.pdfData === 'object' && clone.pdfData.byteLength) {
+                try {
+                    let binary = '';
+                    const bytes = new Uint8Array(clone.pdfData);
+                    const len = bytes.byteLength;
+                    const CHUNK = 0x8000;
+                    for (let i = 0; i < len; i += CHUNK) {
+                        binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + CHUNK, len)));
+                    }
+                    clone.pdfDataBase64 = btoa(binary);
+                    delete clone.pdfData;
+                } catch (e) {
+                    console.warn('PDF ArrayBuffer export to Base64 failed:', e);
+                }
+            }
+            return clone;
+        }).filter(Boolean);
+
         const bookProgRaw = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
         const settingsRaw = localStorage.getItem(STORAGE_KEY_SETTINGS);
         const lastProgRaw = localStorage.getItem(STORAGE_KEY_PROGRESS);
 
-        const customBooks = customBooksRaw ? JSON.parse(customBooksRaw) : [];
         const bookProgress = bookProgRaw ? JSON.parse(bookProgRaw) : {};
         const settings = settingsRaw ? JSON.parse(settingsRaw) : state.settings;
         const lastProgress = lastProgRaw ? JSON.parse(lastProgRaw) : null;
@@ -4093,7 +4143,7 @@
             app: 'lanmao-reader-backup',
             version: 2,
             exportedAt: new Date().toISOString(),
-            customBooks: customBooks,
+            customBooks: safeCustomBooks,
             bookProgress: bookProgress,
             bookmarks: state.bookmarks,
             highlights: state.highlights,
@@ -4112,7 +4162,7 @@
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        showToast('📦 书架与阅读进度备份导出完成！');
+        showToast(`📦 书架与阅读进度备份导出完成（共 ${safeCustomBooks.length} 本自定义书籍）！`);
     }
 
     function importBookshelfBackup(file) {
@@ -4128,7 +4178,25 @@
 
                 let restoredCount = 0;
                 data.customBooks.forEach(book => {
-                    if (book && book.id && book.title && Array.isArray(book.chapters)) {
+                    if (book && book.id && book.title && (Array.isArray(book.chapters) || book.format === 'pdf')) {
+                        // 若包含 PDF Base64 字符串，反序列化为 ArrayBuffer 还原
+                        if (book.pdfDataBase64 && typeof book.pdfDataBase64 === 'string') {
+                            try {
+                                const binaryString = atob(book.pdfDataBase64);
+                                const len = binaryString.length;
+                                const bytes = new Uint8Array(len);
+                                for (let i = 0; i < len; i++) {
+                                    bytes[i] = binaryString.charCodeAt(i);
+                                }
+                                book.pdfData = bytes.buffer;
+                                delete book.pdfDataBase64;
+                            } catch (err) {
+                                console.warn('PDF Base64 restore failed:', err);
+                            }
+                        }
+                        if (!Array.isArray(book.chapters)) {
+                            book.chapters = [{ title: book.title || 'PDF 文档', page: 1 }];
+                        }
                         saveCustomBook(book);
                         restoredCount++;
                     }

@@ -1,3 +1,39 @@
+# 阅读器：书架备份导出突破 2MB 阈值、IndexedDB/内存全量提取与 PDF 二进制 Base64 跨机还原（2026-11-04 晚）
+
+本节优先于下方历史记录。针对微信读书风格伴读器（`reader.html` / `reader.js` / `tests/reader.test.mjs`）书架导出备份中严重的数据截断与丢书隐患进行全链路安全治理：
+1. 痛点问题根因（2MB 镜像阈值截断与数据截胡）：
+   - `reader.js` 内部设计了 `localStorage` 镜像（仅限 < 2MB）与 `IndexedDB` 大文件持久化主通道；
+   - 当用户导入的长篇小说（TXT/EPUB）或累计图书总大小超过 2MB 时，`localStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS)` 自动放弃写入，图书仅安全保存在 `IndexedDB` 与内存 `state.books` 中；
+   - 原 `exportBookshelfBackup()` 导出函数竟然直接调用 `localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS)`，导致**所有大体积图书与超出配额后导入的图书在导出的备份 JSON 中全部缺失**；用户误以为已备份，换机导入时发现心爱图书彻底丢失；
+   - 原 `importBookshelfBackup()` 恢复函数在解析时仅按 `Array.isArray(book.chapters)` 过滤，导致 `format: 'pdf'`（非数组章节）格式书目被一票否决全部丢弃；且原代码对 PDF 二进制 `ArrayBuffer` 在 `JSON.stringify` 时直接变成空对象 `{}`，无法跨机导出还原。
+2. 全量提取与多级降级安全架构：
+   - 升级 `exportBookshelfBackup` 为全异步模式，直连 `IndexedDB` 的 `custom_books` 对象仓库全量读取；
+   - 若 `IndexedDB` 未就绪或异常，自动从内存 `state.books` 完整提取所有自定义书籍（`!BUILTIN_BOOKS[b.id]`）；
+   - 若内存为空，自动降级至 `localStorage` 镜像；三级保险确保 100% 捕获用户书架上的每一本本地图书。
+3. PDF 二进制 ArrayBuffer 与 Base64 跨机序列化闭环：
+   - 导出时：针对包含 `pdfData` 二进制 ArrayBuffer 的书目，采用分块高效流式转换为 `pdfDataBase64` 编码字符串保存入 JSON；
+   - 导入时：检测到 `pdfDataBase64` 自动解码还原为原生的 `ArrayBuffer`，并兼顾修复非数组章节结构（`chapters = [{ title, page: 1 }]`），再通过 `saveCustomBook(book)` 完整存入本地 IndexedDB 与书架状态中。
+4. 全站 273 项功能与回归测试、代码语法检查与 clean `dist` 构建 100% 通过。
+
+---
+
+# 首页专注钟：移动端轻量化与触控人机工程重构（2026-11-04 晚）
+
+本节优先于下方历史记录。针对移动端与窄屏设备下首页专注钟（`style.css` / `mobile.css` / `tests/focus.test.mjs`）的界面挤压、物理快捷键误导与触控误触问题进行人机工程与响应式重构：
+1. 移动端无意义物理快捷键安全隐藏：
+   - 在移动端/触摸屏（`@media (max-width: 820px)` 及 `.mobile-enabled` 环境下），为 `.focus-shortcuts-hint` 配置 `display: none !important;`；
+   - 彻底隐藏对触屏毫无用处的 `<kbd>Space</kbd> 启停`、`<kbd>R</kbd> 重置`、`<kbd>M</kbd> 提示音`、`<kbd>Z</kbd> 禅定模式` 物理按键提示，释放首屏宝贵的纵向阅读空间。
+2. 窄屏统计数据行双列网格自适应与防折行（`@media (max-width: 480px)`）：
+   - 将 `.focus-stats-row` 在小屏下从原本拥挤的 `justify-content: space-around` 弹性行升级为双列等宽网格 `grid-template-columns: 1fr 1fr; gap: 12px 8px;`；
+   - 隐藏竖向细线分割线 `.focus-stat-divider { display: none; }`；
+   - 将字数最长的「保存范围 仅此账号 · 当前浏览器」徽章（`.focus-stat-item:last-child`）设置为跨两列居中展示（`grid-column: span 2`），并带有自适应深色模式的虚线微分割线，彻底根绝 320px–375px 小屏下的文字溢出与尴尬折行。
+3. 触控靶心与模式胶囊无缝滚动：
+   - 控制按钮 `.focus-btn` 在移动端适配 `min-height: 44px; box-sizing: border-box; touch-action: manipulation;`，完全符合 Apple 与 WCAG 移动端最小 44px 触控靶心人机工程规范；
+   - 模式切换栏 `.focus-modes` 在 `<= 600px` 下升级为平滑横向滚动机制（`-webkit-overflow-scrolling: touch; scrollbar-width: none;`），保障在极小宽度机型下胶囊选项完好无损。
+4. 全站 273 项功能与回归测试、代码语法检查与 clean `dist` 构建 100% 通过。
+
+---
+
 # 成员空间：深色模式全量自适应、简介实时字数统计、未保存修改指示与离页守卫（2026-11-04 晚）
 
 本节优先于下方历史记录。基于 commit `1907999` 完成成员空间（`space.html` / `space.js` / `space.css` / `tests/space.test.mjs`）深色护眼配色与表单编辑防护闭环：
