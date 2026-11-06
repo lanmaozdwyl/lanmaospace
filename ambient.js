@@ -114,19 +114,96 @@ if (play) {
     document.addEventListener('visibilitychange', checkTimer);
     window.addEventListener('pageshow', checkTimer);
     window.addEventListener('pagehide', () => player.dispose());
-    window.addEventListener('lanmao-focus-state', ({detail = {}}) => {
-        if (!byId('ambient-pomodoro-sync').checked) return;
-        if (detail.running && detail.mode === 'focus') {
-            if (detail.allowStart && !isActive()) player.play();
-        } else if (isActive()) player.pause();
+
+    const STORAGE_KEY_AMBIENT_SYNC = 'lanmao_ambient_sync_v1';
+
+    function getAmbientSyncState() {
+        const el = byId('ambient-pomodoro-sync');
+        if (el && typeof el.checked === 'boolean') {
+            return el.checked;
+        }
+        try {
+            if (typeof localStorage !== 'undefined') {
+                const saved = localStorage.getItem(STORAGE_KEY_AMBIENT_SYNC);
+                if (saved !== null) return saved === 'true';
+            }
+        } catch (_) {}
+        return true;
+    }
+
+    function syncAmbientSyncUI(enabled) {
+        const check = byId('ambient-pomodoro-sync');
+        if (check && check.checked !== enabled) {
+            check.checked = enabled;
+        }
+
+        const focusToggle = byId('focus-ambient-toggle');
+        if (focusToggle) {
+            focusToggle.setAttribute('aria-pressed', String(enabled));
+            focusToggle.setAttribute('title', enabled ? '伴读声音联动开关：开 (专注自动播放/休息静音)' : '伴读声音联动开关：关');
+            focusToggle.classList.toggle('off', !enabled);
+        }
+
+        const pomodoroToggle = byId('pomodoro-ambient-toggle');
+        if (pomodoroToggle) {
+            pomodoroToggle.setAttribute('aria-pressed', String(enabled));
+            pomodoroToggle.textContent = enabled ? '🎧 伴读联动: 开' : '🎧 伴读联动: 关';
+            pomodoroToggle.classList.toggle('off', !enabled);
+        }
+    }
+
+    function setAmbientSyncState(enabled) {
+        try {
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem(STORAGE_KEY_AMBIENT_SYNC, String(enabled));
+            }
+        } catch (_) {}
+        syncAmbientSyncUI(enabled);
+    }
+
+    try {
+        if (typeof localStorage !== 'undefined') {
+            const savedSync = localStorage.getItem(STORAGE_KEY_AMBIENT_SYNC);
+            if (savedSync !== null && byId('ambient-pomodoro-sync')) {
+                byId('ambient-pomodoro-sync').checked = (savedSync === 'true');
+            }
+        }
+    } catch (_) {}
+    syncAmbientSyncUI(getAmbientSyncState());
+
+    byId('ambient-pomodoro-sync')?.addEventListener('change', event => {
+        setAmbientSyncState(event.target.checked);
     });
-    ['pomodoro-start', 'focus-main-start', 'focus-next-pill-btn', 'pomodoro-next-btn'].forEach(btnId => {
+
+    window.addEventListener('lanmao-ambient-sync-changed', ({detail = {}}) => {
+        if (typeof detail.enabled === 'boolean') {
+            syncAmbientSyncUI(detail.enabled);
+        }
+    });
+
+    window.addEventListener('lanmao-focus-state', ({detail = {}}) => {
+        if (!getAmbientSyncState()) return;
+        if (detail.running && detail.mode === 'focus') {
+            if (detail.allowStart && !isActive()) {
+                player.play();
+                const cur = byId('ambient-current-status');
+                if (cur) cur.textContent = '🎧 深度专注中 · 伴读声音相伴心流';
+            }
+        } else if (isActive()) {
+            if (detail.mode === 'short-break' || detail.mode === 'long-break') {
+                player.pause('☕ 专注休息中 · 伴读声音已自动静音淡出');
+            } else {
+                player.pause('已暂停 · 点击播放，轻声陪伴');
+            }
+        }
+    });
+    ['pomodoro-start', 'focus-main-start', 'focus-next-pill-btn', 'pomodoro-next-btn', 'focus-ambient-toggle', 'pomodoro-ambient-toggle'].forEach(btnId => {
         byId(btnId)?.addEventListener('click', () => {
-            if (byId('ambient-pomodoro-sync')?.checked) player.unlock?.();
+            if (getAmbientSyncState()) player.unlock?.();
         });
     });
     document.addEventListener('keydown', event => {
-        if ((event.code === 'Space' || event.key === ' ') && byId('ambient-pomodoro-sync')?.checked) {
+        if ((event.code === 'Space' || event.key === ' ') && getAmbientSyncState()) {
             player.unlock?.();
         }
     });

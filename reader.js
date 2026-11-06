@@ -571,6 +571,10 @@
                 intervalId: null
             }
         },
+        scrollState: {
+            maxLoadedChapter: 0,
+            isAppending: false
+        },
         settings: {
             theme: 'parchment', // parchment | green | white | dark
             fontSize: 18,        // 14 ~ 28
@@ -2223,6 +2227,25 @@
             }
         }
 
+        // 底栏一键切换阅读模式状态与图标文本同步
+        const btnModeToggle = document.getElementById('reader-btn-mode-toggle');
+        const dockModeIcon = document.getElementById('dock-mode-icon');
+        const dockModeText = document.getElementById('dock-mode-text');
+        if (btnModeToggle && dockModeIcon && dockModeText) {
+            const isScroll = state.settings.mode === 'scroll';
+            btnModeToggle.classList.toggle('active', isScroll);
+            btnModeToggle.setAttribute('aria-pressed', String(isScroll));
+            if (isScroll) {
+                dockModeIcon.textContent = '📖';
+                dockModeText.textContent = '左右翻页';
+                btnModeToggle.title = '当前为长卷连续滚动，点击切换至左右分页翻页';
+            } else {
+                dockModeIcon.textContent = '📜';
+                dockModeText.textContent = '上下长卷';
+                btnModeToggle.title = '当前为左右分页翻页，点击切换至无限连续长卷';
+            }
+        }
+
         // 重新计算分页
         requestAnimationFrame(() => {
             updatePaginationMetrics();
@@ -2950,6 +2973,26 @@
         }
     }
 
+    function formatScrollChapterHtml(chapter, chapterIndex) {
+        const parts = [];
+        parts.push(`<section class="scroll-chapter-section" data-chapter-index="${chapterIndex}" id="scroll-chapter-${chapterIndex}">`);
+        parts.push(`<h2 class="scroll-chapter-title">${escapeHtml(chapter.title)}</h2>`);
+        if (Array.isArray(chapter.content)) {
+            chapter.content.forEach(p => {
+                const trimmed = p.trim();
+                if (trimmed) parts.push(`<p>${escapeHtml(trimmed)}</p>`);
+            });
+        } else if (typeof chapter.content === 'string') {
+            const paragraphs = chapter.content.split(/\r?\n+/);
+            paragraphs.forEach(p => {
+                const trimmed = p.trim();
+                if (trimmed) parts.push(`<p>${escapeHtml(trimmed)}</p>`);
+            });
+        }
+        parts.push(`</section>`);
+        return parts.join('\n');
+    }
+
     function renderChapter(chapterIndex, pageTarget = 1) {
         const book = state.currentBook;
         if (!book) return;
@@ -3001,23 +3044,40 @@
         if (!content) return;
 
         const htmlParts = [];
-        htmlParts.push(`<h2>${escapeHtml(chapter.title)}</h2>`);
+        if (state.settings.mode === 'scroll') {
+            state.scrollState = {
+                maxLoadedChapter: chapterIndex,
+                isAppending: false
+            };
+            htmlParts.push(formatScrollChapterHtml(chapter, chapterIndex));
+            if (chapterIndex >= book.chapters.length - 1) {
+                htmlParts.push(`
+                    <div class="scroll-book-end-card">
+                        <div class="end-card-icon">🎉</div>
+                        <div class="end-card-title">全书已完结</div>
+                        <div class="end-card-desc">恭喜你读完了整本书籍！</div>
+                    </div>
+                `);
+            }
+        } else {
+            htmlParts.push(`<h2>${escapeHtml(chapter.title)}</h2>`);
 
-        if (Array.isArray(chapter.content)) {
-            chapter.content.forEach(p => {
-                const trimmed = p.trim();
-                if (trimmed) {
-                    htmlParts.push(`<p>${escapeHtml(trimmed)}</p>`);
-                }
-            });
-        } else if (typeof chapter.content === 'string') {
-            const paragraphs = chapter.content.split(/\r?\n+/);
-            paragraphs.forEach(p => {
-                const trimmed = p.trim();
-                if (trimmed) {
-                    htmlParts.push(`<p>${escapeHtml(trimmed)}</p>`);
-                }
-            });
+            if (Array.isArray(chapter.content)) {
+                chapter.content.forEach(p => {
+                    const trimmed = p.trim();
+                    if (trimmed) {
+                        htmlParts.push(`<p>${escapeHtml(trimmed)}</p>`);
+                    }
+                });
+            } else if (typeof chapter.content === 'string') {
+                const paragraphs = chapter.content.split(/\r?\n+/);
+                paragraphs.forEach(p => {
+                    const trimmed = p.trim();
+                    if (trimmed) {
+                        htmlParts.push(`<p>${escapeHtml(trimmed)}</p>`);
+                    }
+                });
+            }
         }
 
         content.innerHTML = htmlParts.join('\n');
@@ -5064,6 +5124,33 @@
         showToast(active ? '📱 已进入沉浸全屏模式' : '已退出沉浸全屏模式');
     }
 
+    // ===== 12.5 一键切换上下长卷 / 左右翻页模式 (笔趣阁同款流畅连读) =====
+    function toggleReadingMode() {
+        if (state.isPdfMode) {
+            showToast('📑 PDF 文档固定采用 3D 画册翻页模式，支持手势翻页与双击放大', 2800);
+            return;
+        }
+        const willBeScroll = state.settings.mode !== 'scroll';
+        state.settings.mode = willBeScroll ? 'scroll' : 'flip';
+        if (willBeScroll) {
+            state.settings.animMode = 'scroll';
+        } else {
+            if (state.settings.animMode === 'scroll') {
+                state.settings.animMode = 'slide';
+            }
+        }
+        applySettings();
+        saveSettings();
+        if (state.activeView === 'reader') {
+            renderChapter(state.currentChapterIndex, 1);
+        }
+        if (willBeScroll) {
+            showToast('📜 已开启笔趣阁同款无限长卷（向下平滑连读）', 2800);
+        } else {
+            showToast('📖 已开启微信读书左右分页翻页', 2400);
+        }
+    }
+
     // ===== 12.5 原生 Web Speech 语音听书系统 (逐段高亮朗读/语速调节/自动跨章翻页) =====
     function isTTSSupported() {
         return typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance !== 'undefined';
@@ -5703,6 +5790,75 @@
             let scrollSaveTimer = null;
             readerVp.addEventListener('scroll', () => {
                 if (state.settings.mode !== 'scroll') return;
+
+                // 笔趣阁同款无限连续长卷：接近底端自动加载下一章
+                if (state.currentBook && Array.isArray(state.currentBook.chapters)) {
+                    const totalCh = state.currentBook.chapters.length;
+                    const scrollBottom = readerVp.scrollHeight - (readerVp.scrollTop + readerVp.clientHeight);
+                    if (scrollBottom < 650 && state.scrollState.maxLoadedChapter < totalCh - 1 && !state.scrollState.isAppending) {
+                        state.scrollState.isAppending = true;
+                        const nextIdx = state.scrollState.maxLoadedChapter + 1;
+                        const nextCh = state.currentBook.chapters[nextIdx];
+                        const contentEl = document.getElementById('reader-content');
+                        if (nextCh && contentEl) {
+                            const divider = document.createElement('div');
+                            divider.className = 'scroll-chapter-divider';
+                            divider.setAttribute('data-divider-index', String(nextIdx));
+                            divider.innerHTML = `
+                                <span class="divider-line"></span>
+                                <span class="divider-pill">第 ${nextIdx + 1} 章 · ${escapeHtml(nextCh.title)}</span>
+                                <span class="divider-line"></span>
+                            `;
+                            contentEl.appendChild(divider);
+
+                            const tempWrap = document.createElement('div');
+                            tempWrap.innerHTML = formatScrollChapterHtml(nextCh, nextIdx);
+                            const sec = tempWrap.firstElementChild;
+                            if (sec) contentEl.appendChild(sec);
+
+                            state.scrollState.maxLoadedChapter = nextIdx;
+                            if (nextIdx === totalCh - 1) {
+                                const endCard = document.createElement('div');
+                                endCard.className = 'scroll-book-end-card';
+                                endCard.innerHTML = `
+                                    <div class="end-card-icon">🎉</div>
+                                    <div class="end-card-title">全书已完结</div>
+                                    <div class="end-card-desc">恭喜你读完了整本书籍！</div>
+                                `;
+                                contentEl.appendChild(endCard);
+                            }
+                            applyChapterHighlights();
+                            applySearchHighlights();
+                        }
+                        state.scrollState.isAppending = false;
+                    }
+
+                    // 根据视口滚动高度智能识别当前正在阅读的章节并更新页眉与目录高亮
+                    const contentEl = document.getElementById('reader-content');
+                    if (contentEl) {
+                        const sections = contentEl.querySelectorAll('.scroll-chapter-section');
+                        let activeSectionIdx = state.currentChapterIndex;
+                        const triggerY = readerVp.scrollTop + readerVp.clientHeight * 0.3;
+                        sections.forEach(sec => {
+                            const top = sec.offsetTop;
+                            const bottom = top + sec.offsetHeight;
+                            if (triggerY >= top && triggerY < bottom) {
+                                const idx = parseInt(sec.getAttribute('data-chapter-index'), 10);
+                                if (!isNaN(idx)) activeSectionIdx = idx;
+                            }
+                        });
+                        if (activeSectionIdx !== state.currentChapterIndex) {
+                            state.currentChapterIndex = activeSectionIdx;
+                            const headerChapter = document.getElementById('reader-header-chapter');
+                            if (headerChapter && state.currentBook.chapters[activeSectionIdx]) {
+                                headerChapter.textContent = state.currentBook.chapters[activeSectionIdx].title;
+                            }
+                            highlightActiveToc();
+                            updateChapterNavButtons();
+                        }
+                    }
+                }
+
                 updateFooterInfo();
                 updateSlider();
                 clearTimeout(scrollSaveTimer);
@@ -5841,6 +5997,9 @@
         // 底部 Dock 按钮
         const btnToc = document.getElementById('reader-btn-toc');
         if (btnToc) btnToc.addEventListener('click', () => openDrawer('drawer-toc'));
+
+        const btnModeToggle = document.getElementById('reader-btn-mode-toggle');
+        if (btnModeToggle) btnModeToggle.addEventListener('click', toggleReadingMode);
 
         const btnThemes = document.getElementById('reader-btn-themes');
         if (btnThemes) btnThemes.addEventListener('click', () => openDrawer('drawer-settings'));
@@ -6027,7 +6186,7 @@
                     state.settings.fontSize -= 1;
                     applySettings();
                     saveSettings();
-                    if (state.activeView === 'reader' && state.openPageFlipInstance) {
+                    if (state.activeView === 'reader') {
                         renderChapter(state.currentChapterIndex, state.currentPage);
                     }
                 }
@@ -6043,7 +6202,7 @@
                     state.settings.fontSize += 1;
                     applySettings();
                     saveSettings();
-                    if (state.activeView === 'reader' && state.openPageFlipInstance) {
+                    if (state.activeView === 'reader') {
                         renderChapter(state.currentChapterIndex, state.currentPage);
                     }
                 }
@@ -6073,7 +6232,7 @@
                     state.settings.paraSpacing = ps;
                     applySettings();
                     saveSettings();
-                    if (state.activeView === 'reader' && state.openPageFlipInstance) {
+                    if (state.activeView === 'reader') {
                         renderChapter(state.currentChapterIndex, state.currentPage);
                     }
                 }

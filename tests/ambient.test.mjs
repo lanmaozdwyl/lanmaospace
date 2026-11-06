@@ -154,3 +154,47 @@ test('伴读声音防挂死升级：音频拉取并行不被挂起的恢复阻�
     assert.equal(typeof f.player.unlock, 'function', '播放器必须导出 unlock 方法用于手势唤醒');
     f.player.unlock();
 });
+
+test('学术专注钟与伴读声音全链路双向联动：主卡片与悬浮钟联动开关、状态双向同步、休息自动淡出与持久化', async () => {
+    const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const css = fs.readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+    const ambientJs = fs.readFileSync(new URL('../ambient.js', import.meta.url), 'utf8');
+    const focusJs = fs.readFileSync(new URL('../focus.js', import.meta.url), 'utf8');
+
+    // 1. HTML 节点结构完整性
+    assert(html.includes('id="focus-ambient-toggle"'), '主专注卡片必须包含伴读白噪音联动开关');
+    assert(html.includes('id="pomodoro-ambient-toggle"'), '悬浮番茄钟小面板必须包含伴读联动按钮');
+    assert(html.includes('id="ambient-pomodoro-sync"'), '声音面板必须包含专注钟联动选项');
+
+    // 2. CSS 样式与深浅模式状态
+    assert(css.includes('.pomodoro-act-ambient'), '需定义小面板伴读联动按钮样式');
+    assert(css.includes('.focus-btn-icon.off') || css.includes('.pomodoro-act-ambient.off'), '需定义联动关闭时的置灰样式');
+
+    // 3. JavaScript 双向联动状态机与持久化键名
+    assert(ambientJs.includes('lanmao_ambient_sync_v1'), 'ambient.js 需使用统一的本地持久化存储键名');
+    assert(focusJs.includes('lanmao_ambient_sync_v1'), 'focus.js 需使用统一的本地持久化存储键名');
+    assert(focusJs.includes('function syncAmbientButton'), 'focus.js 必须具备联动状态按钮同步函数');
+    assert(focusJs.includes('function toggleAmbientSync'), 'focus.js 必须具备联动状态切换函数');
+    assert(ambientJs.includes('function syncAmbientSyncUI'), 'ambient.js 必须具备全站联动 UI 同步函数');
+    assert(ambientJs.includes('lanmao-ambient-sync-changed'), '需分发或监听全站联动设置变更事件');
+
+    // 4. 模拟运行联动流程：专注开始自动播放、休息自动静音淡出
+    const f = uiFixture();
+    // 默认开启联动，专注开始自动播放
+    f.signal({ running: true, mode: 'focus', allowStart: true });
+    await tick();
+    assert.equal(f.player.state, 'playing', '开启联动时，开始深度专注必须自动播放伴读声音');
+
+    // 切换至休息模式，伴读声音自动静音暂停
+    f.signal({ running: true, mode: 'short-break', allowStart: true });
+    await tick();
+    assert.equal(f.player.state, 'paused', '进入小憩休息模式时，伴读声音必须自动静音暂停');
+    assert(f.el('ambient-current-status').textContent.includes('休息') || f.el('ambient-current-status').textContent.includes('暂停'), '休息暂停时需提供贴心状态反馈');
+
+    // 关闭联动开关后，开始专注不再自动播放
+    f.el('ambient-pomodoro-sync').checked = false;
+    f.signal({ running: true, mode: 'focus', allowStart: true });
+    await tick();
+    assert.equal(f.player.state, 'paused', '关闭联动开关后，开始专注不得擅自自动播放声音');
+});
+

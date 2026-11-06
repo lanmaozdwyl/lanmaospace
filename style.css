@@ -2732,6 +2732,16 @@ body[data-theme="dark"] .spotlight-footer kbd {
 .pomodoro-act-primary:hover {
     background: #0077ed;
 }
+.pomodoro-act-ambient {
+    background: rgba(0, 113, 227, 0.08);
+    border-color: rgba(0, 113, 227, 0.2);
+    color: #0071e3;
+}
+.pomodoro-act-ambient.off,
+.focus-btn-icon.off {
+    opacity: 0.5;
+    filter: grayscale(0.8);
+}
 
 /* 深色模式下的番茄钟 */
 @media (prefers-color-scheme: dark) {

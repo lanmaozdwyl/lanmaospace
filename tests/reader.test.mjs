@@ -1148,6 +1148,31 @@ test('阅读器原生 Web Speech 离线听书定时休眠 (Sleep Timer)：15/30/
     assert(js.includes('clearSleepTimer()'), '停止听书 stopTTS 时必须级联清理解除休眠定时器');
 });
 
+test('笔趣阁同款无限垂直连续长卷：底栏一键切换模式、触底自动拼接下一章、动态章节标题追踪与章节分割线', () => {
+    const html = readFileSync(new URL('../reader.html', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../reader.css', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../reader.js', import.meta.url), 'utf8');
+
+    // 1. 底栏快捷模式切换按钮与图标/文字定义
+    assert(html.includes('id="reader-btn-mode-toggle"'), '底栏必须包含一键切换长卷/翻页按钮');
+    assert(html.includes('id="dock-mode-icon"'), '底栏必须包含模式切换动态图标');
+    assert(html.includes('id="dock-mode-text"'), '底栏必须包含模式切换动态说明文字');
+
+    // 2. 样式规范：无限长卷章节分段、分割线与完结卡片
+    assert(css.includes('.scroll-chapter-section'), 'CSS 必须包含长卷章节分段容器样式');
+    assert(css.includes('.scroll-chapter-divider'), 'CSS 必须包含长卷章节分割线样式');
+    assert(css.includes('.scroll-book-end-card'), 'CSS 必须包含长卷完结卡片样式');
+    assert(css.includes('.divider-pill'), 'CSS 必须包含章节胶囊徽标样式');
+
+    // 3. 逻辑链路：toggleReadingMode 切换模式、formatScrollChapterHtml 格式化、触底追加下一章与视口章节识别
+    assert(js.includes('function toggleReadingMode()'), '必须包含一键切换阅读模式函数');
+    assert(js.includes('function formatScrollChapterHtml('), '必须包含长卷章节 HTML 格式化函数');
+    assert(js.includes('scrollBottom < 650'), '长卷模式下触底前必须自动判断并追加下一章');
+    assert(js.includes('.scroll-chapter-divider'), '动态追加章节时必须注入章节分割线');
+    assert(js.includes('state.scrollState.maxLoadedChapter'), '必须具备已加载章节游标追踪状态');
+    assert(js.includes('triggerY = readerVp.scrollTop + readerVp.clientHeight * 0.3'), '视口滚动时必须根据纵向位置动态更新当前阅读章节与页眉');
+});
+
 
 
 

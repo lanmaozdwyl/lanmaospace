@@ -12,6 +12,41 @@ function sound(){
 }
 function unlockAudio(){try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume().catch(()=>{});}catch{}}
 function text(id,value){if($(id))$(id).textContent=value;}
+function syncAmbientButton(){
+ let enabled=true;
+ try{
+  const saved=localStorage.getItem('lanmao_ambient_sync_v1');
+  if(saved!==null)enabled=(saved==='true');
+ }catch{}
+ const chk=$('ambient-pomodoro-sync');
+ if(chk&&typeof chk.checked==='boolean')enabled=chk.checked;
+ const btn=$('focus-ambient-toggle');
+ if(btn){
+  btn.setAttribute('aria-pressed',String(enabled));
+  btn.setAttribute('title',enabled?'伴读声音联动开关：开 (专注自动播放/休息静音)':'伴读声音联动开关：关');
+  btn.classList.toggle('off',!enabled);
+ }
+ const pBtn=$('pomodoro-ambient-toggle');
+ if(pBtn){
+  pBtn.setAttribute('aria-pressed',String(enabled));
+  pBtn.textContent=enabled?'🎧 伴读联动: 开':'🎧 伴读联动: 关';
+  pBtn.classList.toggle('off',!enabled);
+ }
+}
+function toggleAmbientSync(){
+ let enabled=true;
+ try{
+  const saved=localStorage.getItem('lanmao_ambient_sync_v1');
+  if(saved!==null)enabled=(saved==='true');
+ }catch{}
+ const chk=$('ambient-pomodoro-sync');
+ if(chk&&typeof chk.checked==='boolean')enabled=chk.checked;
+ enabled=!enabled;
+ try{localStorage.setItem('lanmao_ambient_sync_v1',String(enabled));}catch{}
+ if(chk)chk.checked=enabled;
+ syncAmbientButton();
+ window.dispatchEvent(new CustomEvent('lanmao-ambient-sync-changed',{detail:{enabled}}));
+}
 function paint(allowStart=false){
  const sec=state.remainingSeconds,str=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
  for(const id of ['pomodoro-timer','pomodoro-mini-time','focus-main-timer'])text(id,str);
@@ -23,6 +58,7 @@ function paint(allowStart=false){
  $('focus-sound-toggle')?.setAttribute('aria-label',state.sound?'关闭提示音':'开启提示音');
  for(const [id,value,unit] of [['focus-completed-count',state.completedCount,'个番茄'],['focus-total-minutes',state.totalMinutes,'分钟']]){const el=$(id);if(el){const small=document.createElement('small');small.textContent=unit;el.replaceChildren(document.createTextNode(value+' '),small);}}
  for(const btn of document.querySelectorAll('.pomodoro-mode-btn,.focus-mode-btn')){const active=Number(btn.dataset.time)===MODES[state.mode];btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active));}
+ syncAmbientButton();
  const circle=$('focus-progress-circle');if(circle){circle.style.strokeDashoffset=String(653.45*(1-sec/MODES[state.mode]));circle.style.stroke=state.mode==='focus'?'#0071e3':state.mode==='short-break'?'#34c759':'#af52de';}
  const signal=state.isRunning+':'+state.mode;if(signal!==lastSignal){lastSignal=signal;window.dispatchEvent(new CustomEvent('lanmao-focus-state',{detail:{running:state.isRunning,mode:state.mode,allowStart}}));}
  document.title=state.isRunning?'('+str+') 蓝昴空间 · 专注中':(originalTitle||'Lanmao Space | 蓝昴空间');
@@ -78,6 +114,8 @@ function pulse(){if(!key||ended)return;const result=reconcileFocus(state,Date.no
 for(const id of ['pomodoro-start','focus-main-start'])$(id)?.addEventListener('click',()=>{unlockAudio();mutate('toggle');});
 for(const id of ['pomodoro-reset','focus-main-reset'])$(id)?.addEventListener('click',()=>mutate('reset'));
 $('focus-sound-toggle')?.addEventListener('click',()=>{unlockAudio();mutate('sound');});
+$('focus-ambient-toggle')?.addEventListener('click',()=>{unlockAudio();toggleAmbientSync();});
+$('pomodoro-ambient-toggle')?.addEventListener('click',()=>{unlockAudio();toggleAmbientSync();});
 for(const btn of document.querySelectorAll('.pomodoro-mode-btn,.focus-mode-btn'))btn.addEventListener('click',()=>mutate(Object.keys(MODES).find(k=>MODES[k]===Number(btn.dataset.time))));
 async function advanceToNextPhase(targetMode){
  unlockAudio();

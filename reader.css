@@ -804,6 +804,16 @@ html, body.reader-body {
     line-height: 1;
 }
 
+@media (max-width: 480px) {
+    .reader-dock-btn {
+        padding: 4px 6px;
+        font-size: 10px;
+    }
+    .dock-icon {
+        font-size: 16px;
+    }
+}
+
 /* 核心阅读舞台 */
 .reader-stage {
     position: absolute;
@@ -918,16 +928,77 @@ html, body.reader-body {
     color: var(--r-text);
 }
 
-/* 连续垂直滚动模式 */
+/* 连续垂直滚动模式 (笔趣阁同款无限顺滑连读) */
 .reader-stage.mode-scroll .reader-viewport {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-behavior: smooth;
 }
 .reader-stage.mode-scroll .reader-content {
     height: auto;
     column-width: auto;
     column-gap: 0;
     transform: none !important;
+    padding-bottom: 80px;
+}
+
+.scroll-chapter-section {
+    margin-bottom: 32px;
+}
+.scroll-chapter-section .scroll-chapter-title {
+    margin: 2.2em 0 1.2em;
+    font-size: 1.45em;
+    font-weight: 700;
+    color: var(--r-text);
+    border-bottom: 1px dashed var(--r-bar-border);
+    padding-bottom: 0.4em;
+    break-after: avoid;
+}
+.scroll-chapter-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 48px 0 24px;
+    padding: 0 12px;
+}
+.scroll-chapter-divider .divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--r-bar-border);
+    opacity: 0.6;
+}
+.scroll-chapter-divider .divider-pill {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--r-text-muted);
+    background: var(--r-card-bg);
+    border: 1px solid var(--r-bar-border);
+    border-radius: 14px;
+    padding: 4px 14px;
+    white-space: nowrap;
+}
+.scroll-book-end-card {
+    text-align: center;
+    padding: 48px 16px 90px;
+    margin-top: 32px;
+    color: var(--r-text-muted);
+    border-top: 1px dashed var(--r-bar-border);
+}
+.scroll-book-end-card .end-card-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+.scroll-book-end-card .end-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--r-text);
+    margin-bottom: 4px;
+}
+.scroll-book-end-card .end-card-desc {
+    font-size: 13px;
+    opacity: 0.8;
 }
 
 /* 微信读书点击与手势热区 (彻底消除移动端蓝色遮罩与上下文长按选区) */
