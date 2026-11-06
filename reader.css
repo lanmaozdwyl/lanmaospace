@@ -2400,13 +2400,14 @@ body.reader-body dialog.reader-audio-panel { background: var(--r-bg); color: var
     background: rgba(41, 151, 255, 0.4);
 }
 
-/* 触屏设备：热区不再拦截触摸，长按才能落到正文上唤起系统选区与放大镜。
-   点按翻页与呼出控制栏由 reader-gesture.js 按坐标判定；鼠标仍然使用热区。 */
+/* 划线模式与长卷连续滚动模式下对正文放行触控，常规分页阅读下热区完全可用 */
+.reader-stage.highlight-mode .reader-touch-zones,
+.reader-stage.mode-scroll .reader-touch-zones {
+    pointer-events: none;
+}
+
+/* 触屏设备：横向手势交给脚本处理，避免 Android Chrome 在横向移动时抢手势并发 touchcancel */
 @media (pointer: coarse) {
-    .reader-touch-zones {
-        pointer-events: none;
-    }
-    /* 横向手势交给脚本处理，避免 Android Chrome 在横向移动时抢手势并发 touchcancel */
     .reader-stage {
         touch-action: pan-y;
     }
@@ -3807,6 +3808,35 @@ mark.reader-search-hit.active {
     border-radius: 14px;
     background: var(--r-card-bg);
     border: 1px solid var(--r-bar-border);
+}
+
+.tts-btn-timer {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: auto;
+    min-width: 34px;
+    padding: 0 6px;
+    border-radius: 14px;
+    position: relative;
+}
+
+.tts-btn-timer.active {
+    background: rgba(0, 113, 227, 0.12);
+    color: var(--r-accent, #0071e3);
+}
+
+[data-reader-theme="dark"] .tts-btn-timer.active {
+    background: rgba(41, 151, 255, 0.2);
+    color: #2997ff;
+}
+
+.tts-timer-text {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    color: inherit;
 }
 
 .tts-btn-close {

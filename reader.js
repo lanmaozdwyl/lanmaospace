@@ -564,7 +564,12 @@
             currentParaIndex: 0,
             rate: 1.0,
             paragraphs: [],
-            utterance: null
+            utterance: null,
+            sleepTimer: {
+                mode: null,
+                remainingSeconds: 0,
+                intervalId: null
+            }
         },
         settings: {
             theme: 'parchment', // parchment | green | white | dark
@@ -2323,6 +2328,9 @@
                 }
             } catch (_) {}
         } else {
+            if (state.activeView === 'reader') {
+                saveProgress();
+            }
             destroyOpenPageFlip();
             destroyPdfBook();
             if (typeof stopTTS === 'function') stopTTS();
@@ -2332,6 +2340,7 @@
 
             closeAllDrawers();
             updateBookshelfHero();
+            renderBookshelfGrid();
 
             try {
                 const url = new URL(window.location.href);
@@ -2383,7 +2392,8 @@
         const isRead = !!saved && (saved.bookId === bookId || !saved.bookId) && (chapterIndex > 0 || page > 1 || (saved && saved.hasRead));
         let pct = 0;
         if (isRead) {
-            pct = calculateReadingProgress(book, chapterIndex, page, (saved && saved.totalPages) || 1);
+            const isScroll = saved && (saved.mode === 'scroll' || (saved.totalPages === 1 && typeof saved.scrollRatio === 'number' && saved.scrollRatio > 0));
+            pct = calculateReadingProgress(book, chapterIndex, page, (saved && saved.totalPages) || 1, (saved && saved.scrollRatio), isScroll);
         }
         if (heroBar) heroBar.style.width = pct + '%';
         if (heroPct) {
@@ -2414,6 +2424,8 @@
         }
     }
 
+    let filterBookshelfGrid = null;
+
     function renderBookshelfGrid() {
         const grid = document.getElementById('shelf-books-grid');
         if (!grid) return;
@@ -2441,7 +2453,8 @@
         const bookMetaMap = {};
         bookList.forEach(b => {
             const prog = loadBookProgress(b.id);
-            const pct = prog ? calculateReadingProgress(b, prog.chapterIndex, prog.page, prog.totalPages) : 0;
+            const isScroll = prog && (prog.mode === 'scroll' || (prog.totalPages === 1 && typeof prog.scrollRatio === 'number' && prog.scrollRatio > 0));
+            const pct = prog ? calculateReadingProgress(b, prog.chapterIndex, prog.page, prog.totalPages, prog.scrollRatio, isScroll) : 0;
             const ts = prog && prog.timestamp ? prog.timestamp : (b.addedAt || 0);
             bookMetaMap[b.id] = { pct, ts, prog };
         });
@@ -2577,6 +2590,10 @@
 
             grid.appendChild(card);
         });
+
+        if (typeof filterBookshelfGrid === 'function') {
+            filterBookshelfGrid();
+        }
     }
 
     // ===== 7. 书籍与章节加载 =====
@@ -3958,6 +3975,7 @@
             }
             emptyTip.hidden = matchCount > 0 || !query;
         };
+        filterBookshelfGrid = performSearch;
 
         if (searchInput) {
             searchInput.addEventListener('input', performSearch);
@@ -5167,6 +5185,8 @@
             speedBtn.textContent = `${state.tts.rate.toFixed(1)}x`;
             speedBtn.title = `调节语速 (当前: ${state.tts.rate.toFixed(1)}x)`;
         }
+
+        updateTTSTimerUI();
     }
 
     function scrollOrTurnToParagraph(el) {
@@ -5227,6 +5247,11 @@
 
         // 如果超出本章段落范围，触发自动翻入下一章
         if (state.tts.currentParaIndex >= paras.length) {
+            if (state.tts.sleepTimer && state.tts.sleepTimer.mode === 'chapter') {
+                showToast('⏱️ 本章已朗读完毕，定时休眠已自动停止听书', 3500);
+                stopTTS();
+                return;
+            }
             if (state.currentBook && state.currentChapterIndex < state.currentBook.chapters.length - 1) {
                 const indicator = document.getElementById('tts-paragraph-indicator');
                 if (indicator) indicator.textContent = '📖 本章已读完，正在翻入下一章...';
@@ -5368,10 +5393,110 @@
         }
     }
 
+    function formatTimerSeconds(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    function updateTTSTimerUI() {
+        const timerBtn = document.getElementById('tts-btn-timer');
+        const timerText = document.getElementById('tts-timer-text');
+        if (!timerBtn || !timerText) return;
+
+        const timer = state.tts.sleepTimer;
+        if (!timer || !timer.mode) {
+            timerBtn.classList.remove('active');
+            timerText.hidden = true;
+            timerText.textContent = '';
+            timerBtn.title = '听书定时休眠 (当前: 关闭)';
+            return;
+        }
+
+        timerBtn.classList.add('active');
+        timerText.hidden = false;
+
+        if (timer.mode === 'chapter') {
+            timerText.textContent = '本章';
+            timerBtn.title = '听书定时休眠 (当前: 读完本章停止)';
+        } else {
+            const display = timer.remainingSeconds > 60 ? `${Math.ceil(timer.remainingSeconds / 60)}m` : `${timer.remainingSeconds}s`;
+            timerText.textContent = display;
+            timerBtn.title = `听书定时休眠 (剩余: ${formatTimerSeconds(timer.remainingSeconds)})`;
+        }
+    }
+
+    function startSleepTimerInterval() {
+        if (!state.tts.sleepTimer) return;
+        if (state.tts.sleepTimer.intervalId) {
+            clearInterval(state.tts.sleepTimer.intervalId);
+            state.tts.sleepTimer.intervalId = null;
+        }
+
+        if (typeof state.tts.sleepTimer.mode === 'number') {
+            state.tts.sleepTimer.intervalId = setInterval(() => {
+                if (!state.tts.active || state.tts.paused) return;
+                state.tts.sleepTimer.remainingSeconds--;
+                updateTTSTimerUI();
+                if (state.tts.sleepTimer.remainingSeconds <= 0) {
+                    clearInterval(state.tts.sleepTimer.intervalId);
+                    state.tts.sleepTimer.intervalId = null;
+                    showToast('⏱️ 定时休眠已到，听书已自动平滑停止。祝你好梦！', 3500);
+                    stopTTS();
+                }
+            }, 1000);
+        }
+    }
+
+    function clearSleepTimer() {
+        if (state.tts && state.tts.sleepTimer) {
+            if (state.tts.sleepTimer.intervalId) {
+                clearInterval(state.tts.sleepTimer.intervalId);
+                state.tts.sleepTimer.intervalId = null;
+            }
+            state.tts.sleepTimer.mode = null;
+            state.tts.sleepTimer.remainingSeconds = 0;
+            updateTTSTimerUI();
+        }
+    }
+
+    function cycleTTSSleepTimer() {
+        if (!state.tts.sleepTimer) {
+            state.tts.sleepTimer = { mode: null, remainingSeconds: 0, intervalId: null };
+        }
+
+        // 循环档位：关闭 -> 15分钟 -> 30分钟 -> 45分钟 -> 读完本章后停止 -> 关闭
+        const modes = [null, 15, 30, 45, 'chapter'];
+        const curIdx = modes.indexOf(state.tts.sleepTimer.mode);
+        const nextMode = modes[(curIdx + 1) % modes.length];
+
+        if (state.tts.sleepTimer.intervalId) {
+            clearInterval(state.tts.sleepTimer.intervalId);
+            state.tts.sleepTimer.intervalId = null;
+        }
+
+        state.tts.sleepTimer.mode = nextMode;
+
+        if (nextMode === null) {
+            state.tts.sleepTimer.remainingSeconds = 0;
+            showToast('⏱️ 定时停止已关闭');
+        } else if (nextMode === 'chapter') {
+            state.tts.sleepTimer.remainingSeconds = 0;
+            showToast('⏱️ 听书将在当前章节读完后自动停止');
+        } else {
+            state.tts.sleepTimer.remainingSeconds = nextMode * 60;
+            startSleepTimerInterval();
+            showToast(`⏱️ 听书将在 ${nextMode} 分钟后自动停止`);
+        }
+
+        updateTTSTimerUI();
+    }
+
     function stopTTS() {
         state.tts.active = false;
         state.tts.paused = false;
         state.tts.utterance = null;
+        clearSleepTimer();
         try {
             if (isTTSSupported()) window.speechSynthesis.cancel();
         } catch (_) {}
@@ -5403,6 +5528,9 @@
         const speedBtn = document.getElementById('tts-btn-speed');
         if (speedBtn) speedBtn.addEventListener('click', cycleTTSSpeed);
 
+        const timerBtn = document.getElementById('tts-btn-timer');
+        if (timerBtn) timerBtn.addEventListener('click', cycleTTSSleepTimer);
+
         const closeBtn = document.getElementById('tts-btn-close');
         if (closeBtn) closeBtn.addEventListener('click', stopTTS);
 
@@ -5421,7 +5549,7 @@
 
         // 鼠标点击仍走热区；触屏点按由手势状态机统一处理，随后浏览器补发的 click 在这里去重
         const onZoneClick = (action) => () => {
-            if (hasSwiped || Date.now() - lastTouchTapAt < 600) return;
+            if (hasSwiped || Date.now() - lastTouchTapAt < 320) return;
             action();
         };
         if (zonePrev) zonePrev.addEventListener('click', onZoneClick(() => prevPage()));
@@ -5451,6 +5579,10 @@
                 const machine = new window.ReaderGesture.GestureMachine({
                     isEnabled: gestureEnabled,
                     isSwipeEnabled: () => state.settings.mode !== 'scroll',
+                    slopPx: 14,
+                    swipeMaxY: 22,
+                    swipeRatio: 1.8,
+                    tapMaxMs: 450,
                     onTap: (zone) => {
                         lastTouchTapAt = Date.now();
                         if (state.settings.mode === 'scroll') {

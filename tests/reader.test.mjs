@@ -1107,5 +1107,47 @@ test('阅读器原生 Web Speech 离线语音听书：DOM/样式/逻辑/全链�
     assert(js.includes("window.addEventListener('beforeunload', stopTTS)"), '离页前必须监听 beforeunload 自动停止语音');
 });
 
+test('移动触屏防假死与双通道热区翻页/呼出菜单保障，以及返回书架网格进度即时刷新', () => {
+    const css = readFileSync(new URL('../reader.css', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../reader.js', import.meta.url), 'utf8');
+
+    // 1. 移动触屏 (pointer: coarse) 下不得无条件将 .reader-touch-zones 设为 pointer-events: none
+    assert(!/@media\s*\([^)]*pointer:\s*coarse[^)]*\)\s*\{[^}]*?\.reader-touch-zones\s*\{[^}]*?pointer-events:\s*none;?\s*\}/.test(css), '移动触屏常规分页模式下严禁全局禁用热区触控 pointer-events: none，否则导致点击菜单与翻页全面瘫痪');
+    assert(css.includes('.reader-stage.highlight-mode .reader-touch-zones') || css.includes('.reader-stage.mode-scroll .reader-touch-zones'), '仅允许在划线模式或长卷滚动模式下让出热区');
+
+    // 2. reader.js 必须具备手势状态机与热区去重防抖，且手势机具备人机工程学容差
+    assert(js.includes('slopPx: 14'), '手势机需配置 14px 触控微抖动容差');
+    assert(js.includes('swipeMaxY: 22'), '手势机需配置 22px 拇指自然弧度纵向容差');
+    assert(js.includes('tapMaxMs: 450'), '手势机需配置 450ms 点按从容判定时间');
+
+    // 3. switchView 返回书架时必须保存进度并即刻刷新图书网格
+    assert(/switchView\([^)]*\)\s*\{[\s\S]*?saveProgress\(\);[\s\S]*?renderBookshelfGrid\(\);/.test(js), '返回书架时必须先强制 saveProgress 并重新渲染 renderBookshelfGrid');
+
+    // 4. calculateReadingProgress 在长卷模式下支持 scrollRatio 真实滚动百分比
+    assert(js.includes('function calculateReadingProgress(book, chapterIndex, page, totalPages, scrollRatio, isScrollMode)'), '阅读进度计算函数需支持 scrollRatio 与 isScrollMode');
+});
+
+
+test('阅读器原生 Web Speech 离线听书定时休眠 (Sleep Timer)：15/30/45m 与本章停止全链路闭环', () => {
+    const html = readFileSync(new URL('../reader.html', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../reader.css', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../reader.js', import.meta.url), 'utf8');
+
+    // 1. 结构与样式
+    assert(html.includes('id="tts-btn-timer"'), '必须包含听书定时休眠按钮');
+    assert(html.includes('id="tts-timer-text"'), '必须包含休眠倒计时/状态徽章');
+    assert(css.includes('.tts-btn-timer'), '必须包含定时休眠按钮样式');
+    assert(css.includes('.tts-btn-timer.active'), '必须包含定时激活高亮态样式');
+    assert(css.includes('.tts-timer-text'), '必须包含倒计时徽章样式');
+
+    // 2. 状态机与定时停止逻辑
+    assert(js.includes('function cycleTTSSleepTimer'), '必须包含循环调节休眠档位函数');
+    assert(js.includes('function startSleepTimerInterval'), '必须包含定时休眠倒计时心跳');
+    assert(js.includes('function clearSleepTimer'), '必须包含清理定时休眠定时器函数');
+    assert(js.includes("state.tts.sleepTimer.mode === 'chapter'"), '章节读完时必须检查是否满足读完本章停止条件');
+    assert(js.includes('clearSleepTimer()'), '停止听书 stopTTS 时必须级联清理解除休眠定时器');
+});
+
+
 
 

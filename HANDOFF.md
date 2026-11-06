@@ -1,6 +1,6 @@
-# 在线阅读器：原生 Web Speech 离线逐段高亮朗读、浮动控制台、语速调节与无缝自动翻章（2026-11-06 早）
+# 在线阅读器：原生 Web Speech 离线逐段高亮朗读、浮动控制台、定时休眠与无缝自动翻章（2026-11-06 早）
 
-本节优先于下方历史记录。针对在线阅读器（`reader.html` / `reader.css` / `reader.js` / `tests/reader.test.mjs`）缺乏听书朗读功能、用户长时间盯屏阅读疲劳以及对外部第三方语音 API 额度与网络依赖的痛点，构建了零外部依赖、100% 本地 CSP 合规的原生 Web Speech 语音听书系统：
+本节优先于下方历史记录。针对在线阅读器（`reader.html` / `reader.css` / `reader.js` / `tests/reader.test.mjs`）缺乏听书朗读功能、用户长时间盯屏阅读疲劳、睡前听书容易整夜空放以及对外部第三方语音 API 额度与网络依赖的痛点，构建了零外部依赖、100% 本地 CSP 合规的原生 Web Speech 语音听书系统：
 1. 原生 Web Speech 语音引擎与逐段智能萃取（`isTTSSupported` / `getTTSParagraphs` / `findActiveParagraphIndex`）：
    - 基于原生 `window.speechSynthesis` 与 `SpeechSynthesisUtterance`，零引入任何臃肿第三方依赖，完全规避网络拉取与配额限制；
    - 智能识别当前阅读模式：支持从微信读书多栏分页（`#reader-content`）、3D 拟真卷页（`#openpageflip-stage`）以及连续垂直长卷等不同舞台中精准提取当前正文段落，并从当前视口/页码所处的实际段落无缝起读；
@@ -9,11 +9,15 @@
    - 吸附于视口底部上方的磨砂玻璃胶囊浮条（`backdrop-filter: blur(24px)`），包含动态呼吸状态指示灯（播放绿色脉冲/暂停黄色驻留）；
    - 提供上一段（⏮）、播放/暂停（▶/⏸）、下一段（⏭）、循环语速调节（0.8x -> 1.0x -> 1.2x -> 1.5x -> 2.0x）与一键退出按钮；
    - 支持移动端窄屏（`< 640px`）自适应与 36~40px 人机工程学触控靶心，兼顾深浅两套主题自适应。
-3. 视口居中跟随、段落聚焦高亮与全自动跨章翻页（`speakCurrentParagraph` / `scrollOrTurnToParagraph`）：
+3. 睡前防扰眠定时休眠系统（Sleep Timer，`#tts-btn-timer` / `cycleTTSSleepTimer`）：
+   - 浮条集成原生定时休眠按钮与动态微徽章，支持 5 档模式循环轻按切换：`关闭 -> 15分钟 -> 30分钟 -> 45分钟 -> 读完本章后停止 -> 关闭`；
+   - 实时心跳倒计时反馈（如 `15m`、`14:59`、`本章`）与激活态高亮；
+   - 时间到达或当前章节阅读完成时，平滑自动停播并弹出“祝你好梦”关怀提醒，防止睡着后手机整夜发热耗电。
+4. 视口居中跟随、段落聚焦高亮与全自动跨章翻页（`speakCurrentParagraph` / `scrollOrTurnToParagraph`）：
    - 朗读当前段落时，自动为其注入 `.tts-active-para` 微光高亮背景与强调色左边框，并在长卷模式下通过 `scrollIntoView({ behavior: 'smooth', block: 'center' })` 或分页模式下联动 `goToPage(targetPage)` 自动将朗读段落居中展现在用户眼前；
-   - 当前章节朗读结束时，系统自动识别整本书章节树，无缝调用 `goToChapter(nextIndex, 1)` 翻入下一章并继续自动连读，直至全书完成，彻底解放双眼与双手；
-   - 健全的生命周期清理：在返回书架、切换书籍、关闭浮条或页面卸载（`beforeunload`）时，即刻执行 `speechSynthesis.cancel()` 彻底销毁语音，绝不留存后台脏朗读。
-4. 全站 293 项自动化测试（新增听书 DOM 结构、CSP 规范、高亮样式、播放/暂停/调速/翻章逻辑及销毁守卫自动化测试）、语法安全检查与 clean `dist` 构建 100% 顺利通过。
+   - 当前章节朗读结束且未设定“读完本章停止”时，系统自动识别整本书章节树，无缝调用 `goToChapter(nextIndex, 1)` 翻入下一章并继续自动连读，直至全书完成，彻底解放双眼与双手；
+   - 健全的生命周期清理：在返回书架、切换书籍、关闭浮条或页面卸载（`beforeunload`）时，即刻执行 `speechSynthesis.cancel()` 彻底销毁语音并清空定时器，绝不留存后台脏朗读。
+5. 全站 295 项自动化测试（新增听书 DOM 结构、CSP 规范、高亮样式、播放/暂停/调速/休眠定时器/翻章逻辑及销毁守卫自动化测试）、语法安全检查与 clean `dist` 构建 100% 顺利通过。
 
 ---
 
