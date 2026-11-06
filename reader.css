@@ -3968,3 +3968,8 @@ mark.reader-search-hit.active {
         height: 40px;
     }
 }
+
+/* A real tappable file input avoids hidden-label activation differences in WebViews. */
+.shelf-upload-btn, .import-file-btn, .shelf-backup-import-label { position: relative; }
+.reader-file-picker { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; z-index: 1; }
+.shelf-upload-btn:focus-within, .import-file-btn:focus-within, .shelf-backup-import-label:focus-within { outline: 3px solid var(--r-accent); outline-offset: 3px; }

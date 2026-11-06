@@ -84,8 +84,31 @@ public class MainActivity extends Activity {
    @Override public boolean onShowFileChooser(WebView view,ValueCallback<Uri[]> callback,FileChooserParams params){
     if(!trusted(Uri.parse(view.getUrl()==null?"":view.getUrl()))){callback.onReceiveValue(null);return true;}
     if(fileCallback!=null)fileCallback.onReceiveValue(null);fileCallback=callback;
-    try{Intent intent=params.createIntent();intent.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(intent,PICK_FILE);}
-    catch(Exception e){fileCallback.onReceiveValue(null);fileCallback=null;note("无法选择文件，请使用系统浏览器。");}
+    // Build a real document-picker intent: WebView accept lists can contain
+    // comma-separated extensions which some Android pickers reject as a MIME type.
+    Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+    intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("*/*");
+    ArrayList<String> types=new ArrayList<>();
+    String[] accepts=params.getAcceptTypes();
+    if(accepts!=null)for(String group:accepts){
+     if(group==null)continue;
+     for(String raw:group.split(",")){
+      String type=raw.trim().toLowerCase(java.util.Locale.ROOT);
+      if(type.startsWith("."))type=android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(type.substring(1));
+      if(type!=null&&type.matches("[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+*-]+")&&!types.contains(type))types.add(type);
+     }
+    }
+    if(types.size()==1)intent.setType(types.get(0));
+    else if(types.size()>1)intent.putExtra(Intent.EXTRA_MIME_TYPES,types.toArray(new String[0]));
+    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,params.getMode()==FileChooserParams.MODE_OPEN_MULTIPLE);
+    try{startActivityForResult(intent,PICK_FILE);}
+    catch(android.content.ActivityNotFoundException missing){
+     // Some vendor ROMs omit DocumentsUI but still provide a GET_CONTENT picker.
+     intent.setAction(Intent.ACTION_GET_CONTENT);
+     try{startActivityForResult(intent,PICK_FILE);}
+     catch(Exception e){fileCallback.onReceiveValue(null);fileCallback=null;note("系统文件选择器不可用，请启用系统“文件”应用，或使用浏览器导入。");}
+    }
+    catch(Exception e){fileCallback.onReceiveValue(null);fileCallback=null;note("无法打开系统文件选择器，请使用浏览器导入。");}
     return true;
    }
   });

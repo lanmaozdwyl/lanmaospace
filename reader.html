@@ -164,7 +164,7 @@
                     <div class="shelf-action-buttons-wrap">
                         <label class="shelf-upload-btn" for="shelf-file-input">
                             <span>挑选本地文件</span>
-                            <input type="file" id="shelf-file-input" accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf" hidden>
+                            <input type="file" id="shelf-file-input" accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf" class="reader-file-picker">
                         </label>
                         <div class="shelf-backup-actions">
                             <button type="button" class="shelf-backup-btn" id="shelf-btn-export-backup" title="导出书架书籍与阅读记录备份">
@@ -172,7 +172,7 @@
                             </button>
                             <label class="shelf-backup-btn shelf-backup-import-label" for="shelf-backup-file-input" title="从备份文件恢复书架">
                                 <span aria-hidden="true">📥</span> 恢复书架备份
-                                <input type="file" id="shelf-backup-file-input" accept=".json,application/json" hidden>
+                                <input type="file" id="shelf-backup-file-input" accept=".json,application/json" class="reader-file-picker">
                             </label>
                         </div>
                     </div>
@@ -572,7 +572,7 @@
                     <p>支持 <b>.txt</b>、<b>.md</b> 与 <b>.pdf</b> 格式 · 本机离线存储</p>
                     <label class="import-file-btn" for="file-input">
                         <span>从手机 / 电脑挑选文件</span>
-                        <input type="file" id="file-input" accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf" hidden>
+                        <input type="file" id="file-input" accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf" class="reader-file-picker">
                     </label>
                     <div class="import-security-tip">
                         <span aria-hidden="true">🔒</span>
