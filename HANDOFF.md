@@ -1,3 +1,18 @@
+# 在线阅读器：修复移动触屏常规分页热区失效导致的点击无反应与翻页卡死，并打通返回书架网格进度即时刷新（2026-11-06）
+
+本节优先于下方历史记录。针对移动端/触屏设备在阅读小说正文时出现的“点击屏幕中央无反应、无法唤出上下菜单控制栏、点击左右热区与滑动手势无法翻页”假死故障，以及“从阅读器返回书架时网格书籍卡片进度不刷新、读完数十页数据仍停留在旧记录”的严重交互缺陷进行了系统性根因修复与架构加固：
+1. 彻底解决移动端触屏阅读器点击与翻页无响应假死缺陷（`reader.css` / `reader.js` / `reader-gesture.js`）：
+   - **根因追溯**：在 `reader.css` 中曾针对 `@media (pointer: coarse)` 设置了全局 `.reader-touch-zones { pointer-events: none; }`；由于点按事件被该层全局穿透，点击落到 `.reader-viewport`，而视口上的点击监听器设置了 `if (state.settings.mode !== 'scroll') return;`（常规分页模式直接忽略），同时 `reader-gesture.js` 内部手势机的抖动与纵向容差过紧（`swipeMaxY: 8`, `slopPx: 8`），触屏点按只要有轻微生理弧度偏转即被丢弃，造成“左右点击不翻页、中间点击不弹菜单、滑动偶发卡顿”的复合型死锁；
+   - **热区与手势双通道激活**：移除 `@media (pointer: coarse)` 下无条件禁用热区的规则，改为仅在划线模式（`.reader-stage.highlight-mode`）与长卷滚动模式（`.reader-stage.mode-scroll`）下让出热区以供文本选择与纵向滚屏，常规分页阅读下热区完全处于可用状态；
+   - **人机工程学手势容差优化**：在 `reader.js` 初始化 `GestureMachine` 时注入符合真实人手拇指握持与点按生理特征的容差配置（`slopPx: 14`, `swipeMaxY: 22`, `swipeRatio: 1.8`, `tapMaxMs: 450`），将热区去重防抖从 600ms 优化至更灵敏自然的 320ms，彻底恢复移动端点按中央呼出菜单、点按左右即时切页与单指横滑翻页。
+2. 彻底打通从阅读器返回书架时的网格卡片进度联动刷新与主动存盘（`switchView` / `calculateReadingProgress`）：
+   - 修复在阅读器中翻阅多页后点击“返回书架”时网格书籍卡片进度不更新的严重滞后问题：在 `switchView('bookshelf')` 执行退出清理前，立即主动执行 `saveProgress()` 存盘，并在关闭抽屉后立刻调用 `renderBookshelfGrid()` 与 `updateBookshelfHero()` 刷新书架网格；
+   - 完善进度百分比映射引擎：在 `calculateReadingProgress` 中扩展支持 `scrollRatio` 与 `isScrollMode`，使长卷滚动与分页模式均能精准计算出真实阅读百分比并持久化至网格卡片徽章；
+   - 支持书架筛选态记忆保护：在重绘书架网格时保留当前的搜索与分类筛选上下文，避免返回书架后过滤状态被突兀重置。
+3. 全站 295 项自动化测试（新增移动触屏热区与手势人机工程学保障、返回书架进度联动刷新测试用例）、语法安全检查与 clean `dist` 构建 100% 顺利通过，0 错误，0 违规。
+
+---
+
 # 在线阅读器：原生 Web Speech 离线逐段高亮朗读、浮动控制台、定时休眠与无缝自动翻章（2026-11-06 早）
 
 本节优先于下方历史记录。针对在线阅读器（`reader.html` / `reader.css` / `reader.js` / `tests/reader.test.mjs`）缺乏听书朗读功能、用户长时间盯屏阅读疲劳、睡前听书容易整夜空放以及对外部第三方语音 API 额度与网络依赖的痛点，构建了零外部依赖、100% 本地 CSP 合规的原生 Web Speech 语音听书系统：
