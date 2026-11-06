@@ -756,15 +756,28 @@
         return null;
     }
 
+    function getChapterScrollAnchor(viewport) {
+        if (!viewport) return {scrollY:0, scrollRatio:0, scrollAnchorVersion:1};
+        const section = document.querySelector('.scroll-chapter-section[data-chapter-index="' + state.currentChapterIndex + '"]');
+        if (section) {
+            const offset = Math.max(0, Math.min(section.offsetHeight, viewport.scrollTop - section.offsetTop));
+            const maxScroll = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+            const atBookEnd = state.currentBook?.chapters && state.currentChapterIndex === state.currentBook.chapters.length - 1 && maxScroll > 0 && viewport.scrollTop >= maxScroll - 2;
+            return {scrollY:offset, scrollRatio:atBookEnd ? 1 : (section.offsetHeight > 0 ? offset / section.offsetHeight : 0), scrollAnchorVersion:2};
+        }
+        const max = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+        return {scrollY:viewport.scrollTop, scrollRatio:max > 0 ? viewport.scrollTop/max : 0, scrollAnchorVersion:1};
+    }
+
     function saveProgress() {
         try {
             const viewport = document.getElementById('reader-viewport');
             let scrollY = 0;
             let scrollRatio = 0;
+            let scrollAnchorVersion = 1;
             if (state.settings.mode === 'scroll' && viewport) {
-                scrollY = viewport.scrollTop;
-                const maxScroll = viewport.scrollHeight - viewport.clientHeight;
-                scrollRatio = maxScroll > 0 ? (scrollY / maxScroll) : 0;
+                const anchor = getChapterScrollAnchor(viewport);
+                scrollY = anchor.scrollY; scrollRatio = anchor.scrollRatio; scrollAnchorVersion = anchor.scrollAnchorVersion;
             }
 
             const data = {
@@ -774,6 +787,7 @@
                 totalPages: state.totalPages,
                 scrollY: scrollY,
                 scrollRatio: scrollRatio,
+                scrollAnchorVersion: scrollAnchorVersion,
                 mode: state.settings.mode,
                 hasRead: true,
                 timestamp: Date.now()
@@ -792,6 +806,7 @@
                     totalPages: state.totalPages,
                     scrollY: scrollY,
                     scrollRatio: scrollRatio,
+                scrollAnchorVersion: scrollAnchorVersion,
                     mode: state.settings.mode,
                     hasRead: true,
                     timestamp: Date.now()
@@ -3099,7 +3114,10 @@
                 // 滚动模式恢复章内垂直滚动位置
                 const saved = loadBookProgress(state.currentBookId) || loadSavedProgress();
                 if (saved && saved.chapterIndex === chapterIndex && viewport) {
-                    if (typeof saved.scrollRatio === 'number' && saved.scrollRatio > 0) {
+                    if (saved.scrollAnchorVersion === 2 && Number.isFinite(saved.scrollRatio)) {
+                        const section = content.querySelector('.scroll-chapter-section');
+                        viewport.scrollTop = Math.min(Math.max(0, viewport.scrollHeight - viewport.clientHeight), (section ? section.offsetHeight : viewport.scrollHeight) * Math.max(0, Math.min(1, saved.scrollRatio)));
+                    } else if (typeof saved.scrollRatio === 'number' && saved.scrollRatio > 0) {
                         const maxScroll = viewport.scrollHeight - viewport.clientHeight;
                         viewport.scrollTop = Math.round(maxScroll * saved.scrollRatio);
                     } else if (typeof saved.scrollY === 'number' && saved.scrollY > 0) {
@@ -3628,7 +3646,7 @@
             const viewport = document.getElementById('reader-viewport');
             const totalScroll = viewport ? viewport.scrollHeight - viewport.clientHeight : 1;
             const currentScroll = viewport ? viewport.scrollTop : 0;
-            const scrollRatio = totalScroll > 0 ? (currentScroll / totalScroll) : 0;
+            const scrollRatio = getChapterScrollAnchor(viewport).scrollRatio;
             const totalChapters = state.currentBook ? state.currentBook.chapters.length : 1;
             const chapterWeight = 100 / totalChapters;
             const pct = Math.min(100, Math.round(state.currentChapterIndex * chapterWeight + scrollRatio * chapterWeight));
@@ -5318,6 +5336,8 @@
     function speakCurrentParagraph() {
         if (!state.tts.active || !isTTSSupported()) return;
 
+        const requestId = state.tts.requestId = (state.tts.requestId || 0) + 1;
+        state.tts.utterance = null;
         // 清空所有旧的段落高亮
         document.querySelectorAll('.tts-active-para').forEach(el => el.classList.remove('tts-active-para'));
 
@@ -5344,7 +5364,7 @@
                 if (indicator) indicator.textContent = '📖 本章已读完，正在翻入下一章...';
                 goToChapter(state.currentChapterIndex + 1, 1);
                 setTimeout(() => {
-                    if (state.tts.active) {
+                    if (state.tts.active && state.tts.requestId === requestId) {
                         state.tts.paragraphs = getTTSParagraphs();
                         state.tts.currentParaIndex = 0;
                         speakCurrentParagraph();
@@ -5379,12 +5399,15 @@
             state.tts.utterance = utterance;
 
             utterance.onend = () => {
-                if (!state.tts.active || state.tts.paused) return;
+                if (!state.tts.active || state.tts.paused || state.tts.utterance !== utterance || state.tts.requestId !== requestId) return;
+                state.tts.utterance = null;
                 state.tts.currentParaIndex++;
                 speakCurrentParagraph();
             };
 
             utterance.onerror = (e) => {
+                if (state.tts.utterance !== utterance || state.tts.requestId !== requestId) return;
+                state.tts.utterance = null;
                 if (e && (e.error === 'canceled' || e.error === 'interrupted')) return;
                 if (state.tts.active && !state.tts.paused) {
                     state.tts.currentParaIndex++;
@@ -5580,6 +5603,7 @@
     }
 
     function stopTTS() {
+        state.tts.requestId = (state.tts.requestId || 0) + 1;
         state.tts.active = false;
         state.tts.paused = false;
         state.tts.utterance = null;

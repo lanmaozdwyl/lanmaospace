@@ -1168,7 +1168,7 @@ test('笔趣阁同款无限垂直连续长卷：底栏一键切换模式、触�
     assert(js.includes('function toggleReadingMode()'), '必须包含一键切换阅读模式函数');
     assert(js.includes('function formatScrollChapterHtml('), '必须包含长卷章节 HTML 格式化函数');
     assert(js.includes('scrollBottom < 650'), '长卷模式下触底前必须自动判断并追加下一章');
-    assert(js.includes('.scroll-chapter-divider'), '动态追加章节时必须注入章节分割线');
+    assert(js.includes("divider.className = 'scroll-chapter-divider'"), '动态追加章节时必须注入章节分割线');
     assert(js.includes('state.scrollState.maxLoadedChapter'), '必须具备已加载章节游标追踪状态');
     assert(js.includes('triggerY = readerVp.scrollTop + readerVp.clientHeight * 0.3'), '视口滚动时必须根据纵向位置动态更新当前阅读章节与页眉');
 });
