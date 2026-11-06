@@ -558,6 +558,14 @@
         searchSession: null, // { query: string, matches: Array, currentMatchIdx: number, origin: Object }
         shelfViewMode: 'grid', // 'grid' | 'list' | 'shelf'
         shelfSortBy: 'recent', // 'recent' | 'progress' | 'date' | 'title'
+        tts: {
+            active: false,
+            paused: false,
+            currentParaIndex: 0,
+            rate: 1.0,
+            paragraphs: [],
+            utterance: null
+        },
         settings: {
             theme: 'parchment', // parchment | green | white | dark
             fontSize: 18,        // 14 ~ 28
@@ -757,6 +765,7 @@
                 totalPages: state.totalPages,
                 scrollY: scrollY,
                 scrollRatio: scrollRatio,
+                mode: state.settings.mode,
                 hasRead: true,
                 timestamp: Date.now()
             };
@@ -774,6 +783,7 @@
                     totalPages: state.totalPages,
                     scrollY: scrollY,
                     scrollRatio: scrollRatio,
+                    mode: state.settings.mode,
                     hasRead: true,
                     timestamp: Date.now()
                 };
@@ -783,18 +793,21 @@
     }
 
         // ===== 统一阅读进度计算 (书架大厅与阅读器页统一口径) =====
-    function calculateReadingProgress(book, chapterIndex, page, totalPages) {
+    function calculateReadingProgress(book, chapterIndex, page, totalPages, scrollRatio, isScrollMode) {
         if (!book || !book.chapters || book.chapters.length === 0) return 0;
         const totalChapters = book.chapters.length;
         chapterIndex = Math.max(0, Math.min(totalChapters - 1, chapterIndex || 0));
-        const safeTotalPages = Math.max(1, totalPages || 1);
-        const safePage = Math.max(1, Math.min(safeTotalPages, page || 1));
-
-        // 统一进度计算标准：当前已阅读位置在整本书中所处的完成比例
-        // 各章节平均加权：每章权重 100 / totalChapters
-        // 当前章节内进度：safePage / safeTotalPages
         const chapterWeight = 100 / totalChapters;
-        const currentChapterProgress = (safePage / safeTotalPages) * chapterWeight;
+
+        let currentChapterProgress = 0;
+        if (isScrollMode && typeof scrollRatio === 'number' && !isNaN(scrollRatio)) {
+            currentChapterProgress = Math.min(1, Math.max(0, scrollRatio)) * chapterWeight;
+        } else {
+            const safeTotalPages = Math.max(1, totalPages || 1);
+            const safePage = Math.max(1, Math.min(safeTotalPages, page || 1));
+            currentChapterProgress = (safePage / safeTotalPages) * chapterWeight;
+        }
+
         const overallPct = Math.min(100, Math.round(chapterIndex * chapterWeight + currentChapterProgress));
         return overallPct;
     }
@@ -1110,7 +1123,11 @@
             const chapterTitle = (state.currentBook && state.currentBook.chapters && state.currentBook.chapters[state.currentChapterIndex])
                 ? state.currentBook.chapters[state.currentChapterIndex].title
                 : `第 ${state.currentChapterIndex + 1} 章`;
-            const pct = calculateReadingProgress(state.currentBook, state.currentChapterIndex, state.currentPage, state.totalPages);
+            const isScroll = state.settings.mode === 'scroll';
+            const vp = document.getElementById('reader-viewport');
+            const totalScroll = vp ? (vp.scrollHeight - vp.clientHeight) : 0;
+            const scrollRatio = (isScroll && totalScroll > 0) ? (vp.scrollTop / totalScroll) : 0;
+            const pct = calculateReadingProgress(state.currentBook, state.currentChapterIndex, state.currentPage, state.totalPages, scrollRatio, isScroll);
 
             const newBookmark = {
                 id: 'bm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
@@ -2308,6 +2325,7 @@
         } else {
             destroyOpenPageFlip();
             destroyPdfBook();
+            if (typeof stopTTS === 'function') stopTTS();
             readerView.hidden = true;
             shelfView.hidden = false;
             state.activeView = 'bookshelf';
@@ -2563,6 +2581,9 @@
 
     // ===== 7. 书籍与章节加载 =====
     function loadBook(bookId, chapterIndex = 0, page = 1) {
+        if (state.tts && state.tts.active && typeof stopTTS === 'function') {
+            stopTTS();
+        }
         let book = state.books[bookId];
         if (!book && BUILTIN_BOOKS[bookId]) {
             book = BUILTIN_BOOKS[bookId];
@@ -5025,6 +5046,369 @@
         showToast(active ? '📱 已进入沉浸全屏模式' : '已退出沉浸全屏模式');
     }
 
+    // ===== 12.5 原生 Web Speech 语音听书系统 (逐段高亮朗读/语速调节/自动跨章翻页) =====
+    function isTTSSupported() {
+        return typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance !== 'undefined';
+    }
+
+    function getTTSParagraphs() {
+        const list = [];
+        let blocks = [];
+        if (state.openPageFlipInstance) {
+            blocks = Array.from(document.querySelectorAll('#openpageflip-stage .opf-page-inner h2, #openpageflip-stage .opf-page-inner p'));
+        } else {
+            blocks = Array.from(document.querySelectorAll('#reader-content h2, #reader-content p'));
+        }
+
+        blocks = blocks.filter(el => (el.textContent || '').trim().length > 0);
+
+        if (blocks.length > 0) {
+            return blocks.map(el => ({ el, text: el.textContent.trim() }));
+        }
+
+        // 兜底：从内存书籍数据结构解析纯文本段落
+        const book = state.currentBook;
+        if (book && book.chapters && book.chapters[state.currentChapterIndex]) {
+            const chap = book.chapters[state.currentChapterIndex];
+            if (chap.title) list.push({ el: null, text: chap.title.trim() });
+            if (Array.isArray(chap.content)) {
+                chap.content.forEach(p => {
+                    const t = (p || '').trim();
+                    if (t) list.push({ el: null, text: t });
+                });
+            } else if (typeof chap.content === 'string') {
+                chap.content.split(/\r?\n+/).forEach(p => {
+                    const t = (p || '').trim();
+                    if (t) list.push({ el: null, text: t });
+                });
+            }
+        }
+        return list;
+    }
+
+    function findActiveParagraphIndex(paras) {
+        if (!paras || paras.length === 0) return 0;
+        const viewport = document.getElementById('reader-viewport');
+
+        // 滚动模式：匹配视口上沿最靠近的段落
+        if (state.settings.mode === 'scroll' && viewport) {
+            const vpTop = viewport.scrollTop;
+            for (let i = 0; i < paras.length; i++) {
+                if (paras[i].el && paras[i].el.offsetTop >= vpTop - 40) {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
+        // 左右分页模式：匹配当前页的段落
+        if (!state.openPageFlipInstance && viewport) {
+            const colWidth = viewport.clientWidth || 820;
+            const colGap = window.innerWidth >= 900 ? 60 : 48;
+            const step = colWidth + colGap;
+            const pageOffset = (state.currentPage - 1) * step;
+            for (let i = 0; i < paras.length; i++) {
+                if (paras[i].el && paras[i].el.offsetLeft >= pageOffset - 20) {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
+        // 3D 卷页模式：匹配当前卡片内的段落
+        if (state.openPageFlipInstance) {
+            const cards = Array.from(document.querySelectorAll('#openpageflip-stage .opf-page-card'));
+            const currentCard = cards[state.currentPage - 1];
+            if (currentCard) {
+                for (let i = 0; i < paras.length; i++) {
+                    if (paras[i].el && currentCard.contains(paras[i].el)) {
+                        return i;
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    function updateTTSBarUI() {
+        const bar = document.getElementById('reader-tts-bar');
+        const indicator = document.getElementById('tts-paragraph-indicator');
+        const icon = document.getElementById('tts-btn-icon');
+        const speedBtn = document.getElementById('tts-btn-speed');
+
+        if (!bar) return;
+
+        if (state.tts.active) {
+            bar.classList.remove('hidden');
+            if (state.tts.paused) {
+                bar.classList.add('paused');
+                if (icon) icon.textContent = '▶';
+            } else {
+                bar.classList.remove('paused');
+                if (icon) icon.textContent = '⏸';
+            }
+
+            const total = state.tts.paragraphs.length;
+            const current = Math.min(total, state.tts.currentParaIndex + 1);
+            if (indicator) {
+                indicator.textContent = total > 0 ? `第 ${current} / ${total} 段` : '准备朗读中...';
+            }
+        } else {
+            bar.classList.add('hidden');
+            bar.classList.remove('paused');
+            if (icon) icon.textContent = '▶';
+            if (indicator) {
+                indicator.textContent = '朗读准备就绪';
+            }
+        }
+
+        if (speedBtn) {
+            speedBtn.textContent = `${state.tts.rate.toFixed(1)}x`;
+            speedBtn.title = `调节语速 (当前: ${state.tts.rate.toFixed(1)}x)`;
+        }
+    }
+
+    function scrollOrTurnToParagraph(el) {
+        if (!el) return;
+
+        // 滚动模式
+        if (state.settings.mode === 'scroll') {
+            try {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (_) {
+                el.scrollIntoView();
+            }
+            return;
+        }
+
+        // 左右栏分页模式
+        const viewport = document.getElementById('reader-viewport');
+        if (!state.openPageFlipInstance && viewport) {
+            const colWidth = viewport.clientWidth || 820;
+            const colGap = window.innerWidth >= 900 ? 60 : 48;
+            const step = colWidth + colGap;
+            const targetPage = Math.max(1, Math.min(state.totalPages, Math.floor((el.offsetLeft + 8) / step) + 1));
+            if (state.currentPage !== targetPage) {
+                goToPage(targetPage);
+            }
+            return;
+        }
+
+        // 3D 卷页模式
+        if (state.openPageFlipInstance) {
+            const card = el.closest('.opf-page-card');
+            if (card) {
+                const allCards = Array.from(document.querySelectorAll('#openpageflip-stage .opf-page-card'));
+                const cardIdx = allCards.indexOf(card);
+                if (cardIdx >= 0 && cardIdx !== state.currentPage - 1) {
+                    state.openPageFlipInstance.turnTo(cardIdx);
+                }
+            }
+        }
+    }
+
+    function speakCurrentParagraph() {
+        if (!state.tts.active || !isTTSSupported()) return;
+
+        // 清空所有旧的段落高亮
+        document.querySelectorAll('.tts-active-para').forEach(el => el.classList.remove('tts-active-para'));
+
+        // 结束所有在播语音
+        try {
+            window.speechSynthesis.cancel();
+        } catch (_) {}
+
+        const paras = state.tts.paragraphs;
+        if (!paras || paras.length === 0) {
+            stopTTS();
+            return;
+        }
+
+        // 如果超出本章段落范围，触发自动翻入下一章
+        if (state.tts.currentParaIndex >= paras.length) {
+            if (state.currentBook && state.currentChapterIndex < state.currentBook.chapters.length - 1) {
+                const indicator = document.getElementById('tts-paragraph-indicator');
+                if (indicator) indicator.textContent = '📖 本章已读完，正在翻入下一章...';
+                goToChapter(state.currentChapterIndex + 1, 1);
+                setTimeout(() => {
+                    if (state.tts.active) {
+                        state.tts.paragraphs = getTTSParagraphs();
+                        state.tts.currentParaIndex = 0;
+                        speakCurrentParagraph();
+                    }
+                }, 500);
+            } else {
+                showToast('🎉 全书已朗读完毕！', 3000);
+                stopTTS();
+            }
+            return;
+        }
+
+        const item = paras[state.tts.currentParaIndex];
+        if (!item || !item.text) {
+            state.tts.currentParaIndex++;
+            speakCurrentParagraph();
+            return;
+        }
+
+        // 段落聚焦与视口对齐
+        if (item.el) {
+            item.el.classList.add('tts-active-para');
+            scrollOrTurnToParagraph(item.el);
+        }
+
+        updateTTSBarUI();
+
+        try {
+            const utterance = new window.SpeechSynthesisUtterance(item.text);
+            utterance.rate = state.tts.rate || 1.0;
+            utterance.lang = 'zh-CN';
+            state.tts.utterance = utterance;
+
+            utterance.onend = () => {
+                if (!state.tts.active || state.tts.paused) return;
+                state.tts.currentParaIndex++;
+                speakCurrentParagraph();
+            };
+
+            utterance.onerror = (e) => {
+                if (e && (e.error === 'canceled' || e.error === 'interrupted')) return;
+                if (state.tts.active && !state.tts.paused) {
+                    state.tts.currentParaIndex++;
+                    speakCurrentParagraph();
+                }
+            };
+
+            window.speechSynthesis.speak(utterance);
+        } catch (err) {
+            console.warn('SpeechSynthesis error:', err);
+            showToast('语音朗读遇到错误，请重试');
+            stopTTS();
+        }
+    }
+
+    function startTTS(fromIndex) {
+        if (state.isPdfMode || (state.currentBook && state.currentBook.format === 'pdf')) {
+            showToast('📑 PDF 画册版式暂不支持逐段文本提取，请使用 TXT/Markdown 小说听书', 3000);
+            return;
+        }
+
+        if (!isTTSSupported()) {
+            showToast('⚠️ 当前浏览器不支持语音合成 (Web Speech API)，建议使用 Chrome/Edge/Safari 体验', 3500);
+            return;
+        }
+
+        state.tts.active = true;
+        state.tts.paused = false;
+        state.tts.paragraphs = getTTSParagraphs();
+
+        if (state.tts.paragraphs.length === 0) {
+            showToast('当前章节无朗读正文内容', 2500);
+            stopTTS();
+            return;
+        }
+
+        const targetIdx = typeof fromIndex === 'number' ? fromIndex : findActiveParagraphIndex(state.tts.paragraphs);
+        state.tts.currentParaIndex = Math.max(0, Math.min(state.tts.paragraphs.length - 1, targetIdx));
+        updateTTSBarUI();
+        speakCurrentParagraph();
+        showToast('🎙️ 听书已开启，点击浮条可暂停/切段/调速', 2200);
+    }
+
+    function toggleTTS() {
+        if (!state.tts.active) {
+            startTTS();
+            return;
+        }
+
+        if (state.tts.paused) {
+            state.tts.paused = false;
+            updateTTSBarUI();
+            speakCurrentParagraph();
+        } else {
+            state.tts.paused = true;
+            try {
+                if (isTTSSupported()) window.speechSynthesis.cancel();
+            } catch (_) {}
+            updateTTSBarUI();
+        }
+    }
+
+    function ttsNext() {
+        if (!state.tts.active) {
+            startTTS();
+            return;
+        }
+        state.tts.paused = false;
+        state.tts.currentParaIndex++;
+        speakCurrentParagraph();
+    }
+
+    function ttsPrev() {
+        if (!state.tts.active) {
+            startTTS();
+            return;
+        }
+        state.tts.paused = false;
+        state.tts.currentParaIndex = Math.max(0, state.tts.currentParaIndex - 1);
+        speakCurrentParagraph();
+    }
+
+    function cycleTTSSpeed() {
+        const speeds = [0.8, 1.0, 1.2, 1.5, 2.0];
+        const curIdx = speeds.indexOf(state.tts.rate);
+        const nextIdx = (curIdx + 1) % speeds.length;
+        state.tts.rate = speeds[nextIdx >= 0 ? nextIdx : 1];
+        updateTTSBarUI();
+        showToast(`🔊 朗读语速已调至 ${state.tts.rate.toFixed(1)}x`, 1500);
+
+        if (state.tts.active && !state.tts.paused) {
+            speakCurrentParagraph();
+        }
+    }
+
+    function stopTTS() {
+        state.tts.active = false;
+        state.tts.paused = false;
+        state.tts.utterance = null;
+        try {
+            if (isTTSSupported()) window.speechSynthesis.cancel();
+        } catch (_) {}
+        document.querySelectorAll('.tts-active-para').forEach(el => el.classList.remove('tts-active-para'));
+        updateTTSBarUI();
+    }
+
+    function initTTSControls() {
+        const topBtn = document.getElementById('reader-btn-tts');
+        if (topBtn) {
+            topBtn.addEventListener('click', () => {
+                if (state.tts.active) {
+                    toggleTTS();
+                } else {
+                    startTTS();
+                }
+            });
+        }
+
+        const toggleBtn = document.getElementById('tts-btn-toggle');
+        if (toggleBtn) toggleBtn.addEventListener('click', toggleTTS);
+
+        const prevBtn = document.getElementById('tts-btn-prev');
+        if (prevBtn) prevBtn.addEventListener('click', ttsPrev);
+
+        const nextBtn = document.getElementById('tts-btn-next');
+        if (nextBtn) nextBtn.addEventListener('click', ttsNext);
+
+        const speedBtn = document.getElementById('tts-btn-speed');
+        if (speedBtn) speedBtn.addEventListener('click', cycleTTSSpeed);
+
+        const closeBtn = document.getElementById('tts-btn-close');
+        if (closeBtn) closeBtn.addEventListener('click', stopTTS);
+
+        window.addEventListener('beforeunload', stopTTS);
+    }
+
     // ===== 13. 事件监听绑定 =====
     function bindEvents() {
         // 触控热区感应 (左25%上一页 / 中50%菜单 / 右25%下一页)
@@ -5310,6 +5694,7 @@
         }
 
         bindHighlightEvents();
+        initTTSControls();
 
         const importTopBtn = document.getElementById('reader-import-btn');
         if (importTopBtn) {

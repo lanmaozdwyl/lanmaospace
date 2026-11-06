@@ -1067,4 +1067,45 @@ test('连续长卷滚动模式移动端防假死人机工程：手势点按唤�
     assert(/function prevPage\(\)[\s\S]*?if\s*\(state\.settings\.mode === 'scroll'\)\s*\{[\s\S]*?vp\.scrollBy\(\{ top: -step, behavior: 'smooth' \}\);/.test(readerJs), '长卷模式下上一页需平滑向上滚动一屏');
 });
 
+test('阅读器原生 Web Speech 离线语音听书：DOM/样式/逻辑/全链路闭环与自动翻章', () => {
+    const html = readFileSync(new URL('../reader.html', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../reader.css', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../reader.js', import.meta.url), 'utf8');
+
+    // 1. HTML 结构完整性与 CSP 无内联代码
+    assert(html.includes('id="reader-btn-tts"'), '顶部控制栏必须包含听书启动按钮');
+    assert(html.includes('id="reader-tts-bar"'), '视口必须包含听书浮动控制栏');
+    assert(html.includes('id="tts-paragraph-indicator"'), '必须包含听书段落指示器');
+    assert(html.includes('id="tts-btn-prev"'), '必须包含上一段按钮');
+    assert(html.includes('id="tts-btn-toggle"'), '必须包含播放/暂停切换按钮');
+    assert(html.includes('id="tts-btn-next"'), '必须包含下一段按钮');
+    assert(html.includes('id="tts-btn-speed"'), '必须包含语速调节按钮');
+    assert(html.includes('id="tts-btn-close"'), '必须包含退出听书按钮');
+    assert(!html.includes('onclick='), 'HTML 严禁内联事件绑定');
+
+    // 2. CSS 样式规范与自适应
+    assert(css.includes('.reader-tts-bar'), '必须包含浮条基础样式');
+    assert(css.includes('.tts-active-para'), '必须包含当前朗读段落的高亮聚焦样式');
+    assert(css.includes('.reader-tts-bar.hidden'), '必须包含隐藏过渡态样式');
+    assert(css.includes('backdrop-filter: blur'), '浮条需具备拟真毛玻璃质感');
+    assert(css.includes('[data-reader-theme="dark"] .reader-content p.tts-active-para'), '深色模式需具备专门的段落高亮配色');
+
+    // 3. JavaScript 引擎逻辑与状态机
+    assert(js.includes('function isTTSSupported'), '必须包含浏览器 Web Speech 特性探测');
+    assert(js.includes('function getTTSParagraphs'), '必须支持从正文 DOM 或数据源提取逐段朗读内容');
+    assert(js.includes('function speakCurrentParagraph'), '必须包含核心逐段朗读推进函数');
+    assert(js.includes('function startTTS'), '必须提供启动听书入口');
+    assert(js.includes('function toggleTTS'), '必须提供播放/暂停切换控制');
+    assert(js.includes('function cycleTTSSpeed'), '必须支持循环语速档位调节');
+    assert(js.includes('function stopTTS'), '必须提供安全销毁与清理逻辑');
+    assert(js.includes('window.SpeechSynthesisUtterance'), '必须使用标准原生 SpeechSynthesisUtterance 构造');
+    assert(js.includes('window.speechSynthesis.speak'), '必须调用标准 speak 接口');
+    assert(js.includes('window.speechSynthesis.cancel'), '必须在切换或停止时即刻调用 cancel 防止后台残留声');
+
+    // 4. 自动化跨章衔接与离页守卫
+    assert(js.includes('goToChapter(state.currentChapterIndex + 1, 1)'), '章节读完时必须自动跨章翻页并无缝衔接');
+    assert(js.includes("window.addEventListener('beforeunload', stopTTS)"), '离页前必须监听 beforeunload 自动停止语音');
+});
+
+
 

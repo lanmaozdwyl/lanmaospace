@@ -1,3 +1,22 @@
+# 在线阅读器：原生 Web Speech 离线逐段高亮朗读、浮动控制台、语速调节与无缝自动翻章（2026-11-06 早）
+
+本节优先于下方历史记录。针对在线阅读器（`reader.html` / `reader.css` / `reader.js` / `tests/reader.test.mjs`）缺乏听书朗读功能、用户长时间盯屏阅读疲劳以及对外部第三方语音 API 额度与网络依赖的痛点，构建了零外部依赖、100% 本地 CSP 合规的原生 Web Speech 语音听书系统：
+1. 原生 Web Speech 语音引擎与逐段智能萃取（`isTTSSupported` / `getTTSParagraphs` / `findActiveParagraphIndex`）：
+   - 基于原生 `window.speechSynthesis` 与 `SpeechSynthesisUtterance`，零引入任何臃肿第三方依赖，完全规避网络拉取与配额限制；
+   - 智能识别当前阅读模式：支持从微信读书多栏分页（`#reader-content`）、3D 拟真卷页（`#openpageflip-stage`）以及连续垂直长卷等不同舞台中精准提取当前正文段落，并从当前视口/页码所处的实际段落无缝起读；
+   - 对 PDF 等固定画册版式提供友善的格式引导与弹窗提示（建议使用 TXT/Markdown 电子书听书）。
+2. 拟真磨砂质感听书浮条与全套交互控制（`#reader-tts-bar` / `reader.css`）：
+   - 吸附于视口底部上方的磨砂玻璃胶囊浮条（`backdrop-filter: blur(24px)`），包含动态呼吸状态指示灯（播放绿色脉冲/暂停黄色驻留）；
+   - 提供上一段（⏮）、播放/暂停（▶/⏸）、下一段（⏭）、循环语速调节（0.8x -> 1.0x -> 1.2x -> 1.5x -> 2.0x）与一键退出按钮；
+   - 支持移动端窄屏（`< 640px`）自适应与 36~40px 人机工程学触控靶心，兼顾深浅两套主题自适应。
+3. 视口居中跟随、段落聚焦高亮与全自动跨章翻页（`speakCurrentParagraph` / `scrollOrTurnToParagraph`）：
+   - 朗读当前段落时，自动为其注入 `.tts-active-para` 微光高亮背景与强调色左边框，并在长卷模式下通过 `scrollIntoView({ behavior: 'smooth', block: 'center' })` 或分页模式下联动 `goToPage(targetPage)` 自动将朗读段落居中展现在用户眼前；
+   - 当前章节朗读结束时，系统自动识别整本书章节树，无缝调用 `goToChapter(nextIndex, 1)` 翻入下一章并继续自动连读，直至全书完成，彻底解放双眼与双手；
+   - 健全的生命周期清理：在返回书架、切换书籍、关闭浮条或页面卸载（`beforeunload`）时，即刻执行 `speechSynthesis.cancel()` 彻底销毁语音，绝不留存后台脏朗读。
+4. 全站 293 项自动化测试（新增听书 DOM 结构、CSP 规范、高亮样式、播放/暂停/调速/翻章逻辑及销毁守卫自动化测试）、语法安全检查与 clean `dist` 构建 100% 顺利通过。
+
+---
+
 # 首页留言板：本地草稿实时自动暂存恢复、离页登录防丢与失败一键重试（2026-11-04 晚）
 
 本节优先于下方历史记录。针对首页留言板（`index.html` / `style.css` / `guestbook.js` / `tests/guestbook-admin.test.mjs`）在访客未登录提交长文跳转登录、或者弱网断网提交失败时导致访客长篇心血文字彻底丢失的严重痛点进行全链路数据防丢与容灾升级：

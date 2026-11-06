@@ -197,6 +197,10 @@
                 <span class="reader-book-title" id="reader-header-title">《小王子》精选伴读篇</span>
             </div>
             <div class="reader-topbar-right">
+                <button type="button" class="reader-tool-btn" id="reader-btn-tts" title="AI 语音听书：朗读当前正文 (Web Speech)" aria-label="语音听书">
+                    <span aria-hidden="true">🎙️</span>
+                    <span class="reader-tool-text">听书</span>
+                </button>
                 <button type="button" class="reader-tool-btn" id="reader-toggle-noise" title="选择伴读声音" aria-label="伴读白噪声" aria-haspopup="dialog" aria-expanded="false" aria-controls="reader-audio-panel">
                     <span aria-hidden="true">🎧</span>
                     <span class="reader-tool-badge" id="reader-noise-state">关</span>
@@ -313,6 +317,31 @@
                 </button>
             </div>
         </footer>
+
+        <!-- 听书控制浮条 (Web Speech 原生逐段朗读) -->
+        <aside class="reader-tts-bar hidden" id="reader-tts-bar" aria-label="语音听书控制条">
+            <div class="tts-info-zone">
+                <span class="tts-status-dot" aria-hidden="true"></span>
+                <span class="tts-paragraph-indicator" id="tts-paragraph-indicator">朗读准备就绪</span>
+            </div>
+            <div class="tts-controls-zone">
+                <button type="button" class="tts-btn" id="tts-btn-prev" title="上一段" aria-label="上一段">
+                    <span aria-hidden="true">⏮</span>
+                </button>
+                <button type="button" class="tts-btn tts-btn-primary" id="tts-btn-toggle" title="播放 / 暂停" aria-label="播放或暂停听书">
+                    <span id="tts-btn-icon" aria-hidden="true">▶</span>
+                </button>
+                <button type="button" class="tts-btn" id="tts-btn-next" title="下一段" aria-label="下一段">
+                    <span aria-hidden="true">⏭</span>
+                </button>
+                <button type="button" class="tts-btn tts-btn-speed" id="tts-btn-speed" title="调节语速 (当前: 1.0x)" aria-label="朗读语速">
+                    1.0x
+                </button>
+                <button type="button" class="tts-btn tts-btn-close" id="tts-btn-close" title="退出听书" aria-label="退出听书">
+                    <span aria-hidden="true">✕</span>
+                </button>
+            </div>
+        </aside>
 
         <!-- 选区划线浮动按钮：选中正文文字后出现 -->
         <button type="button" class="reader-highlight-fab" id="reader-highlight-fab" aria-label="为选中文字添加划线" hidden>✎ 划线</button>
