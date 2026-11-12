@@ -5,7 +5,7 @@
     "period": "1 个月",
     "note": "需先核对账号现有订阅状态。",
     "price": 124,
-    "image": "images/products/chatgpt-plus.png",
+    "image": "images/products/chatgpt-plus.webp",
     "warranty": "质保 1 个月",
     "requirements": "当前账号无任何订阅（到期的老号也可以）",
     "delivery": "人工发货"
@@ -16,7 +16,7 @@
     "period": "1 个月",
     "note": "需先核对账号订阅状态及升级资格。",
     "price": 680,
-    "image": "images/products/chatgpt-pro-5x.png",
+    "image": "images/products/chatgpt-pro-5x.webp",
     "warranty": "质保 1 个月",
     "requirements": "当前账号无任何订阅，或已有 Plus 订阅",
     "delivery": "人工发货"
@@ -27,7 +27,7 @@
     "period": "1 个月",
     "note": "需先核对账号订阅状态及升级资格。",
     "price": 1075,
-    "image": "images/products/chatgpt-pro-20x.png",
+    "image": "images/products/chatgpt-pro-20x.webp",
     "warranty": "质保 1 个月",
     "requirements": "当前账号无任何订阅，或已有 Plus / 5x 订阅",
     "delivery": "人工发货"
@@ -38,7 +38,7 @@
     "period": "1 个月",
     "note": "需人工确认供货和账号资格。",
     "price": 3205,
-    "image": "images/products/chatgpt-pro-500.png",
+    "image": "images/products/chatgpt-pro-500.webp",
     "warranty": "质保 1 个月",
     "requirements": "仅限无订阅账号，需提前与店主确认",
     "delivery": "客服人工发货"
@@ -49,7 +49,7 @@
     "period": "1 个月",
     "note": "供应商要求购买后 6 小时内激活，请先确认使用时间。",
     "price": 165,
-    "image": "images/products/claude-pro.png",
+    "image": "images/products/claude-pro.webp",
     "warranty": "质保 1 个月",
     "requirements": "当前账号无任何订阅",
     "delivery": "人工发货"
@@ -60,7 +60,7 @@
     "period": "1 个月",
     "note": "需核对账号是否已有 Grok 订阅。",
     "price": 70,
-    "image": "images/products/grok-plus.png",
+    "image": "images/products/grok-plus.webp",
     "warranty": "质保 1 个月",
     "requirements": "当前账号无任何订阅",
     "delivery": "人工发货"
@@ -71,7 +71,7 @@
     "period": "首月",
     "note": "需核对账号是否具备官方首月优惠资格。",
     "price": 120,
-    "image": "images/products/grok-premium.png",
+    "image": "images/products/grok-premium.webp",
     "warranty": "质保 1 个月",
     "requirements": "账号需拥有首月优惠资格；无首月优惠也可订阅，按页面标价 ×2 计费",
     "delivery": "人工发货"
@@ -82,7 +82,7 @@
     "period": "首月",
     "note": "需核对账号是否具备官方首月优惠资格。",
     "price": 365,
-    "image": "images/products/grok-super.png",
+    "image": "images/products/grok-super.webp",
     "warranty": "质保 1 个月",
     "requirements": "账号需拥有首月优惠资格；无首月优惠也可订阅，按页面标价 ×2 计费",
     "delivery": "人工发货"
@@ -93,7 +93,7 @@
     "period": "首月",
     "note": "需核对账号是否具备官方首月优惠资格。",
     "price": 705,
-    "image": "images/products/grok-ultra.png",
+    "image": "images/products/grok-ultra.webp",
     "warranty": "质保 1 个月",
     "requirements": "账号需拥有首月优惠资格；无首月优惠也可订阅，按页面标价 ×2 计费",
     "delivery": "人工发货"
@@ -104,7 +104,7 @@
     "period": "激活链接",
     "note": "供应商不保证实际使用时长，掉订阅不补发、不退款；咨询时请先确认是否接受。",
     "price": 12,
-    "image": "images/products/duolingo-super.png",
+    "image": "images/products/duolingo-super.webp",
     "warranty": "无质保",
     "requirements": "提供激活链接，自行激活",
     "delivery": "发送激活链接"
