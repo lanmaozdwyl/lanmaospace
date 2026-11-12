@@ -44,13 +44,26 @@ test('客户端从站内绝对路径加载 SDK，运行时不留任何第三方�
         'supabase-client.js 仍以外部 URL 作为模块说明符');
 });
 
-test('版本号写在文件名里的 SDK 走 immutable，别的路径不许蹭这条', () => {
+test('_headers 里不许出现"看着生效其实被 /* 的 no-cache 压掉"的缓存规则', () => {
+    // Cloudflare Pages 对每条命中的规则做的是拼接而不是覆盖。线上实测
+    // /lib/vendor/supabase-js-2.39.0.mjs 的响应头是
+    //   Cache-Control: no-cache, public, max-age=31536000, immutable
+    // no-cache 要求每次回源校验，所以后半段永远不会生效——87af9f3 清掉七条一年
+    // immutable 规则就是这个原因。加 SDK 时不小心又写了一条，这里拦下来。
     const headers = text('_headers');
-    const rule = headers.match(/\/lib\/vendor\/\*\n\s+Cache-Control:\s*([^\n]+)/);
-    assert.ok(rule, 'vendored SDK 没有单独的缓存规则，每次访问都要回源校验 218 KB');
-    assert.match(rule[1], /max-age=31536000/, rule[1]);
-    assert.match(rule[1], /immutable/, rule[1]);
-    // 文件名带版本才可以这么写：升级是新增文件、改两处引用，而不是覆盖同名文件。
+    const blocks = headers.split(/\n(?=\/)/).filter(b => /^\//.test(b));
+    assert.ok(blocks.length >= 2, `_headers 只解析出 ${blocks.length} 条规则，格式可能改了`);
+    const global = blocks.find(b => b.startsWith('/*'));
+    assert.match(global, /^ {2}Cache-Control: no-cache$/m, '/* 不再是全站 no-cache，缓存边界要重新审');
+    for (const block of blocks) {
+        if (block === global) continue;
+        for (const line of block.match(/^ {2}Cache-Control:.*$/gm) || []) {
+            assert.equal(/max-age|immutable/.test(line), false,
+                `${block.split('\n')[0]} 上的 "${line.trim()}" 是条死规则：/* 的 no-cache 会一起拼进来压过它`);
+        }
+    }
+    // 文件名带版本号这条要留着：将来真要长缓存，前提是升级走"新增文件 + 改引用"，
+    // 而不是覆盖同名文件——否则一年缓存会把旧 SDK 钉在所有回访浏览器里。
     assert.match(manifest.bundle.file, /^lib\/vendor\/supabase-js-\d+\.\d+\.\d+\.mjs$/);
 });
 

@@ -13,5 +13,11 @@
 /sw.js
   Cache-Control: no-cache
 
-/lib/vendor/*
-  Cache-Control: public, max-age=31536000, immutable
+# 不要在这里给 /lib/vendor/* 之类的静态资源单独加 max-age/immutable。
+# Cloudflare Pages 会把所有命中的规则拼在一起而不是覆盖，实测
+# GET /lib/vendor/supabase-js-2.39.0.mjs 返回的是
+#   Cache-Control: no-cache, public, max-age=31536000, immutable
+# 而 no-cache 要求每次回源校验，后面的 max-age 完全不生效（87af9f3 当年就是这样清掉七条
+# 一年 immutable 规则的）。想真正延长缓存，必须先把 /* 那条 no-cache 挪走并逐页改成显式规则，
+# 那是另一个决定；现在的代价只是一次 304 往返，边缘节点答得很快。
+# 这条约束由 tests/sdk-vendor.test.mjs 兜着，别再凭直觉加回来。
