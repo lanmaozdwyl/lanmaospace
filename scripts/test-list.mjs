@@ -26,4 +26,5 @@ export const TESTS = [
     'tests/sbproxy.test.mjs',
     'tests/seo-policy.test.mjs',
     'tests/sdk-vendor.test.mjs',
+    'tests/reference-integrity.test.mjs',
 ];

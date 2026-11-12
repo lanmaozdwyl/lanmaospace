@@ -663,7 +663,9 @@
                     </div>
                 </div>
                 <div class="app-banner-actions">
-                    <a href="lanmaospace.apk" class="app-dl-btn app-dl-primary" download="lanmaospace.apk">
+                    <!-- 绝对路径：这条链接靠 _redirects 的 /lanmaospace.apk 302 到 GitHub Latest Release，
+                         相对写法在 /store 这类无斜杠的短链下也能碰对，但不该靠运气。 -->
+                    <a href="/lanmaospace.apk" class="app-dl-btn app-dl-primary" download="lanmaospace.apk">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                         <span>直接下载安卓安装包 (.apk)</span>
                     </a>
@@ -779,7 +781,7 @@
                     © 2026 蓝昴空间 · 保持专注与好奇
                 </p>
                 <div class="footer-sublinks">
-                    <a href="lanmaospace.apk" class="footer-sublink" download="lanmaospace.apk">下载安卓客户端</a>
+                    <a href="/lanmaospace.apk" class="footer-sublink" download="lanmaospace.apk">下载安卓客户端</a>
                     <span class="footer-sep">·</span>
                     <a href="account.html" class="footer-sublink">账号安全</a>
                 </div>

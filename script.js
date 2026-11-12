@@ -171,7 +171,7 @@ mediaTabs.forEach((tab, index) => {
         { title: '常见问题 FAQ · 流程与售后说明', category: '帮助', url: 'faq.html', icon: '❓', keywords: 'faq wenti bangzhu 帮助 疑问 售后 流程' },
         { title: '留言板 · 交流与反馈', category: '交流', url: '#contact', icon: '💬', keywords: 'contact liuyan 反馈 留言 建议' },
         { title: '设置头像 · 自定义个人形象', category: '个人', url: 'profile.html', icon: '👤', keywords: 'profile touxiang 头像 资料' },
-        { title: '下载安卓客户端 · 原生轻快体验', category: '客户端', url: 'lanmaospace.apk', icon: '📱', keywords: 'apk app android yingyong 安卓 手机端 下载' },
+        { title: '下载安卓客户端 · 原生轻快体验', category: '客户端', url: '/lanmaospace.apk', icon: '📱', keywords: 'apk app android yingyong 安卓 手机端 下载' },
         // 15 个实用工具（收录自 tools/index.html）
         { title: 'DeepL 翻译器 · 高质量 AI 神经网络翻译', category: '工具·翻译', url: 'https://www.deepl.com/translator', icon: '🌐', keywords: 'deepl fanyi 翻译 ai 英文 中文' },
         { title: 'Google 翻译 · 多语种在线即时互译', category: '工具·翻译', url: 'https://translate.google.com', icon: '🌍', keywords: 'google translate fanyi 谷歌翻译 在线翻译' },
