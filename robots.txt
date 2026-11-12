@@ -1,3 +1,4 @@
+# managed via github
 User-agent: *
 Allow: /
 Disallow: /memo.html
