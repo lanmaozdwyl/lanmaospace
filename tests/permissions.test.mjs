@@ -205,5 +205,19 @@ try {
  assert((await allowed('select id from public.space_posts where user_id=$1',[owner])).rows.length>0);
  assert.equal((await allowed('select * from public.my_space_blocks(0)')).rows.length,0);
  await as('anon','');await denied('select * from public.space_blocks');await denied('select * from public.my_space_blocks(0)');await denied('select public.set_space_block($1,true)',[owner]);
- console.log(`PASS ${checks} PostgreSQL checks: owner CRUD, visitor isolation, storage isolation, CAS conflict, guestbook moderation/privacy, avatar row/storage isolation, idempotent migration`);
+
+ // space-schema-check.sql 是"线上到底跑没跑过迁移"唯一的自查手段，只会在人肉贴进 Dashboard 时才执行，
+ // 所以它自己必须在这里被测：先证明完整迁移后它通过，再把读策略退回旧版证明它会报错。
+ // 只测通过分支的话，把体检写废（比如漏了一个检查）没人会发现。
+ await db.exec('reset role');
+ const checkSQL=readFileSync(root+'/supabase/space-schema-check.sql','utf8');
+ // 只取第一段 do $$ ... $$;：后面两条 select 是给人看的清单，多语句走 prepared 会报"multiple commands"。
+ const checkBlock=checkSQL.slice(0,checkSQL.indexOf('end $$;')+'end $$;'.length);
+ await db.exec(checkBlock);checks++;
+ await db.exec("drop policy posts_member_read on public.space_posts;create policy posts_member_read on public.space_posts for select to authenticated using (auth.uid() is not null and (user_id = auth.uid() or (not archived and not moderation_hidden)));");
+ await assert.rejects(db.exec(checkBlock),/posts_member_read/,'体检没抓到"屏蔽没接进读策略"');checks++;
+ await db.exec(readFileSync(root+'/supabase/space-blocks.sql','utf8'));
+ await db.exec(checkBlock);checks++;
+
+ console.log(`PASS ${checks} PostgreSQL checks: owner CRUD, visitor isolation, storage isolation, CAS conflict, guestbook moderation/privacy, avatar row/storage isolation, idempotent migration, schema self-check`);
 } finally {await db.close();}

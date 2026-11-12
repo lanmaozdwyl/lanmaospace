@@ -39,3 +39,5 @@ GitHub 自动检查：当前 61 项功能测试、116 项隔离 PostgreSQL 检�
 这是单向的个人浏览偏好，不是阻止对方访问你的隐私设置。对方仍可查看你的成员主页和成员可见动态；首页留言板与公开头像地址也不受影响。资料本来面向登录成员，直接读取允许公开给成员的字段仍按原有权限；不要用屏蔽代替私密发布。
 
 先按顺序执行 avatars.sql、user-spaces.sql、space-community.sql，最后执行 space-blocks.sql。增强后不应重跑旧脚本覆盖新的列表函数和动态读取策略。新增 RPC 只操作当前用户的名单，匿名无权读取或调用，成员不能修改别人的名单。
+
+跑完再执行一次 supabase/space-schema-check.sql 确认库里真的生效了。它只读，逐条核对三张表、屏蔽策略、四个读取入口是否引用 space_blocks、以及 definer 函数有没有固定 search_path，不满足就 raise exception。光看"迁移脚本执行成功"不够：只跑到 space-community.sql 的库同样会显示建表成功，但屏蔽完全不生效。
