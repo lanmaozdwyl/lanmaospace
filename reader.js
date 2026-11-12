@@ -2699,6 +2699,23 @@
     }
 
     // ===== 6.8 @openpageflip 与 pageflipopen 3D 翻页引擎 =====
+    // pageflipopen.js 约 1.9 MB，只有 PDF 3D 翻页用得到，reader.html 不再预载，首次进入时按需注入。
+    let pageFlipOpenLoading = null;
+    function ensurePageFlipOpen() {
+        if (window.PageFlipOpen) return Promise.resolve();
+        if (!pageFlipOpenLoading) {
+            pageFlipOpenLoading = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('pageflipopen 脚本加载失败'));
+                script.src = 'lib/pageflipopen/pageflipopen.js';
+                document.head.append(script);
+            });
+            pageFlipOpenLoading.catch(() => { pageFlipOpenLoading = null; });
+        }
+        return pageFlipOpenLoading;
+    }
+
     function destroyOpenPageFlip() {
         if (state.openPageFlipInstance) {
             try {
@@ -2893,6 +2910,12 @@
 
         if (!window.PageFlipOpen) {
             container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--r-text);">正在加载 PDF 3D 翻页组件…</div>';
+            ensurePageFlipOpen().then(
+                () => renderPdfBook(book, pageTarget),
+                () => {
+                    container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--r-text);">PDF 3D 翻页组件加载失败，请刷新页面重试。</div>';
+                }
+            );
             return;
         }
 

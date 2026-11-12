@@ -116,6 +116,10 @@ try {
  await as('authenticated',guest);
  await allowed('insert into public.user_spaces(user_id,display_name) values($1,$2)',[guest,'guest space']);
  assert.equal((await allowed('select * from public.member_spaces(null,0)')).rows.length,2);
+ // 跨成员主页只能走 member_spaces RPC：直接 select 只返回自己这一行，
+ // 否则任何登录用户都能绕过屏蔽读到别人的昵称、简介和外链。
+ assert.equal((await allowed('select user_id from public.user_spaces')).rows.length,1);
+ assert.equal((await allowed('select user_id from public.user_spaces where user_id=$1',[owner])).rows.length,0);
  assert.equal((await allowed('select * from public.member_spaces($1,0)',[owner])).rows[0].display_name,'owner space');
  assert.equal((await allowed('update public.user_spaces set bio=$1 where user_id=$2 returning user_id',['attack',owner])).rows.length,0);
  await denied('insert into public.user_spaces(user_id,display_name) values($1,$2)',[owner,'attack']);

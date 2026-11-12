@@ -25,6 +25,11 @@ begin
 end; $$;
 drop trigger if exists space_post_limits on public.space_posts;
 create trigger space_post_limits before insert or update on public.space_posts for each row execute function public.space_post_limits();
+-- 注意执行顺序：本文件必须在 space-blocks.sql 之前执行，且 space-blocks.sql 要最后跑。
+-- 下面的 search_member_spaces 与 space-blocks.sql 里的同名函数是同一份逻辑的两个版本：
+-- 本版本没有屏蔽过滤（此时 public.space_blocks 还不存在），blocks 版本会用
+-- create or replace 补上 not exists(space_blocks ...)。
+-- 因此单独重跑本文件会把已上线的屏蔽过滤抹掉——需要重跑时，请务必连带重跑 space-blocks.sql。
 create or replace function public.search_member_spaces(p_query text default '',p_offset integer default 0)
 returns table(user_id uuid,display_name text,bio text,links jsonb,updated_at timestamptz,avatar_kind text,avatar_emoji text,avatar_color text,avatar_path text)
 language plpgsql security definer set search_path='' as $$

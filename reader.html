@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
     <meta name="description" content="蓝昴空间在线阅读器：微信读书风格排版、我的书架总览、左右分页翻页、羊皮纸与护眼夜间主题、纯本地离线解析畅读。">
     <title>伴读阅读器 | 蓝昴空间</title>
     <link rel="stylesheet" href="style.css">
@@ -690,7 +691,7 @@
     <script src="memo-config.js"></script>
     <script type="module" src="auth-guard.js"></script>
     <script src="lib/openpageflip/openpageflip.js"></script>
-    <script src="lib/pageflipopen/pageflipopen.js"></script>
+    <!-- pageflipopen.js 约 1.9 MB，只有 PDF 3D 翻页用得到，由 reader.js 按需注入。 -->
     <script src="reader-highlight.js"></script>
     <script src="reader-gesture.js"></script>
     <script src="reader.js"></script>

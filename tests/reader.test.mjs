@@ -625,7 +625,8 @@ test('在线阅读器升级：TXT 3D 拟真翻页 (@openpageflip/core) 与 PDF 3
     assert(htmlSource.includes('lib/openpageflip/openpageflip.css'), '需引入 @openpageflip/core 样式文件');
     assert(htmlSource.includes('lib/pageflipopen/pageflipopen.css'), '需引入 pageflipopen 样式文件');
     assert(htmlSource.includes('lib/openpageflip/openpageflip.js'), '需引入 @openpageflip/core 脚本');
-    assert(htmlSource.includes('lib/pageflipopen/pageflipopen.js'), '需引入 pageflipopen 脚本');
+    assert(!htmlSource.includes('src="lib/pageflipopen/pageflipopen.js"'), 'pageflipopen 约 1.9 MB，不能在 HTML 里预载');
+    assert(jsSource.includes("script.src = 'lib/pageflipopen/pageflipopen.js'"), '需在进入 PDF 3D 翻页时按需注入 pageflipopen 脚本');
     assert(htmlSource.includes('id="openpageflip-wrap"'), '需包含 @openpageflip 专用容器');
     assert(htmlSource.includes('id="openpageflip-stage"'), '需包含 @openpageflip 舞台挂载节点');
     assert(htmlSource.includes('id="pdf-wrap"'), '需包含 PDF 专用容器');

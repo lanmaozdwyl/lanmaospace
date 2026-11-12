@@ -40,7 +40,11 @@ grant select on public.user_spaces,public.space_posts to authenticated;
 grant insert(user_id,display_name,bio,links),update(display_name,bio,links) on public.user_spaces to authenticated;
 grant insert(id,user_id,body),update(archived) on public.space_posts to authenticated;
 drop policy if exists spaces_member_read on public.user_spaces;
-create policy spaces_member_read on public.user_spaces for select to authenticated using(auth.uid() is not null);
+-- 直接 select 只能看到自己这一行；跨成员读取一律走下面 security definer 的
+-- member_spaces / search_member_spaces，由它们负责屏蔽过滤。
+-- 之前的 using(auth.uid() is not null) 让任何登录用户都能绕过屏蔽，
+-- 用 user_id 直接拉取被屏蔽成员的 display_name、bio 和 links。
+create policy spaces_member_read on public.user_spaces for select to authenticated using(user_id=auth.uid());
 drop policy if exists spaces_owner_insert on public.user_spaces;
 create policy spaces_owner_insert on public.user_spaces for insert to authenticated with check(auth.uid()=user_id);
 drop policy if exists spaces_owner_update on public.user_spaces;

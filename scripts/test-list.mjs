@@ -23,4 +23,5 @@ export const TESTS = [
     'tests/reader-highlight.test.mjs',
     'tests/reader-gesture.test.mjs',
     'tests/reader-state-regressions.test.mjs',
+    'tests/sbproxy.test.mjs',
 ];

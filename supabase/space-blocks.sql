@@ -1,5 +1,8 @@
 -- 私人屏蔽偏好：只影响自己的成员空间浏览，不限制对方查看你。
 -- 在 user-spaces.sql、space-community.sql 后执行；可重复执行，不删除现有内容。
+-- 本文件是成员读取路径的最终版本：member_spaces、search_member_spaces、posts_member_read
+-- 都在这里用 create or replace 补上屏蔽过滤，所以单独重跑 space-community.sql 之后必须再跑一遍本文件。
+-- user_spaces 的直接 select 已收紧为只看自己（见 user-spaces.sql），不再需要本文件介入。
 begin;
 create table if not exists public.space_blocks(
  blocker_id uuid not null references auth.users(id) on delete cascade,
