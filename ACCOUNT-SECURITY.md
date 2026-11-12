@@ -6,7 +6,9 @@
 
 前端密码校验不是服务端强制策略。店主应在 Supabase Auth 设置中把最小密码长度设为8，并选择“英文字母与数字”的必需字符选项（若界面提供）。保持邮箱确认；未确认设置完成之前，不能声称服务端已强制执行该组合。不自动开启 CAPTCHA 或修改 SMTP；此类功能需要先适配前端和测试。
 
-CSP 的 script-src 移除 unsafe-inline/unsafe-eval，保留本站与固定 SDK 所在的 jsdelivr 来源。style-src 暂保留 inline 以兼容已有样式；img-src 允许 blob 以支持本地头像与附件预览。所有静态发布 HTML 有禁止内联脚本/事件属性的回归检查，外部 CDN 仍属于信任边界，不是绝对无注入风险。
+CSP 的 script-src 移除 unsafe-inline/unsafe-eval，并在 Supabase SDK 改为站点内自托管后去掉 jsdelivr 来源，现在只剩 'self'。style-src 暂保留 inline 以兼容已有样式；img-src 允许 blob 以支持本地头像与附件预览。所有静态发布 HTML 有禁止内联脚本/事件属性的回归检查。运行时不再从第三方域取脚本；connect-src / img-src 仍放行 Supabase 数据接口与在线书库域名，但它们不参与脚本执行。
+
+自托管那份 SDK 的版本、依赖清单、构建参数与 sha256 记在 lib/vendor/vendor.json；`node scripts/vendor-supabase-sdk.mjs` 回源 registry.npmjs.org 逐包复核哈希，tests/sdk-vendor.test.mjs 在 CI 里守住"产物字节 = 清单"和"script-src 不含外部域"两件事。
 
 全设备退出撤销刷新会话，已签发访问令牌可能在有效期内继续可用，不能承诺每个 API 请求瞬间失效；当前页面通过 Auth 事件退出。没有实现逐设备列表或实时踢下线，也没有把登录凭证改为服务端 HttpOnly Cookie。
 

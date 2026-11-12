@@ -1,0 +1,140 @@
+{
+  "note": "站点自托管的第三方运行时。本文件的字段就是验收条件，重建与逐包核对见 scripts/vendor-supabase-sdk.mjs；测试 tests/sdk-vendor.test.mjs 会守住这里的 sha256。",
+  "bundle": {
+    "file": "lib/vendor/supabase-js-2.39.0.mjs",
+    "bytes": 217904,
+    "sha256": "2c8087ee2a281120d71b0f39113d97c6f27ad8dd74b1e9fbb39ca79278b93f46",
+    "entry": "@supabase/supabase-js/dist/module/index.js",
+    "tool": "esbuild@0.28.2",
+    "flags": [
+      "--bundle",
+      "--format=esm",
+      "--platform=browser",
+      "--target=es2020",
+      "--minify",
+      "--legal-comments=none"
+    ],
+    "apiUsed": [
+      "createClient"
+    ]
+  },
+  "packages": [
+    {
+      "name": "@supabase/supabase-js",
+      "version": "2.39.0",
+      "sha512": "sha512-cYfnwWRW5rYBbPT/BNIejtRT9ULdD9PnIExQV28PZpqcqm3PLwS4f3pY7WGB01Da63VYdvktZPKuYvreqsj/Zg==",
+      "tarball": "https://registry.npmjs.org/@supabase/supabase-js/-/supabase-js-2.39.0.tgz",
+      "tarballBytes": 46102,
+      "fileCount": 76,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "@supabase/functions-js",
+      "version": "2.119.0",
+      "sha512": "sha512-0aOdF/Y4lA+62K02nwZClfAthXmFEml0od42q3yy/9t3bBitomAOYEatTFSnxT/5UeeIDNn2DOnXTdAP0sqGNQ==",
+      "tarball": "https://registry.npmjs.org/@supabase/functions-js/-/functions-js-2.119.0.tgz",
+      "tarballBytes": 71067,
+      "fileCount": 53,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "@supabase/gotrue-js",
+      "version": "2.119.0",
+      "sha512": "sha512-//TCgY6Y2Pr/Yskn4PtLCC0oj/mefh5rT4+zN7w8xNxjfap27eBrRcKEc09j40hS6XwlrhNe6Qr8Gd3iZd6sFw==",
+      "tarball": "https://registry.npmjs.org/@supabase/gotrue-js/-/gotrue-js-2.119.0.tgz",
+      "tarballBytes": 508639,
+      "fileCount": 198,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "@supabase/node-fetch",
+      "version": "2.6.15",
+      "sha512": "sha512-1ibVeYUacxWYi9i0cf5efil6adJ9WRyZBLivgjs+AUpewx1F3xPi7gLgaASI2SmIQxPoCEjAsLAzKPgMJVgOUQ==",
+      "tarball": "https://registry.npmjs.org/@supabase/node-fetch/-/node-fetch-2.6.15.tgz",
+      "tarballBytes": 44407,
+      "fileCount": 7,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "@supabase/postgrest-js",
+      "version": "1.21.4",
+      "sha512": "sha512-TxZCIjxk6/dP9abAi89VQbWWMBbybpGWyvmIzTd79OeravM13OjR/YEYeyUOPcM1C3QyvXkvPZhUfItvmhY1IQ==",
+      "tarball": "https://registry.npmjs.org/@supabase/postgrest-js/-/postgrest-js-1.21.4.tgz",
+      "tarballBytes": 63172,
+      "fileCount": 74,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "@supabase/realtime-js",
+      "version": "2.119.0",
+      "sha512": "sha512-fPzxt+SAYweqsZUCSZma2dvN+HT6lVjwWj8BbkVwapW6wNf1odUi+ATYN7svX4Zm9vt0kz0l0VzINAUAA38FEg==",
+      "tarball": "https://registry.npmjs.org/@supabase/realtime-js/-/realtime-js-2.119.0.tgz",
+      "tarballBytes": 131610,
+      "fileCount": 143,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "@supabase/storage-js",
+      "version": "2.119.0",
+      "sha512": "sha512-htx1dSCnSJVPlx2BNSgLSUDvLMxuGbYa6pUPl5xoCs4as4cIhBVwuxj78zbggCyPHxLnEXjsV/qvlDsVjpodKw==",
+      "tarball": "https://registry.npmjs.org/@supabase/storage-js/-/storage-js-2.119.0.tgz",
+      "tarballBytes": 216173,
+      "fileCount": 33,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "tslib",
+      "version": "2.8.1",
+      "sha512": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==",
+      "tarball": "https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz",
+      "tarballBytes": 18477,
+      "fileCount": 14,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "whatwg-url",
+      "version": "5.0.0",
+      "sha512": "sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==",
+      "tarball": "https://registry.npmjs.org/whatwg-url/-/whatwg-url-5.0.0.tgz",
+      "tarballBytes": 11073,
+      "fileCount": 8,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "@supabase/phoenix",
+      "version": "0.4.5",
+      "sha512": "sha512-aAn9H9ovVyeApKy11OWOrrOGq8DV68yWeH4ud2lN9fzn4aO8Zb5GLL9m1pUg9nLqIcT+ZDfAcsZe0E/nqdv2lw==",
+      "tarball": "https://registry.npmjs.org/@supabase/phoenix/-/phoenix-0.4.5.tgz",
+      "tarballBytes": 163069,
+      "fileCount": 49,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "iceberg-js",
+      "version": "0.8.1",
+      "sha512": "sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==",
+      "tarball": "https://registry.npmjs.org/iceberg-js/-/iceberg-js-0.8.1.tgz",
+      "tarballBytes": 35844,
+      "fileCount": 9,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "tr46",
+      "version": "0.0.3",
+      "sha512": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==",
+      "tarball": "https://registry.npmjs.org/tr46/-/tr46-0.0.3.tgz",
+      "tarballBytes": 64681,
+      "fileCount": 5,
+      "bytesMatchedOfficial": true
+    },
+    {
+      "name": "webidl-conversions",
+      "version": "3.0.1",
+      "sha512": "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==",
+      "tarball": "https://registry.npmjs.org/webidl-conversions/-/webidl-conversions-3.0.1.tgz",
+      "tarballBytes": 4727,
+      "fileCount": 4,
+      "bytesMatchedOfficial": true
+    }
+  ]
+}

@@ -10,7 +10,9 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-    Content-Security-Policy = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; form-action 'self' https://wpa.qq.com"
+    # script-src 只留 'self'：Supabase SDK 已改成站点内 lib/vendor 那份，
+    # 不再有 jsdelivr 动态导入（见 lib/supabase-client.js）。
+    Content-Security-Policy = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; form-action 'self' https://wpa.qq.com"
 
 [[headers]]
   for = "/memo-config.js"
