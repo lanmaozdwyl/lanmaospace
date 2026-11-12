@@ -862,7 +862,9 @@ test('在线开源书库：精选公版典藏、古登堡7万+书库、开源小
     // 2. CSP 授权放行
     const headersSource = readFileSync(new URL('../_headers', import.meta.url), 'utf8');
     assert(headersSource.includes('https://openlibrary.org'), 'CSP connect-src 需授权 openlibrary.org');
-    assert(headersSource.includes('https://archive.org'), 'CSP connect-src 需授权 archive.org');
+    // archive.org 早年挂在 connect-src 上，但前端没有任何一处请求它（covers/openlibrary/gutendex/gutenberg 才有）。
+    // 白名单只增不减迟早变成 https: 那种放开法，这里钉住"不放开"：要加回来得先有真实调用。
+    assert(!headersSource.includes('https://archive.org'), 'connect-src 不应保留无人调用的 archive.org');
     assert(headersSource.includes('https://gutendex.com'), 'CSP connect-src 需授权 gutendex.com');
     assert(headersSource.includes('https://www.gutenberg.org'), 'CSP connect-src 需授权 gutenberg.org');
 
