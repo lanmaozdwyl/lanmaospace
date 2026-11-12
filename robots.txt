@@ -1,7 +1,16 @@
 # managed via github
+# 收录策略（改动请连带跑 tests/seo-policy.test.mjs，里面有两条不变量）：
+# 1) 全站只有首页参与搜索。其余页面（备忘录、登录、空间、阅读、商店、FAQ、工具、404、离线页）
+#    各自写了 <meta name="robots" content="noindex">，用声明退出，而不是用 robots 禁抓。
+# 2) 原因是 noindex 只有被爬虫抓到才生效：一旦 Disallow，爬虫看不到声明，
+#    URL 反而可能带着"无摘要标题"被收录。所以带 noindex 的页面绝不要写进 Disallow。
+# 3) 这里只禁真正不该被抓的东西：数据文件与 relay 接口。它们不渲染内容，被抓只会白打上游。
+#    /sbproxy 前端已不再调用，保留只为回滚；/products.json 是商店数据，商店当前不上线。
+# 4) 将来的 /knowledge 页上线时：首页那张表加它一条，词条页另起一张 sitemap（分类内容分开维护）。
+
 User-agent: *
 Allow: /
-Disallow: /memo.html
-Disallow: /login.html
+Disallow: /sbproxy
+Disallow: /products.json
 
 Sitemap: https://lanmaospace.pages.dev/sitemap.xml
