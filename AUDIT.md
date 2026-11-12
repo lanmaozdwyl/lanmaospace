@@ -2,7 +2,9 @@
 
 下方为 2026-11-03 的原始审查，保留当时证据，不代表当前版本。A1 格式配置已在远程；A2 测试清单已统一；A5 EPUB 注释已纠正；R1 按全站登录要求补齐阅读器前端守卫与回跳。README 构建说明与上手/备份提醒已更新，HANDOFF 顶部记录当前状态。
 
-R2 SDK 自托管已于 2026-11-12 落地：Supabase SDK 不再从 jsdelivr 动态导入，改为 lib/vendor/supabase-js-2.39.0.mjs，CSP 的 script-src 收紧到只剩 'self'（_headers 与 netlify.toml 同步）；来源与哈希见 lib/vendor/vendor.json，复核跑 scripts/vendor-supabase-sdk.mjs，回归在 tests/sdk-vendor.test.mjs。R3 权限测试已在本地用 PGlite 跑通（tests/permissions.test.mjs 144 项，含线上迁移体检脚本 space-schema-check.sql 的通过/失败两分支）。收录策略另由 tests/seo-policy.test.mjs 守住。A3 历史文档归档、A4 旧资源清理（仓库内过期 lanmaospace.apk 与 netlify.toml 双份头部）仍待店主确认，本轮没有据此删除文件。当前功能测试 315 项；真实账号/真机及线上数据库状态应以当前验收为准。
+R2 SDK 自托管已于 2026-11-12 落地：Supabase SDK 不再从 jsdelivr 动态导入，改为 lib/vendor/supabase-js-2.39.0.mjs，CSP 的 script-src 收紧到只剩 'self'（_headers 与 netlify.toml 同步）；来源与哈希见 lib/vendor/vendor.json，复核跑 scripts/vendor-supabase-sdk.mjs，回归在 tests/sdk-vendor.test.mjs。R3 权限测试已在本地用 PGlite 跑通（tests/permissions.test.mjs 144 项，含线上迁移体检脚本 space-schema-check.sql 的通过/失败两分支）。收录策略另由 tests/seo-policy.test.mjs 守住。A3 历史文档归档、A4 旧资源清理（仓库内过期 lanmaospace.apk 与 netlify.toml 双份头部）仍待店主确认，本轮没有据此删除文件。
+
+R2 落地当天补两处：一是自己踩回来的坑——给 /lib/vendor/* 加了一年 immutable，线上实测 Pages 把所有命中的规则**拼接**而不是覆盖，返回的是 `Cache-Control: no-cache, public, max-age=31536000, immutable`，no-cache 要求每次回源校验，max-age 永不生效（87af9f3 当年正是为此清掉过七条同类规则）。死规则已删除，理由写进 _headers，tests/sdk-vendor.test.mjs 会拦住再被加回来；全站缓存边界维持 no-cache 重新验证不变。二是新增 tests/reference-integrity.test.mjs，从三个方向守住引用：站内引用必须存在、被引用的文件必须在 build.mjs 白名单里（FAQ 那次漏进 dist 就是这个坑）、images 与 audio 不留无人引用的死重量；同一条测试里带反向控制，并另建临时页面端到端验过两类断言确实会红。当前功能测试 320 项（另 tests/permissions.test.mjs 需 PGlite，144 项）；真实账号/真机及线上数据库状态仍以当前验收为准。
 
 ---
 
