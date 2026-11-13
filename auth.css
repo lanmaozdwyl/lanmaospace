@@ -99,7 +99,12 @@
     opacity: 1;
 }
 
-body[data-theme="dark"] .password-toggle-btn,
+/* 深色有两个来源：开关选定 dark，或没选但系统是 dark。两套选择器都得写全；
+   `选择器,\n@media {…}` 是解析错误，整块会被浏览器丢掉，等于深色覆盖从没生效。 */
+body[data-theme="dark"] .password-toggle-btn {
+    color: #aeaeb2;
+}
+
 @media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]) .password-toggle-btn {
         color: #aeaeb2;

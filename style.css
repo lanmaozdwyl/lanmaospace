@@ -934,8 +934,8 @@ button {
     align-items: center;
     gap: 4px;
     font-size: 0.75rem;
-    color: var(--primary);
-    background: rgba(102, 126, 234, 0.12);
+    color: var(--blue);
+    background: rgba(0, 113, 227, 0.12);
     padding: 2px 8px;
     border-radius: 6px;
     animation: fadeIn 0.2s ease;
@@ -961,16 +961,16 @@ button {
     font-size: 0.8rem;
     padding: 4px 12px;
     border-radius: 6px;
-    border: 1px solid var(--primary);
+    border: 1px solid var(--blue);
     background: transparent;
-    color: var(--primary);
+    color: var(--blue);
     cursor: pointer;
     font-weight: 500;
     transition: all 0.15s ease;
 }
 
 .guestbook-retry-btn:hover {
-    background: var(--primary);
+    background: var(--blue);
     color: #ffffff;
 }
 
@@ -1019,13 +1019,25 @@ button {
     transform: scale(0.96);
 }
 
-body[data-theme="dark"] .quick-tags-label,
+/* 深色有两种来源：用户在开关里选定了 dark，或者没选但系统就是深色。
+   两套选择器都得写全；下面这种 `选择器,\n@media {…}` 的写法是解析错误，
+   整块会被丢掉，等于深色覆盖从来没生效过（Chrome 实测已确认）。 */
+body[data-theme="dark"] .quick-tags-label {
+    color: #8e8e93;
+}
+
 @media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]) .quick-tags-label {
         color: #8e8e93;
     }
 }
-body[data-theme="dark"] .quick-tag-pill,
+
+body[data-theme="dark"] .quick-tag-pill {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #d1d1d6;
+}
+
 @media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]) .quick-tag-pill {
         background: rgba(255, 255, 255, 0.06);
@@ -1041,6 +1053,7 @@ body[data-theme="dark"] .quick-tag-pill,
         color: #8e8e93;
     }
 }
+
 body[data-theme="dark"] .quick-tag-pill:hover {
     background: rgba(0, 113, 227, 0.2);
     border-color: rgba(0, 113, 227, 0.5);
@@ -1413,7 +1426,12 @@ body[data-theme="dark"] .guestbook-like-ring {
     transition: opacity var(--transition-fast);
 }
 
-body[data-theme="dark"] .contact-copy-btn,
+body[data-theme="dark"] .contact-copy-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #f5f5f7;
+}
+
 @media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]) .contact-copy-btn {
         background: rgba(255, 255, 255, 0.06);
@@ -2521,10 +2539,15 @@ dialog.spotlight-modal::backdrop {
     color: var(--dark);
     background: rgba(0, 0, 0, 0.06);
 }
-body[data-theme="dark"] .spotlight-clear:hover,
-body:not([data-theme="light"]) .spotlight-clear:hover {
+body[data-theme="dark"] .spotlight-clear:hover {
     color: #fff;
     background: rgba(255, 255, 255, 0.12);
+}
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .spotlight-clear:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.12);
+    }
 }
 .spotlight-empty {
     padding: 32px 16px;
@@ -2560,11 +2583,17 @@ body:not([data-theme="light"]) .spotlight-clear:hover {
     background: rgba(0, 113, 227, 0.08);
     border-color: var(--blue);
 }
-body[data-theme="dark"] .spotlight-suggest-btn,
-body:not([data-theme="light"]) .spotlight-suggest-btn {
+body[data-theme="dark"] .spotlight-suggest-btn {
     border-color: rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.06);
     color: #2997ff;
+}
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .spotlight-suggest-btn {
+        border-color: rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: #2997ff;
+    }
 }
 .spotlight-footer {
     display: flex;
@@ -3392,7 +3421,6 @@ body[data-theme="dark"] .focus-stat-divider {
     color: var(--dark);
     line-height: 1.4;
 }
-body[data-theme="dark"] .focus-shortcuts-hint kbd,
 @media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]) .focus-shortcuts-hint {
         color: #8e8e93;
@@ -3471,7 +3499,10 @@ body.focus-zen-active .focus-zen-close-btn:hover {
     background: rgba(0, 0, 0, 0.1);
     transform: scale(1.08);
 }
-body[data-theme="dark"].focus-zen-active .focus-card,
+body[data-theme="dark"].focus-zen-active .focus-card {
+    background: rgba(18, 18, 20, 0.96) !important;
+}
+
 @media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]).focus-zen-active .focus-card {
         background: rgba(18, 18, 20, 0.96) !important;

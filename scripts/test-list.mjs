@@ -28,4 +28,5 @@ export const TESTS = [
     'tests/sdk-vendor.test.mjs',
     'tests/reference-integrity.test.mjs',
     'tests/guestbook-like.test.mjs',
+    'tests/css-theme-guards.test.mjs',
 ];

@@ -2410,7 +2410,7 @@ body.reader-body dialog.reader-audio-panel { background: var(--r-bg); color: var
     padding: 3px 8px;
     font-size: 12px;
     font-weight: 500;
-    color: var(--r-text-primary);
+    color: var(--r-text);
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -3567,7 +3567,12 @@ body.reader-body dialog.reader-audio-panel { background: var(--r-bg); color: var
     padding: 0 2px;
 }
 
-body[data-theme="dark"] .search-snippet-match,
+/* 选定 dark 与跟随系统 dark 是两套选择器，都得写全。 */
+body[data-theme="dark"] .search-snippet-match {
+    background: #f08c00;
+    color: #ffffff;
+}
+
 @media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]) .search-snippet-match {
         background: #f08c00;

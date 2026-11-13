@@ -145,7 +145,7 @@
     line-height: 1.4;
     border: 1px solid var(--gray-200);
     background: var(--white);
-    color: var(--gray-700);
+    color: var(--gray-800);
     cursor: pointer;
     transition: all 0.16s ease;
     user-select: none;
@@ -307,15 +307,34 @@
     100% { transform: scale(1); }
 }
 
-body[data-theme="dark"] .memo-counter-badge,
+/* 深色有两个来源：开关选定 dark，或没选但系统是 dark。两套选择器都得写全；
+   `选择器,\n@media {…}` 是解析错误，整块会被浏览器丢掉，等于深色覆盖从没生效。 */
+body[data-theme="dark"] .memo-counter-badge {
+    color: var(--gray-400);
+}
+
+body[data-theme="dark"] .memo-tag-pill {
+    background: var(--dark-card, #242426);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--gray-300, #c7c7cc);
+}
+
+body[data-theme="dark"] .memo-tag-pill:hover {
+    border-color: #2997ff;
+    color: #2997ff;
+}
+
+body[data-theme="dark"] .memo-tag-pill.active {
+    background: #0071e3;
+    border-color: #0071e3;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 113, 227, 0.35);
+}
+
 @media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]) .memo-counter-badge {
         color: var(--gray-400);
     }
-}
-
-body[data-theme="dark"] .memo-tag-pill,
-@media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]) .memo-tag-pill {
         background: var(--dark-card, #242426);
         border-color: rgba(255, 255, 255, 0.15);

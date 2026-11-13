@@ -8,6 +8,8 @@ R2 落地当天补两处：一是自己踩回来的坑——给 /lib/vendor/* �
 
 2026-11-13 留言板点赞：数据层 `supabase/guestbook-likes.sql` 建 `guestbook_likes`（复合主键即天然幂等，删除留言按外键级联），不给任何角色直接表权限、一条 RLS 策略都不建，读写全部走两个 `security definer` 且 `set search_path=''` 的函数；未过审留言与不存在的 id 返回同一句提示，避免拿点赞接口探测后台留言。前端在 `guestbook.js` 里乐观更新＋服务端回填纠偏，取会话之前就占住 pending 标记（否则两连点会并发两个请求、后回来的把状态翻反），失败一定退回原计数；动效按参考站的动画词汇用 WAAPI 实现（心形 pop 420ms 过冲曲线、扩散环 scale(.55)→2 淡出、数字上浮 220ms），`prefers-reduced-motion` 下全部不播、状态照常更新，样式与事件绑定都不内联，CSP 不受影响。迁移没执行时 `guestbook_like_state` 调不通，整排按钮收起，而不是留一个点了必报错的心形。测试：新增 `tests/guestbook-like.test.mjs`（vm＋最小假 DOM 跑真实模块；假 DOM 的 click 必须冒泡，否则事件委托那条测试是假的）8 项，功能测试合计 328 项；`tests/permissions.test.mjs` 扩到 167 项 PGlite 检查，含 `guestbook-security-check.sql` 点赞分支的通过/失败两面（故意多 grant 一条权限必须先报 FAIL）。线上数据库仍需店主执行 `supabase/guestbook-likes.sql`，本机连不上 Supabase，这一步不能代替真实账号验收。
 
+同日在真浏览器里验收点赞时发现整片深色样式是死的，顺带清了 CSS 的两类结构性错误（浏览器实测取证，不是读代码猜的）：一是 `body[data-theme="dark"] .x,` 换行紧跟 `@media (prefers-color-scheme: dark) {…}` 的写法，选择器列表里混进 at-rule 属于解析错误，Chrome 把整块丢掉——style/auth/memo/profile/reader 五个文件共 10 处，实测留言板快捷标签在深色下仍是 #424245 的深灰字压在 #1c1c1e 卡片上（等于看不见），密码可见性按钮、备忘录标签、专注钟键帽、 zen 卡片背景等同理；现已拆成"显式 dark 一条 + `@media (prefers-color-scheme: dark)` 里 `body:not([data-theme="light"])` 一条"，改完深色下 pill 变 rgb(209,209,214)、卡片底 rgba(255,255,255,.06)，浅色一个像素没动。另一头还有 2 处反向错误：`body:not([data-theme="light"])` 写在媒体查询外面，系统浅色且没手动选主题时也会糊上深色样式（首页搜索的建议胶囊和清除键），已收进 dark 查询里。二是全站 4 个未定义就使用的自定义属性：`--primary`（留言板重试按钮强调色，自 init 起就没生效过，改成 `--blue`）、`--gray-700`、`--gray-300`（tools 三处）、`--r-text-primary`（阅读器导出按钮，正主是 `--r-text`）；未定义变量的声明在计算值阶段整条失效，表现为"颜色悄悄回退成继承值"，很难从代码上看出来。防复发交给 `tests/css-theme-guards.test.mjs`：只认 `{ } ;` 的结构扫描，不依赖换行缩进，三条检查各带通过/失败两面反向控制（改完实测 95 条自动深色规则全部落在 dark 查询内、0 条裸写）。功能测试 331 项。
+
 ---
 
 # Lanmao Space 审查报告（AUDIT）

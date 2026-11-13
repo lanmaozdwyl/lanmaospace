@@ -122,7 +122,12 @@
     display: none !important;
 }
 
-body[data-theme="dark"] .profile-dirty-badge,
+body[data-theme="dark"] .profile-dirty-badge {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+}
+
 @media (prefers-color-scheme: dark) {
     body:not([data-theme="light"]) .profile-dirty-badge {
         background: rgba(245, 158, 11, 0.12);
