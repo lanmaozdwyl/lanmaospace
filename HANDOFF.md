@@ -1,3 +1,18 @@
+# 加载与响应速度：defer、缓存反向写法、阅读器滚动重排（2026-11-13）
+
+本节优先于下方历史记录。先量后改，测量结论与否决项写在 `AUDIT.md` 的"加载与响应速度（2026-11-13）"一节，这里只记接手要用的事实。
+
+1. **缓存边界反过来了。** `_headers` 的 `/*` 不再写 `Cache-Control: no-cache`，改成 `public, max-age=300`；12 个 HTML 页加 `/`、`/tools/` 逐条点名 `no-cache`，`/sw.js` 与 `/memo-config.js` 维持不变。依据是 Pages 对命中规则做拼接：`no-cache` 拼在 `max-age` 之后仍然优先，所以文档安全、静态资源拿到 5 分钟。以前那种"在子路径上加 max-age"的写法依然是错的，`tests/sdk-vendor.test.mjs` 现在两面都拦（`/*` 上不许出现 no-cache；每个 `*.html` 必须被点名）。
+2. **新增页面要做两件事**：在 `_headers` 里给它补一条 `Cache-Control: no-cache`，脚本标签带 `defer`。这两条都有测试兜着，忘了 CI 会红，不会静默上线。
+3. **`_worker.js` 给代理响应显式写 `no-store`**，并删掉转发的 `content-encoding`/`content-length`。`_headers` 实测只作用于静态资源，worker 亲手造的响应没人管——这条是防边缘节点把某个用户的行数据回给别人的。
+4. **阅读器长卷滚动改为顶边缓存＋二分定位**，作废点有四：追加新章、`applySettings()`、resize、重渲染。改这个是因为旧代码每个 scroll 事件扫全文档读 `offsetTop`，而同一回调末尾还要写样式，一帧一重排。`updatePaginationMetrics` 里"视口 0 宽就下一帧重测"的自愈循环加了 30 次上限（原来后台标签页会被它 60 Hz 地重排＋写 localStorage）。要再动滚动或分页，先跑 `tests/reader-scroll-perf.test.mjs`，它用读取次数当证据。
+5. **10 个页面 22 个脚本标签补了 `defer`**。`memo-config.js` 必须排在读 `window.LANMAO_MEMO_CONFIG` 的脚本前面（defer 与 module 同队列、按文档顺序执行），`tests/script-defer.test.mjs` 盯这个顺序。
+6. **10 个页面的 head 里加了 Supabase 域的 `preconnect crossorigin`**，域名与 `memo-config.js` 的 url 由测试钉住不许漂移；换 Supabase 项目时两处一起改。
+
+功能测试 342 项通过（新增 `tests/script-defer.test.mjs` 3 项、`tests/reader-scroll-perf.test.mjs` 5 项，`sdk-vendor`/`sbproxy` 各加 1 项）；`tests/permissions.test.mjs` 167 项 PGlite 检查本轮未重跑（改动不涉权限层）。真浏览器验收过：阅读器书架出卡、翻章、长卷从第一章滚到第五章再滚回第一章页眉与百分比同步、分页模式列宽与页码正常，控制台无新增错误。**线上缓存头改动必须发版后实测确认**，本地服务器只能复现拼接语义，不能证明 Cloudflare 的行为。
+
+---
+
 # 安卓文件选择器兼容修复（2026-11-06）
 
 WebView 改用 ACTION_OPEN_DOCUMENT，规范化 accept 中的扩展名/逗号分隔 MIME 列表；缺少 DocumentsUI 时回退 ACTION_GET_CONTENT。保留 content:// 限制与取消回调，不增加存储或全部文件权限。三个网页文件入口改为透明原生 input 覆盖按钮，兼容触摸与键盘。安卓修复需要安装新 APK，网页更新不会替换已安装版本；实体设备仍需验收。

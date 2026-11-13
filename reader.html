@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex, nofollow">
     <meta name="description" content="蓝昴空间在线阅读器：微信读书风格排版、我的书架总览、左右分页翻页、羊皮纸与护眼夜间主题、纯本地离线解析畅读。">
     <title>伴读阅读器 | 蓝昴空间</title>
+    <link rel="preconnect" href="https://kyhhzaftsyakibdisiqj.supabase.co" crossorigin>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="lib/openpageflip/openpageflip.css">
     <link rel="stylesheet" href="lib/pageflipopen/pageflipopen.css">
@@ -688,13 +689,13 @@
         <details><summary>当前声音来源与许可</summary><p id="reader-audio-credits"></p></details>
     </dialog>
 
-    <script src="memo-config.js"></script>
+    <script src="memo-config.js" defer></script>
     <script type="module" src="auth-guard.js"></script>
-    <script src="lib/openpageflip/openpageflip.js"></script>
+    <script src="lib/openpageflip/openpageflip.js" defer></script>
     <!-- pageflipopen.js 约 1.9 MB，只有 PDF 3D 翻页用得到，由 reader.js 按需注入。 -->
-    <script src="reader-highlight.js"></script>
-    <script src="reader-gesture.js"></script>
-    <script src="reader.js"></script>
+    <script src="reader-highlight.js" defer></script>
+    <script src="reader-gesture.js" defer></script>
+    <script src="reader.js" defer></script>
     <script type="module" src="reader-audio.js"></script>
 </body>
 </html>

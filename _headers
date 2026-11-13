@@ -5,19 +5,65 @@
   Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   Content-Security-Policy: frame-ancestors 'self'; object-src 'none'; base-uri 'self'; default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org https://www.gutenberg.org https://gutendex.com; font-src 'self' data:; connect-src 'self' blob: data: https://*.supabase.co wss://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://gutendex.com https://www.gutenberg.org; worker-src 'self' blob:; form-action 'self' https://wpa.qq.com
+  Cache-Control: public, max-age=300
+
+# ---- 为什么文档要一条条列出来，而不是把 no-cache 留在 /* 上 ----
+# Cloudflare Pages 对所有命中的规则做的是拼接而不是覆盖：一条请求同时命中 /* 和
+# /reader.html 时，两条的 Cache-Control 会串成 "public, max-age=300, no-cache"。
+# 所以：
+#   · 曾经写在子路径上的 max-age 是死规则（87af9f3 就是这么清掉七条一年 immutable 的），
+#     想让静态资源真的缓存起来，只能把 max-age 放到 /* 这一条上；
+#   · 反过来，no-cache 拼在 max-age 后面依然优先，文档因此必须一条条点名。
+# 拼接口径下漏写一条的后果只是那个页面最多缓存 5 分钟，不会更糟；
+# tests/sdk-vendor.test.mjs 会检查每个 *.html 都在下面出现过，新增页面别忘了加。
+# 5 分钟是刻意选的短值：文件名不带内容哈希，HTML 与 JS/CSS 不同版本最多错开 5 分钟。
+
+/
   Cache-Control: no-cache
 
-/memo-config.js
-  Cache-Control: no-store
+/index.html
+  Cache-Control: no-cache
+
+/404.html
+  Cache-Control: no-cache
+
+/offline.html
+  Cache-Control: no-cache
+
+/login.html
+  Cache-Control: no-cache
+
+/memo.html
+  Cache-Control: no-cache
+
+/profile.html
+  Cache-Control: no-cache
+
+/reader.html
+  Cache-Control: no-cache
+
+/space.html
+  Cache-Control: no-cache
+
+/store.html
+  Cache-Control: no-cache
+
+/account.html
+  Cache-Control: no-cache
+
+/faq.html
+  Cache-Control: no-cache
+
+/tools/
+  Cache-Control: no-cache
+
+/tools/index.html
+  Cache-Control: no-cache
 
 /sw.js
   Cache-Control: no-cache
 
-# 不要在这里给 /lib/vendor/* 之类的静态资源单独加 max-age/immutable。
-# Cloudflare Pages 会把所有命中的规则拼在一起而不是覆盖，实测
-# GET /lib/vendor/supabase-js-2.39.0.mjs 返回的是
-#   Cache-Control: no-cache, public, max-age=31536000, immutable
-# 而 no-cache 要求每次回源校验，后面的 max-age 完全不生效（87af9f3 当年就是这样清掉七条
-# 一年 immutable 规则的）。想真正延长缓存，必须先把 /* 那条 no-cache 挪走并逐页改成显式规则，
-# 那是另一个决定；现在的代价只是一次 304 往返，边缘节点答得很快。
-# 这条约束由 tests/sdk-vendor.test.mjs 兜着，别再凭直觉加回来。
+# 里面是 Supabase 的 project url 与 publishable key。key 本来就印在每个公开页面上，
+# no-store 管的是别让共享代理/CDN 再存一份，不是防泄露的边界（真正的边界是 RLS）。
+/memo-config.js
+  Cache-Control: no-store

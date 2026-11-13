@@ -2163,6 +2163,8 @@
 
     // ===== 5. UI 应用与主题切换 =====
     function applySettings() {
+        // 这一整段全在改影响排版的 CSS 变量，动完长卷分区的顶边就不作数了。
+        invalidateScrollSections();
         // 主题设置
         document.documentElement.dataset.readerTheme = state.settings.theme;
         document.querySelectorAll('.theme-chip').forEach(chip => {
@@ -3087,6 +3089,8 @@
                 maxLoadedChapter: chapterIndex,
                 isAppending: false
             };
+            // 整卷文档即将重建，缓存的分区顶边全部作废。
+            invalidateScrollSections();
             htmlParts.push(formatScrollChapterHtml(chapter, chapterIndex));
             if (chapterIndex >= book.chapters.length - 1) {
                 htmlParts.push(`
@@ -3435,8 +3439,9 @@
     }
 
     // ===== 8. 微信读书左右分页核心算法 (支持横竖屏/重排段落精确锚定) =====
-    function findAnchorParagraphIndex(content, currentOffset, step) {
-        const blocks = content.querySelectorAll('p, h2, h3, blockquote');
+    // blocks 由调用方查好传进来：这里和下面锚定回写都要用同一批段落，
+    // 各自 querySelectorAll 一次等于同一次重排里多扫一遍全文档。
+    function findAnchorParagraphIndex(blocks, currentOffset, step) {
         if (!blocks.length) return 0;
         let bestIndex = 0;
         let minDiff = Infinity;
@@ -3451,6 +3456,53 @@
         return bestIndex;
     }
 
+    // ----- 长卷模式"当前读到第几章"的定位缓存 -----
+    // 分区的 offsetTop 只在追加新章、换字号/主题、改窗口大小时才会变，所以测一次存起来复用。
+    // 改之前每个 scroll 事件都 querySelectorAll 一遍再逐节读 offsetTop + offsetHeight，
+    // 而同一个事件末尾 updateSlider() 又往回写样式；下一次读必然强制整卷重排，
+    // 一次惯性滑动几十帧就是几十次重排，手机上表现为滚动发涩、页眉跳字慢半拍。
+    const scrollSections = { tops: [], indexes: [], dirty: true };
+
+    function invalidateScrollSections() {
+        scrollSections.dirty = true;
+    }
+
+    function measureScrollSections(contentEl) {
+        const nodes = contentEl.querySelectorAll('.scroll-chapter-section');
+        const tops = [];
+        const indexes = [];
+        // 一口气读完再返回，中间不夹任何写操作，免得读写交替反复触发重排。
+        for (let i = 0; i < nodes.length; i++) {
+            tops.push(nodes[i].offsetTop);
+            const idx = parseInt(nodes[i].getAttribute('data-chapter-index'), 10);
+            indexes.push(isNaN(idx) ? i : idx);
+        }
+        scrollSections.tops = tops;
+        scrollSections.indexes = indexes;
+        scrollSections.dirty = false;
+    }
+
+    // 分区按文档顺序排列，offsetTop 单调递增，二分找最后一个 <= triggerY 的就够了。
+    function findScrollSectionIndex(tops, triggerY) {
+        let lo = 0;
+        let hi = tops.length - 1;
+        let hit = -1;
+        while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            if (tops[mid] <= triggerY) {
+                hit = mid;
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        return hit;
+    }
+
+    // 0 宽视口自愈重测的次数上限，约半秒；再测不出宽度就说明容器真的不可见，停手。
+    const MAX_ZERO_WIDTH_RETRIES = 30;
+    let zeroWidthRetries = 0;
+
     function updatePaginationMetrics(preserveAnchor = true) {
         if (state.settings.mode === 'scroll') {
             state.totalPages = 1;
@@ -3464,14 +3516,17 @@
         const content = document.getElementById('reader-content');
         if (!viewport || !content) return;
 
-        const oldColWidth = parseFloat(content.style.columnWidth) || viewport.clientWidth;
+        // 同一批段落既用来找锚点又用来回写页码，查一次就够；
+        // 视口宽度也先读出来复用，别让读布局的调用散在写样式前后。
+        const rawWidth = viewport.clientWidth;
+        const blocks = content.querySelectorAll('p, h2, h3, blockquote');
+        const oldColWidth = parseFloat(content.style.columnWidth) || rawWidth;
         const oldColGap = window.innerWidth >= 900 ? 60 : 48;
         const oldStep = oldColWidth + oldColGap;
         const oldOffset = (state.currentPage - 1) * oldStep;
 
-        const anchorIndex = preserveAnchor ? findAnchorParagraphIndex(content, oldOffset, oldStep) : 0;
+        const anchorIndex = preserveAnchor ? findAnchorParagraphIndex(blocks, oldOffset, oldStep) : 0;
 
-        const rawWidth = viewport.clientWidth;
         const fallbackWidth = window.innerWidth >= 900 ? 820 : Math.max(260, window.innerWidth - 48);
         const colWidth = Math.max(260, rawWidth || fallbackWidth);
         const colGap = window.innerWidth >= 900 ? 60 : 48;
@@ -3486,11 +3541,18 @@
         state.totalPages = calculatedPages;
 
         if (rawWidth <= 0) {
-            requestAnimationFrame(() => updatePaginationMetrics(preserveAnchor));
+            // 0 宽多半是标签页被隐藏、或视图刚切过来还没布局，下一帧重测自愈。
+            // 但必须设上限：容器一直是 0 宽的话，这里会以 60Hz 强制整章重排并连带写
+            // localStorage，一个静置在后台的阅读标签页就能把 CPU 和电量烧穿。
+            if (zeroWidthRetries < MAX_ZERO_WIDTH_RETRIES) {
+                zeroWidthRetries++;
+                requestAnimationFrame(() => updatePaginationMetrics(preserveAnchor));
+            }
+        } else {
+            zeroWidthRetries = 0;
         }
 
         if (preserveAnchor) {
-            const blocks = content.querySelectorAll('p, h2, h3, blockquote');
             if (blocks[anchorIndex]) {
                 const newOffset = blocks[anchorIndex].offsetLeft;
                 const targetPage = Math.max(1, Math.min(calculatedPages, Math.floor((newOffset + 8) / step) + 1));
@@ -5835,9 +5897,11 @@
         const readerVp = document.getElementById('reader-viewport');
         if (readerVp) {
             let scrollSaveTimer = null;
-            readerVp.addEventListener('scroll', () => {
-                if (state.settings.mode !== 'scroll') return;
-
+            let scrollFrame = 0;
+            // 一帧之内只算一次：移动端惯性滑动的 scroll 事件能冲到 100Hz 以上，
+            // 而这个回调既要读布局又要写页眉与进度条，逐事件执行等于把主线程绑死在滚动速率上。
+            const runScrollPass = () => {
+                scrollFrame = 0;
                 // 笔趣阁同款无限连续长卷：接近底端自动加载下一章
                 if (state.currentBook && Array.isArray(state.currentBook.chapters)) {
                     const totalCh = state.currentBook.chapters.length;
@@ -5876,6 +5940,8 @@
                             }
                             applyChapterHighlights();
                             applySearchHighlights();
+                            // 新章进文档后所有后续分区的顶边都变了，缓存必须作废重测。
+                            invalidateScrollSections();
                         }
                         state.scrollState.isAppending = false;
                     }
@@ -5883,17 +5949,11 @@
                     // 根据视口滚动高度智能识别当前正在阅读的章节并更新页眉与目录高亮
                     const contentEl = document.getElementById('reader-content');
                     if (contentEl) {
-                        const sections = contentEl.querySelectorAll('.scroll-chapter-section');
                         let activeSectionIdx = state.currentChapterIndex;
                         const triggerY = readerVp.scrollTop + readerVp.clientHeight * 0.3;
-                        sections.forEach(sec => {
-                            const top = sec.offsetTop;
-                            const bottom = top + sec.offsetHeight;
-                            if (triggerY >= top && triggerY < bottom) {
-                                const idx = parseInt(sec.getAttribute('data-chapter-index'), 10);
-                                if (!isNaN(idx)) activeSectionIdx = idx;
-                            }
-                        });
+                        if (scrollSections.dirty) measureScrollSections(contentEl);
+                        const hit = findScrollSectionIndex(scrollSections.tops, triggerY);
+                        if (hit >= 0) activeSectionIdx = scrollSections.indexes[hit];
                         if (activeSectionIdx !== state.currentChapterIndex) {
                             state.currentChapterIndex = activeSectionIdx;
                             const headerChapter = document.getElementById('reader-header-chapter');
@@ -5912,6 +5972,11 @@
                 scrollSaveTimer = setTimeout(() => {
                     saveProgress();
                 }, 120);
+            };
+            readerVp.addEventListener('scroll', () => {
+                if (state.settings.mode !== 'scroll') return;
+                if (scrollFrame) return;
+                scrollFrame = requestAnimationFrame(runScrollPass);
             }, { passive: true });
 
             // 滚动模式下直接为视口绑定轻触兜底，确保移动触屏与鼠标均能即刻呼出或隐藏控制栏
@@ -6450,6 +6515,7 @@
         const handleViewportResize = () => {
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(() => {
+                invalidateScrollSections();
                 updatePaginationMetrics(true);
             }, 100);
         };

@@ -54,11 +54,25 @@ export default {
         for (const name of STRIPPED_HEADERS) headers.delete(name);
 
         const withBody = request.method !== "GET" && request.method !== "HEAD";
-        return fetch(new Request(UPSTREAM + path + url.search, {
+        const upstream = await fetch(new Request(UPSTREAM + path + url.search, {
             method: request.method,
             headers,
             body: withBody ? request.body : undefined,
             redirect: "manual",
         }));
+        // _headers 只作用于静态资源，代理响应是这个 worker 亲手造的对象，谁也管不到它。
+        // 这里不沿用上游的默认值：万一哪天响应带上了可缓存的 Cache-Control，
+        // Cloudflare 就会把某个用户的行数据缓在边缘节点，回给后面所有访问的人。
+        const forwarded = new Headers(upstream.headers);
+        forwarded.set("cache-control", "no-store");
+        // 取回来的 body 已经解压过了，再挂着头上的 content-encoding/length 就是把
+        // 长度和编码说谎给下一跳。去掉之后按 chunked 走，谁也不会拿到截断的响应。
+        forwarded.delete("content-encoding");
+        forwarded.delete("content-length");
+        return new Response(upstream.body, {
+            status: upstream.status,
+            statusText: upstream.statusText,
+            headers: forwarded,
+        });
     },
 };

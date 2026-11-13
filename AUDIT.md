@@ -4,11 +4,22 @@
 
 R2 SDK 自托管已于 2026-11-12 落地：Supabase SDK 不再从 jsdelivr 动态导入，改为 lib/vendor/supabase-js-2.39.0.mjs，CSP 的 script-src 收紧到只剩 'self'（_headers 与 netlify.toml 同步）；来源与哈希见 lib/vendor/vendor.json，复核跑 scripts/vendor-supabase-sdk.mjs，回归在 tests/sdk-vendor.test.mjs。R3 权限测试已在本地用 PGlite 跑通（tests/permissions.test.mjs 144 项，含线上迁移体检脚本 space-schema-check.sql 的通过/失败两分支）。收录策略另由 tests/seo-policy.test.mjs 守住。A3 历史文档归档、A4 旧资源清理（仓库内过期 lanmaospace.apk 与 netlify.toml 双份头部）仍待店主确认，本轮没有据此删除文件。
 
-R2 落地当天补两处：一是自己踩回来的坑——给 /lib/vendor/* 加了一年 immutable，线上实测 Pages 把所有命中的规则**拼接**而不是覆盖，返回的是 `Cache-Control: no-cache, public, max-age=31536000, immutable`，no-cache 要求每次回源校验，max-age 永不生效（87af9f3 当年正是为此清掉过七条同类规则）。死规则已删除，理由写进 _headers，tests/sdk-vendor.test.mjs 会拦住再被加回来；全站缓存边界维持 no-cache 重新验证不变。二是新增 tests/reference-integrity.test.mjs，从三个方向守住引用：站内引用必须存在、被引用的文件必须在 build.mjs 白名单里（FAQ 那次漏进 dist 就是这个坑）、images 与 audio 不留无人引用的死重量；同一条测试里带反向控制，并另建临时页面端到端验过两类断言确实会红。当前功能测试 320 项（另 tests/permissions.test.mjs 需 PGlite，144 项）；真实账号/真机及线上数据库状态仍以当前验收为准。
+R2 落地当天补两处：一是自己踩回来的坑——给 /lib/vendor/* 加了一年 immutable，线上实测 Pages 把所有命中的规则**拼接**而不是覆盖，返回的是 `Cache-Control: no-cache, public, max-age=31536000, immutable`，no-cache 要求每次回源校验，max-age 永不生效（87af9f3 当年正是为此清掉过七条同类规则）。死规则已删除，理由写进 _headers，tests/sdk-vendor.test.mjs 会拦住再被加回来；全站缓存边界维持 no-cache 重新验证不变。**（这句到 2026-11-13 已失效：no-cache 已从 /* 移到逐条文档上，静态资源改走 5 分钟 max-age，见下文"加载与响应速度"一段。）**二是新增 tests/reference-integrity.test.mjs，从三个方向守住引用：站内引用必须存在、被引用的文件必须在 build.mjs 白名单里（FAQ 那次漏进 dist 就是这个坑）、images 与 audio 不留无人引用的死重量；同一条测试里带反向控制，并另建临时页面端到端验过两类断言确实会红。当前功能测试 320 项（另 tests/permissions.test.mjs 需 PGlite，144 项）；真实账号/真机及线上数据库状态仍以当前验收为准。
 
 2026-11-13 留言板点赞：数据层 `supabase/guestbook-likes.sql` 建 `guestbook_likes`（复合主键即天然幂等，删除留言按外键级联），不给任何角色直接表权限、一条 RLS 策略都不建，读写全部走两个 `security definer` 且 `set search_path=''` 的函数；未过审留言与不存在的 id 返回同一句提示，避免拿点赞接口探测后台留言。前端在 `guestbook.js` 里乐观更新＋服务端回填纠偏，取会话之前就占住 pending 标记（否则两连点会并发两个请求、后回来的把状态翻反），失败一定退回原计数；动效按参考站的动画词汇用 WAAPI 实现（心形 pop 420ms 过冲曲线、扩散环 scale(.55)→2 淡出、数字上浮 220ms），`prefers-reduced-motion` 下全部不播、状态照常更新，样式与事件绑定都不内联，CSP 不受影响。迁移没执行时 `guestbook_like_state` 调不通，整排按钮收起，而不是留一个点了必报错的心形。测试：新增 `tests/guestbook-like.test.mjs`（vm＋最小假 DOM 跑真实模块；假 DOM 的 click 必须冒泡，否则事件委托那条测试是假的）8 项，功能测试合计 328 项；`tests/permissions.test.mjs` 扩到 167 项 PGlite 检查，含 `guestbook-security-check.sql` 点赞分支的通过/失败两面（故意多 grant 一条权限必须先报 FAIL）。线上数据库仍需店主执行 `supabase/guestbook-likes.sql`，本机连不上 Supabase，这一步不能代替真实账号验收。
 
 同日在真浏览器里验收点赞时发现整片深色样式是死的，顺带清了 CSS 的两类结构性错误（浏览器实测取证，不是读代码猜的）：一是 `body[data-theme="dark"] .x,` 换行紧跟 `@media (prefers-color-scheme: dark) {…}` 的写法，选择器列表里混进 at-rule 属于解析错误，Chrome 把整块丢掉——style/auth/memo/profile/reader 五个文件共 10 处，实测留言板快捷标签在深色下仍是 #424245 的深灰字压在 #1c1c1e 卡片上（等于看不见），密码可见性按钮、备忘录标签、专注钟键帽、 zen 卡片背景等同理；现已拆成"显式 dark 一条 + `@media (prefers-color-scheme: dark)` 里 `body:not([data-theme="light"])` 一条"，改完深色下 pill 变 rgb(209,209,214)、卡片底 rgba(255,255,255,.06)，浅色一个像素没动。另一头还有 2 处反向错误：`body:not([data-theme="light"])` 写在媒体查询外面，系统浅色且没手动选主题时也会糊上深色样式（首页搜索的建议胶囊和清除键），已收进 dark 查询里。二是全站 4 个未定义就使用的自定义属性：`--primary`（留言板重试按钮强调色，自 init 起就没生效过，改成 `--blue`）、`--gray-700`、`--gray-300`（tools 三处）、`--r-text-primary`（阅读器导出按钮，正主是 `--r-text`）；未定义变量的声明在计算值阶段整条失效，表现为"颜色悄悄回退成继承值"，很难从代码上看出来。防复发交给 `tests/css-theme-guards.test.mjs`：只认 `{ } ;` 的结构扫描，不依赖换行缩进，三条检查各带通过/失败两面反向控制（改完实测 95 条自动深色规则全部落在 dark 查询内、0 条裸写）。功能测试 331 项。
+
+## 加载与响应速度（2026-11-13）
+
+先量再改：`/` 首屏 4 个 CSS、`/reader.html` 4 个 CSS 加 6 个脚本，**没有一个带 defer**，且每一个都因为全站 no-cache 每次导航回源校验；本机实测 TTFB 1.25–3.57 s、响应 `Content-Encoding: br`、`/reader.js` 362 KB（75 KB br）。四处改动：
+
+1. **defer 全部经典脚本**（10 个页面 22 个标签）。`type="module"` 本来就是延迟执行，defer 脚本与它同属一个队列、按文档顺序跑，所以 `memo-config.js` 排在使用它的模块之前这个约束仍然成立——新增 `tests/script-defer.test.mjs` 把"没有 defer"和"顺序倒了"两件事都钉住（后者错了不报错，只是悄悄地拿到 undefined，登录起不来很难查）。
+2. **缓存反过来写**：`Cache-Control: no-cache` 从 `/*` 摘掉，改成 `/*` 上 `public, max-age=300`、12 个 HTML 页加 `/`、`/tools/` 逐条点名 no-cache。利用的正是上面那条拼接语义——`no-cache` 拼在 `max-age` 后面依然优先，所以文档不会真被缓存，而漏写一条的后果只是那个页面最多多缓存 5 分钟。5 分钟是刻意的：文件名没有内容哈希，HTML 与 JS/CSS 不同版本最多错开这么久。`tests/sdk-vendor.test.mjs` 原来拦的是"子路径上别加 max-age"，现在改成拦"max-age 只准出现在 /*、每个 *.html 都必须被点名"，两面都有反向控制。
+3. **`/sbproxy` 响应显式 no-store**（`_worker.js`）。实测过 `_headers` 只作用于静态资源，worker 亲手造的响应没人管：一旦上游哪天给了可缓存的头，边缘节点就会把某个用户的行数据回给后面所有人。顺手删掉转发头里的 `content-encoding`/`content-length`——body 取回来时已经解压过了。
+4. **阅读器滚动不再每帧重扫全文档**。旧代码每个 scroll 事件 `querySelectorAll('.scroll-chapter-section')` 再逐节读 `offsetTop`＋`offsetHeight`，而同一个回调末尾 `updateSlider()` 要写样式，于是下一帧的读必然触发整卷强制重排；长卷读到第 20 章时一次惯性滑动就是几十次重排。现在分区顶边缓存成数组＋二分定位，只在追加新章、`applySettings()`、resize、重渲染时作废，回调本身按帧合批。附带把 `updatePaginationMetrics` 里查两遍段落、读两次视口宽度的浪费去掉，并给"视口 0 宽就下一帧重测"的自愈循环加了 30 次上限——原来容器一直是 0 宽（后台标签页）就会以 60 Hz 强制重排并连带写 localStorage。新增 `tests/reader-scroll-perf.test.mjs` 用假 DOM 数读取次数（5 趟定位只准读 3 次，作废后才重测），真浏览器里从第一章滚到第五章再滚回来，页眉与百分比都跟着走。
+
+**量过之后决定不做**：把 `BUILTIN_BOOKS`（83.5 KB raw / 24.7 KB br，占 reader.js 传输的三分之一）拆成独立 defer 文件。字节总量不变、两个文件仍然要按顺序执行、还多一次请求往返，唯一收益是缓存粒度，而阅读器只有这一个页面会加载它——不值得动。真正有价值的是把正文改成"打开某本书时再取"，但那要求把 `chapters[].content` 从书架元数据里剥出来，而全文检索、TTS、备份导出十几处都直接读 `state.books[id].chapters[i].content`；导出是用户本地书的唯一备份通道，做成半成品等于拿数据换体积。`initCustomBooksStorage` 用 `store.getAll()` 一次性把所有书（含 PDF 的 base64）克隆进主线程这件事同理，是要改就得连带把导出、检索、进度全部重验的一次结构性改动，本轮没有做。
 
 ---
 
@@ -86,8 +97,8 @@ R2 落地当天补两处：一是自己踩回来的坑——给 /lib/vendor/* �
 
 ## 六、可维护性观察（需评估，非紧急）
 
-- reader.js 3032 行、约 188 KB，内置三本书的全文与阅读器逻辑在同一个 IIFE 中；style.css 3424 行、约 94 KB。体积和耦合偏高，但有 reader 测试覆盖。
-- 建议后续把内置书籍数据拆成独立数据文件，把 reader.js 分成存储、分页、界面几个模块，每一步都用现有测试守住行为。
+- reader.js 已长到 6792 行、362 KB（75 KB br），内置三本书的全文与阅读器逻辑在同一个 IIFE 中；style.css、reader.css 各约 111 KB / 95 KB。体积和耦合偏高，但有 reader 测试覆盖。
+- 拆分建议见文首"加载与响应速度"一节：内置书籍数据单独成文件这条已经量过并否决，真要动体积应动"正文按需取"，而那是连带导出、检索、进度一起重验的结构性改动，不要在没有验收手段的情况下顺手做。
 
 ## 七、结论与改造建议
 

@@ -29,4 +29,6 @@ export const TESTS = [
     'tests/reference-integrity.test.mjs',
     'tests/guestbook-like.test.mjs',
     'tests/css-theme-guards.test.mjs',
+    'tests/script-defer.test.mjs',
+    'tests/reader-scroll-perf.test.mjs',
 ];

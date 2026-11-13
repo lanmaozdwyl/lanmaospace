@@ -103,3 +103,22 @@ test('_worker.js 必须进 dist，且不能再拷贝 functions 目录', async ()
     assert.ok(!dirs.includes('functions'), 'functions 目录已随 Pages Functions 版代理删除，列入会让 cpSync ENOENT 打断构建');
     assert.ok(dirs.includes("'lib'"), 'lib 目录仍需拷贝');
 });
+
+test('代理响应一律压成 no-store：_headers 管不到 worker 亲手造的响应', async () => {
+    const keep = globalThis.fetch;
+    globalThis.fetch = async () => new Response('[]', {
+        status: 200,
+        headers: { 'cache-control': 'public, max-age=600', 'content-encoding': 'gzip', 'content-length': '999' },
+    });
+    try {
+        const response = await worker.fetch(page('/sbproxy/rest/v1/messages?select=id'), env);
+        assert.equal(response.headers.get('cache-control'), 'no-store',
+            '上游给了可缓存头就必须覆盖掉，否则某个用户的行数据会被边缘节点回给别人');
+        // body 取回来时已经解压过了，再把上游的编码/长度挂回去等于对下一跳撒谎。
+        assert.equal(response.headers.get('content-encoding'), null);
+        assert.equal(response.headers.get('content-length'), null);
+        assert.equal(await response.text(), '[]');
+    } finally {
+        globalThis.fetch = keep;
+    }
+});
