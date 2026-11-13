@@ -12,6 +12,106 @@ import { avatarDisplay, avatarPublicUrl, fallbackAvatarDisplay } from './lib/ava
 
 let supabase = null;
 let lastSubmitAt = 0;
+// 点赞状态按留言 id 索引；guestbook-likes.sql 还没跑时 likesAvailable 会被置 false，
+// 整条列表照常显示，只是不出现点赞按钮（不是报错，也不是点了没反应）。
+const likeIndex = new Map();
+let likesAvailable = true;
+
+// 动效曲线取自参考站的动画词汇表：pop 用带过冲的 (.34,1.56,.64,1)，
+// 位移/淡入用全站统一的 (.22,1,.36,1)，时长 .42s/.22s/.16s。
+// 只在 Web Animations API 上做，不写内联样式、不加 class 再手动摘除——
+// 反复点同一条时，重放动画靠的是新的 animate() 调用，而不是重置样式。
+const EASE_POP = "cubic-bezier(.34,1.56,.64,1)";
+const EASE_OUT = "cubic-bezier(.22,1,.36,1)";
+
+function motionAllowed() {
+    return !matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function playLikeMotion(button) {
+    if (!motionAllowed()) return;
+    const icon = button.querySelector(".guestbook-like-icon");
+    if (icon?.animate) {
+        icon.animate(
+            [{ transform: "scale(.8)", opacity: 0 }, { transform: "scale(1.06)", opacity: 1 }, { transform: "scale(1)" }],
+            { duration: 420, easing: EASE_POP }
+        );
+    }
+    if (!button.animate || button.dataset.busy === "ring") return;
+    // 一次性扩散环：append 一个空 span，动画结束自己摘掉，不留 DOM 垃圾。
+    const ring = document.createElement("span");
+    ring.className = "guestbook-like-ring";
+    ring.setAttribute("aria-hidden", "true");
+    button.append(ring);
+    button.dataset.busy = "ring";
+    ring.animate(
+        [{ transform: "scale(.55)", opacity: 0.55 }, { transform: "scale(2)", opacity: 0 }],
+        { duration: 520, easing: EASE_OUT }
+    ).onfinish = () => { ring.remove(); delete button.dataset.busy; };
+}
+
+function likeLabel(liked, count) {
+    return `${count} 赞 · ${liked ? "已点赞" : "点赞"}`;
+}
+
+function renderLikeButton(item) {
+    const state = likeIndex.get(item.id);
+    if (!likesAvailable || !state) return null;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "guestbook-like";
+    button.dataset.id = item.id;
+    button.setAttribute("aria-pressed", state.liked ? "true" : "false");
+    button.setAttribute("aria-label", likeLabel(state.liked, state.count));
+    const icon = document.createElement("span");
+    icon.className = "guestbook-like-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = state.liked ? "♥" : "♡";
+    const count = document.createElement("span");
+    count.className = "guestbook-like-count";
+    count.textContent = state.count;
+    button.append(icon, count);
+    return button;
+}
+
+// 就地更新一张卡片，不重刷整个列表：重刷会把滚动位置顶回顶部。
+// moveCount 控制数字要不要滑一下——只有状态真的变了才该动，服务端回填纠偏时不再动第二次。
+function applyLikeState(id, state, button, moveCount = false) {
+    likeIndex.set(id, state);
+    if (!button) return;
+    const icon = button.querySelector(".guestbook-like-icon");
+    const count = button.querySelector(".guestbook-like-count");
+    button.setAttribute("aria-pressed", state.liked ? "true" : "false");
+    button.setAttribute("aria-label", likeLabel(state.liked, state.count));
+    if (icon) icon.textContent = state.liked ? "♥" : "♡";
+    if (count) {
+        count.textContent = state.count;
+        if (moveCount && motionAllowed() && count.animate) {
+            count.animate(
+                [{ transform: "translateY(6px)", opacity: 0 }, { transform: "none", opacity: 1 }],
+                { duration: 220, easing: EASE_OUT }
+            );
+        }
+    }
+}
+
+async function loadLikeState() {
+    try {
+        const { data, error } = await supabase.rpc("guestbook_like_state");
+        if (error) throw error;
+        likeIndex.clear();
+        for (const row of data || []) {
+            likeIndex.set(row.id, { count: Number(row.like_count), liked: row.liked_by_me === true });
+        }
+        likesAvailable = true;
+    } catch (error) {
+        // 多半是 guestbook-likes.sql 还没在 Supabase 跑。整排按钮收起来，
+        // 比留下一个点了必然报错的心形好。
+        console.error("guestbook_like_state unavailable, hiding like buttons", error);
+        likesAvailable = false;
+        likeIndex.clear();
+    }
+}
 
 function formatDate(iso) {
     const date = new Date(iso);
@@ -65,6 +165,13 @@ function renderMessages(messages) {
         const body = document.createElement("p");
         body.textContent = item.message;
         content.append(header, body);
+        const like = renderLikeButton(item);
+        if (like) {
+            const actions = document.createElement("div");
+            actions.className = "message-actions";
+            actions.append(like);
+            content.append(actions);
+        }
         row.append(avatar, content);
         list.append(row);
     }
@@ -78,6 +185,7 @@ async function loadMessages() {
     try {
         const { data, error } = await supabase.rpc("guestbook_public_list");
         if (error) throw error;
+        await loadLikeState();
         renderMessages(data || []);
         return;
     } catch (error) {
@@ -91,6 +199,8 @@ async function loadMessages() {
             .order("created_at", { ascending: false })
             .limit(50);
         if (error) throw error;
+        // 回退查表时列表里没有头像字段，但 id 是对的，点赞状态照样能并上去。
+        await loadLikeState();
         renderMessages(data || []);
     } catch (error) {
         console.error(error);
@@ -225,6 +335,47 @@ async function init() {
         return;
     }
     await loadMessages();
+
+    // 事件委托：列表每次刷新都整体 replaceChildren，逐条绑监听会越绑越多。
+    const list = document.getElementById("messagesList");
+    list?.addEventListener("click", async (event) => {
+        const button = event.target.closest?.(".guestbook-like");
+        if (!button || button.dataset.pending === "1") return;
+        const id = button.dataset.id;
+        const before = likeIndex.get(id);
+        if (!before) return;
+        // 先占位再 await：取会话也是一次异步，两连点若都跑到会话检查那儿，
+        // 就会并发出两个请求，后回来的覆盖掉先回来的，显示的状态和最后一次点击相反。
+        button.dataset.pending = "1";
+        button.disabled = true;
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (!sessionData?.session) {
+                // 和提交留言不同，点赞不该把人整页带走：误点心形就把人踢到登录页太粗暴。
+                setStatus("登录后就能给留言点赞了。");
+                return;
+            }
+            const next = { count: Math.max(0, before.count + (before.liked ? -1 : 1)), liked: !before.liked };
+            applyLikeState(id, next, button, true);
+            if (next.liked) playLikeMotion(button);
+            const { data, error } = await supabase.rpc("guestbook_set_like", {
+                p_message_id: id,
+                p_liked: next.liked
+            });
+            if (error) throw error;
+            const row = (data || [])[0];
+            if (!row) throw new Error("guestbook_set_like 没返回计数");
+            applyLikeState(id, { count: Number(row.like_count), liked: row.liked_by_me === true }, button);
+        } catch (error) {
+            console.error(error);
+            // 服务端没收下就把票数还回去，不能让页面显示一个不存在的赞。
+            applyLikeState(id, before, button, true);
+            setStatus("点赞没存上，请检查网络后再点一次。");
+        } finally {
+            delete button.dataset.pending;
+            button.disabled = false;
+        }
+    });
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();

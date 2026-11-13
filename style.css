@@ -1224,6 +1224,107 @@ body[data-theme="dark"] .guestbook-char-count {
     line-height: 1.5;
 }
 
+/* 留言点赞：曲线与时长对齐参考站的动画词汇（pop 带过冲，位移用全站 --ease-out）。 */
+.message-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.guestbook-like {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border: 1px solid var(--gray-100);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--gray-500);
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: transform 0.22s var(--ease-out), opacity 0.16s ease,
+        color 0.22s var(--ease-out), border-color 0.22s var(--ease-out),
+        background-color 0.22s var(--ease-out);
+}
+
+.guestbook-like:hover {
+    transform: translateY(-1px);
+    color: var(--blue);
+    border-color: rgba(0, 113, 227, 0.45);
+    background: rgba(0, 113, 227, 0.06);
+}
+
+.guestbook-like:active {
+    transform: scale(0.96);
+}
+
+.guestbook-like[aria-pressed="true"] {
+    color: var(--blue);
+    border-color: rgba(0, 113, 227, 0.45);
+    background: rgba(0, 113, 227, 0.08);
+}
+
+.guestbook-like:disabled {
+    opacity: 0.6;
+    cursor: progress;
+    transform: none;
+}
+
+.guestbook-like:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+}
+
+/* 深色主题没有重定义 --gray-500（见 [data-theme="dark"] 变量表），照原样用会比正文还暗；
+   同理 #0071e3 在深底上偏闷，这里沿用全站深色描边/渐变用的 #2997ff。 */
+body[data-theme="dark"] .guestbook-like {
+    color: var(--gray-400);
+}
+
+body[data-theme="dark"] .guestbook-like:hover,
+body[data-theme="dark"] .guestbook-like[aria-pressed="true"] {
+    color: #2997ff;
+    border-color: rgba(41, 151, 255, 0.5);
+    background: rgba(0, 113, 227, 0.18);
+}
+
+body[data-theme="dark"] .guestbook-like:focus-visible {
+    outline-color: #2997ff;
+}
+
+.guestbook-like-icon {
+    display: inline-block;
+    font-size: 0.9rem;
+    transform-origin: center;
+}
+
+/* 扩散环靠 WAAPI 播放，播完即删；静止态透明，动画不可用时不会留下多余边框。 */
+.guestbook-like-ring {
+    position: absolute;
+    inset: -2px;
+    border: 1.5px solid var(--blue);
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+body[data-theme="dark"] .guestbook-like-ring {
+    border-color: #2997ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .guestbook-like,
+    .guestbook-like:hover,
+    .guestbook-like:active {
+        transition: none;
+        transform: none;
+    }
+}
+
 .contact-card {
     background: var(--white);
     border-radius: var(--card-radius);

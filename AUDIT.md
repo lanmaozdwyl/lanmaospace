@@ -6,6 +6,8 @@ R2 SDK 自托管已于 2026-11-12 落地：Supabase SDK 不再从 jsdelivr 动�
 
 R2 落地当天补两处：一是自己踩回来的坑——给 /lib/vendor/* 加了一年 immutable，线上实测 Pages 把所有命中的规则**拼接**而不是覆盖，返回的是 `Cache-Control: no-cache, public, max-age=31536000, immutable`，no-cache 要求每次回源校验，max-age 永不生效（87af9f3 当年正是为此清掉过七条同类规则）。死规则已删除，理由写进 _headers，tests/sdk-vendor.test.mjs 会拦住再被加回来；全站缓存边界维持 no-cache 重新验证不变。二是新增 tests/reference-integrity.test.mjs，从三个方向守住引用：站内引用必须存在、被引用的文件必须在 build.mjs 白名单里（FAQ 那次漏进 dist 就是这个坑）、images 与 audio 不留无人引用的死重量；同一条测试里带反向控制，并另建临时页面端到端验过两类断言确实会红。当前功能测试 320 项（另 tests/permissions.test.mjs 需 PGlite，144 项）；真实账号/真机及线上数据库状态仍以当前验收为准。
 
+2026-11-13 留言板点赞：数据层 `supabase/guestbook-likes.sql` 建 `guestbook_likes`（复合主键即天然幂等，删除留言按外键级联），不给任何角色直接表权限、一条 RLS 策略都不建，读写全部走两个 `security definer` 且 `set search_path=''` 的函数；未过审留言与不存在的 id 返回同一句提示，避免拿点赞接口探测后台留言。前端在 `guestbook.js` 里乐观更新＋服务端回填纠偏，取会话之前就占住 pending 标记（否则两连点会并发两个请求、后回来的把状态翻反），失败一定退回原计数；动效按参考站的动画词汇用 WAAPI 实现（心形 pop 420ms 过冲曲线、扩散环 scale(.55)→2 淡出、数字上浮 220ms），`prefers-reduced-motion` 下全部不播、状态照常更新，样式与事件绑定都不内联，CSP 不受影响。迁移没执行时 `guestbook_like_state` 调不通，整排按钮收起，而不是留一个点了必报错的心形。测试：新增 `tests/guestbook-like.test.mjs`（vm＋最小假 DOM 跑真实模块；假 DOM 的 click 必须冒泡，否则事件委托那条测试是假的）8 项，功能测试合计 328 项；`tests/permissions.test.mjs` 扩到 167 项 PGlite 检查，含 `guestbook-security-check.sql` 点赞分支的通过/失败两面（故意多 grant 一条权限必须先报 FAIL）。线上数据库仍需店主执行 `supabase/guestbook-likes.sql`，本机连不上 Supabase，这一步不能代替真实账号验收。
+
 ---
 
 # Lanmao Space 审查报告（AUDIT）

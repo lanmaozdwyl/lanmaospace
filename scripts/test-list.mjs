@@ -27,4 +27,5 @@ export const TESTS = [
     'tests/seo-policy.test.mjs',
     'tests/sdk-vendor.test.mjs',
     'tests/reference-integrity.test.mjs',
+    'tests/guestbook-like.test.mjs',
 ];

@@ -105,6 +105,47 @@ try {
  const avatarBucket=(await db.query("select public,file_size_limit,allowed_mime_types from storage.buckets where id='avatars'")).rows[0];
  assert.equal(avatarBucket.public,true);assert.equal(avatarBucket.file_size_limit,2097152);assert(!avatarBucket.allowed_mime_types.includes('text/html'));checks++;
 
+ // 留言板点赞：一行就是一条"谁赞了哪条"，所以表必须谁都读不到，
+ // 计数与"我是否赞过"只能从 security definer 函数出来。
+ // 顺带把 guestbook-security-check.sql 的通过/失败两个分支都跑一遍。
+ const likesSQL=readFileSync(root+'/supabase/guestbook-likes.sql','utf8');
+ await db.exec(likesSQL);await db.exec(likesSQL);checks++;
+ const liked=(await allowed('select id from public.guestbook_messages where approved=true limit 1')).rows[0].id;
+ const unapproved=(await allowed('select id from public.guestbook_messages where approved=false limit 1')).rows[0].id;
+ await as('anon','');await denied('select * from public.guestbook_likes');
+ await denied('select * from public.guestbook_set_like($1,true)',[liked]);
+ const anonLike=(await allowed('select * from public.guestbook_like_state()')).rows;
+ assert.equal(anonLike.length,1);assert.equal(anonLike[0].like_count,0);assert.equal(anonLike[0].liked_by_me,false);
+ await as('authenticated',guest);
+ await denied('select * from public.guestbook_likes');
+ assert.equal((await allowed('select * from public.guestbook_set_like($1,true)',[liked])).rows[0].like_count,1);
+ // 连点不刷票：主键 + on conflict do nothing，重复调用拿到同一个计数。
+ assert.equal((await allowed('select * from public.guestbook_set_like($1,true)',[liked])).rows[0].like_count,1);
+ // 未审核与不存在的留言回同一句话，否则这个接口能拿来探测后台有哪些留言。
+ await assert.rejects(db.query('select * from public.guestbook_set_like($1,true)',[unapproved]),/暂时不接受点赞/);checks++;
+ await assert.rejects(db.query('select * from public.guestbook_set_like($1,true)',['00000000-0000-4000-8000-0000000000ad']),/暂时不接受点赞/);checks++;
+ // 别人那一票改不掉：店主取消只删得掉自己的行。
+ await as('authenticated',owner);
+ assert.equal((await allowed('select * from public.guestbook_set_like($1,false)',[liked])).rows[0].like_count,1);
+ const ownerLike=(await allowed('select * from public.guestbook_like_state()')).rows[0];
+ assert.equal(ownerLike.like_count,1);assert.equal(ownerLike.liked_by_me,false);
+ assert.equal((await allowed('select * from public.guestbook_set_like($1,true)',[liked])).rows[0].like_count,2);
+ await as('authenticated',guest);
+ const guestLike=(await allowed('select * from public.guestbook_like_state()')).rows[0];
+ assert.equal(guestLike.like_count,2);assert.equal(guestLike.liked_by_me,true);
+ assert.equal((await allowed('select * from public.guestbook_set_like($1,false)',[liked])).rows[0].like_count,1);
+ await db.exec('reset role');
+ // 删留言时点赞跟着走（on delete cascade），后台清垃圾不留孤票。
+ await allowed('delete from public.guestbook_messages where approved=false');
+ assert.equal((await allowed('select count(*)::int as n from public.guestbook_likes')).rows[0].n,1);
+ await allowed('delete from public.guestbook_messages where id=$1',[liked]);
+ assert.equal((await allowed('select count(*)::int as n from public.guestbook_likes')).rows[0].n,0);
+ const likeCheck=readFileSync(root+'/supabase/guestbook-security-check.sql','utf8');
+ await db.exec(likeCheck);checks++;
+ await db.exec('grant select on public.guestbook_likes to authenticated');
+ await assert.rejects(db.exec(likeCheck),/guestbook_likes/,'体检没抓到"点赞表能直连"');checks++;
+ await db.exec('revoke select on public.guestbook_likes from authenticated');await db.exec(likeCheck);checks++;
+
  const spacesSQL=readFileSync(root+'/supabase/user-spaces.sql','utf8');
  await db.exec(spacesSQL);await db.exec(spacesSQL);checks++;
  await as('anon','');

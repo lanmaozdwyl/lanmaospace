@@ -905,6 +905,7 @@ lib/viewport.mjs 共享可见视口尺寸与偏移，适配软键盘、横屏和
 | guestbook.js | 留言板前端：只读审核通过的留言，提交后等店主审核，邮箱不公开显示 |
 | supabase/memos.sql | 备忘录建表与行级权限 SQL，在 Supabase SQL Editor 里运行一次 |
 | supabase/guestbook.sql | 留言板建表与行级权限 SQL，在 Supabase SQL Editor 里运行一次 |
+| supabase/guestbook-likes.sql | 留言点赞：票表 + 两个 definer 函数，同样运行一次；不跑它首页只是不显示点赞按钮 |
 | supabase/memo-files.sql | 附件建表与私有存储桶 SQL，在 Supabase SQL Editor 里运行一次（先运行 memos.sql） |
 
 ## 备忘录（Supabase + 加密，2026-10-31 已推送到 main，待店主登录验证）
