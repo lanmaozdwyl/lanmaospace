@@ -17,6 +17,12 @@
 # 拼接口径下漏写一条的后果只是那个页面最多缓存 5 分钟，不会更糟；
 # tests/sdk-vendor.test.mjs 会检查每个 *.html 都在下面出现过，新增页面别忘了加。
 # 5 分钟是刻意选的短值：文件名不带内容哈希，HTML 与 JS/CSS 不同版本最多错开 5 分钟。
+#
+# 每个页面要写两条，因为 Pages 默认开 clean URL：浏览器真正加载的是 /reader，
+# /reader.html 只是 308 到 /reader。2026-11-13 首次发版线上实测：只写 /reader.html 时
+# /reader 仅命中 /*，拿到的是可以缓存 5 分钟的 public, max-age=300 而没有 no-cache，
+# 等于文档的重验证白做了一半。两条都写才盖住真实路径。
+# /nonexistent 这类猜不出来的路径只会命中 /*，后果是 404 页最多缓存 5 分钟，可以接受。
 
 /
   Cache-Control: no-cache
@@ -24,37 +30,73 @@
 /index.html
   Cache-Control: no-cache
 
+/index
+  Cache-Control: no-cache
+
 /404.html
+  Cache-Control: no-cache
+
+/404
   Cache-Control: no-cache
 
 /offline.html
   Cache-Control: no-cache
 
+/offline
+  Cache-Control: no-cache
+
 /login.html
+  Cache-Control: no-cache
+
+/login
   Cache-Control: no-cache
 
 /memo.html
   Cache-Control: no-cache
 
+/memo
+  Cache-Control: no-cache
+
 /profile.html
+  Cache-Control: no-cache
+
+/profile
   Cache-Control: no-cache
 
 /reader.html
   Cache-Control: no-cache
 
+/reader
+  Cache-Control: no-cache
+
 /space.html
+  Cache-Control: no-cache
+
+/space
   Cache-Control: no-cache
 
 /store.html
   Cache-Control: no-cache
 
+/store
+  Cache-Control: no-cache
+
 /account.html
+  Cache-Control: no-cache
+
+/account
   Cache-Control: no-cache
 
 /faq.html
   Cache-Control: no-cache
 
+/faq
+  Cache-Control: no-cache
+
 /tools/
+  Cache-Control: no-cache
+
+/tools
   Cache-Control: no-cache
 
 /tools/index.html

@@ -104,16 +104,30 @@ test('_headers 的缓存边界：max-age 只挂在 /*，文档逐条点名 no-ca
     assert.match(manifest.bundle.file, /^lib\/vendor\/supabase-js-\d+\.\d+\.\d+\.mjs$/);
 });
 
-test('每个页面都在 _headers 里点名了 no-cache，新增页面不会漏', () => {
+// Pages 默认开 clean URL：/reader.html 只是 308，真正加载的是 /reader。
+// 只点名 .html 那条等于没管住文档，所以每个页面要同时出现两种写法。
+function documentForms(page) {
+    const forms = new Set([page]);
+    const slash = page.lastIndexOf('/');
+    const dir = page.slice(0, slash + 1);
+    if (page.slice(slash + 1) === 'index.html') forms.add(dir === '/' ? '/' : dir);
+    else forms.add(page.replace(/\.html$/, ''));
+    return [...forms];
+}
+
+test('每个页面都在 _headers 里点名了 no-cache，且 clean URL 那条也在，新增页面不会漏', () => {
     const noCache = new Set(headerRules
         .filter(rule => cacheOf(rule).some(line => /\bno-cache\b|\bno-store\b/.test(line)))
         .map(rule => rule.path));
-    assert.ok(noCache.size >= 12, `只有 ${noCache.size} 条不缓存规则，解析可能出了问题`);
+    assert.ok(noCache.size >= 25, `只有 ${noCache.size} 条不缓存规则，解析可能出了问题`);
     for (const page of pages()) {
-        assert.ok(noCache.has(page), `${page} 没有 no-cache 规则，发版后最多会有 5 分钟新旧混载`);
+        for (const form of documentForms(page)) {
+            assert.ok(noCache.has(form), `${page} 的 ${form} 没有 no-cache 规则，发版后最多会有 5 分钟新旧混载`);
+        }
     }
-    // 反向控制：集合本身是活的，少一条就会被上面那个循环抓出来。
-    assert.equal(noCache.has('/a-page-nobody-added.html'), false);
+    // 反向控制：这条测试真的会红——把某个页面的 clean URL 去掉就该被抓住。
+    assert.equal(noCache.has('/reader-x'), false);
+    assert.ok(!documentForms('/reader.html').includes('/reader.html/'), 'documentForms 自身跑偏');
 });
 
 test('preconnect 的域就是 memo-config.js 里那个 Supabase 地址，且不会漏页', () => {

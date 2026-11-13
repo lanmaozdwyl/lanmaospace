@@ -2,14 +2,15 @@
 
 本节优先于下方历史记录。先量后改，测量结论与否决项写在 `AUDIT.md` 的"加载与响应速度（2026-11-13）"一节，这里只记接手要用的事实。
 
-1. **缓存边界反过来了。** `_headers` 的 `/*` 不再写 `Cache-Control: no-cache`，改成 `public, max-age=300`；12 个 HTML 页加 `/`、`/tools/` 逐条点名 `no-cache`，`/sw.js` 与 `/memo-config.js` 维持不变。依据是 Pages 对命中规则做拼接：`no-cache` 拼在 `max-age` 之后仍然优先，所以文档安全、静态资源拿到 5 分钟。以前那种"在子路径上加 max-age"的写法依然是错的，`tests/sdk-vendor.test.mjs` 现在两面都拦（`/*` 上不许出现 no-cache；每个 `*.html` 必须被点名）。
-2. **新增页面要做两件事**：在 `_headers` 里给它补一条 `Cache-Control: no-cache`，脚本标签带 `defer`。这两条都有测试兜着，忘了 CI 会红，不会静默上线。
+1. **缓存边界反过来了。** `_headers` 的 `/*` 不再写 `Cache-Control: no-cache`，改成 `public, max-age=300`；文档逐条点名 `no-cache`，`/sw.js` 与 `/memo-config.js` 维持不变。依据是 Pages 对命中规则做拼接：`no-cache` 拼在 `max-age` 之后仍然优先，所以文档安全、静态资源拿到 5 分钟。以前那种"在子路径上加 max-age"的写法依然是错的，`tests/sdk-vendor.test.mjs` 现在两面都拦（`/*` 上不许出现 no-cache；每个页面必须被点名）。
+2. **新增页面要做两件事**：在 `_headers` 里给它补 **两条** `Cache-Control: no-cache`——`/名字.html` 和 `/名字`，脚本标签带 `defer`。两条而不是一条，是因为 Pages 默认开 clean URL：`/reader.html` 只回 308，真正被浏览器缓存的是 `/reader` 那条响应，只写 `.html` 等于文档根本没管住（2026-11-13 首次发版线上实测就是这个错，见第 7 条）。这两条都有测试兜着，忘了 CI 会红，不会静默上线。
 3. **`_worker.js` 给代理响应显式写 `no-store`**，并删掉转发的 `content-encoding`/`content-length`。`_headers` 实测只作用于静态资源，worker 亲手造的响应没人管——这条是防边缘节点把某个用户的行数据回给别人的。
 4. **阅读器长卷滚动改为顶边缓存＋二分定位**，作废点有四：追加新章、`applySettings()`、resize、重渲染。改这个是因为旧代码每个 scroll 事件扫全文档读 `offsetTop`，而同一回调末尾还要写样式，一帧一重排。`updatePaginationMetrics` 里"视口 0 宽就下一帧重测"的自愈循环加了 30 次上限（原来后台标签页会被它 60 Hz 地重排＋写 localStorage）。要再动滚动或分页，先跑 `tests/reader-scroll-perf.test.mjs`，它用读取次数当证据。
 5. **10 个页面 22 个脚本标签补了 `defer`**。`memo-config.js` 必须排在读 `window.LANMAO_MEMO_CONFIG` 的脚本前面（defer 与 module 同队列、按文档顺序执行），`tests/script-defer.test.mjs` 盯这个顺序。
 6. **10 个页面的 head 里加了 Supabase 域的 `preconnect crossorigin`**，域名与 `memo-config.js` 的 url 由测试钉住不许漂移；换 Supabase 项目时两处一起改。
+7. **线上实测结论（发版 7255c07 后取的）**：`/style.css`、`/reader.js` 拿到干净的 `public, max-age=300`，不再回源校验——这一半是生效的；`/` 拼出 `public, max-age=300, no-cache`，拼接语义与推断一致。但 `/reader.html` 一类只回 308，实测 `/reader`、`/memo`、`/profile`、`/space`、`/store`、`/account`、`/faq`、`/login`、`/offline`、`/404` 全都只有 `public, max-age=300` 而 **没有** `no-cache`，即第一轮发版只修好了一半。已补 clean URL 那批规则并重跑测试；以后判断缓存是否真生效，只能按浏览器实际加载的 URL 取头，不能看仓库里的文件名。
 
-功能测试 342 项通过（新增 `tests/script-defer.test.mjs` 3 项、`tests/reader-scroll-perf.test.mjs` 5 项，`sdk-vendor`/`sbproxy` 各加 1 项）；`tests/permissions.test.mjs` 167 项 PGlite 检查本轮未重跑（改动不涉权限层）。真浏览器验收过：阅读器书架出卡、翻章、长卷从第一章滚到第五章再滚回第一章页眉与百分比同步、分页模式列宽与页码正常，控制台无新增错误。**线上缓存头改动必须发版后实测确认**，本地服务器只能复现拼接语义，不能证明 Cloudflare 的行为。
+功能测试 342 项通过（新增 `tests/script-defer.test.mjs` 3 项、`tests/reader-scroll-perf.test.mjs` 5 项，`sdk-vendor`/`sbproxy` 各加 1 项）；`tests/permissions.test.mjs` 167 项 PGlite 检查本轮未重跑（改动不涉权限层）。真浏览器验收过：阅读器书架出卡、翻章、长卷从第一章滚到第五章再滚回第一章页眉与百分比同步、分页模式列宽与页码正常，控制台无新增错误。**线上缓存头改动必须发版后实测确认，而且要按浏览器真正加载的 URL 取头**——本地服务器只能复现拼接语义，不能证明 Cloudflare 的行为，第一轮就是靠这一步才发现 clean URL 漏了一半（见第 7 条）。
 
 ---
 
