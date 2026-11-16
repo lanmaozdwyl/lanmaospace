@@ -4769,6 +4769,18 @@
     function initShelfSearch() {
         initShelfControls();
         initOnlineBookSearch();
+        import('./lib/reader-storage.mjs').then(({ initStoragePanel }) => {
+            const countEntries = map => Object.values(map || {}).reduce((n, list) => n + (Array.isArray(list) ? list.length : 0), 0);
+            initStoragePanel({
+                document, storage: navigator.storage,
+                getStats: () => ({ books: Object.keys(state.books).length, highlights: countEntries(state.highlights), bookmarks: countEntries(state.bookmarks) }),
+                exportBackup: exportBookshelfBackup,
+                importBackup: importBookshelfBackup,
+            });
+        }).catch(() => {
+            const button = document.getElementById('shelf-btn-storage-guard');
+            if (button) button.addEventListener('click', () => showToast('存储面板加载失败，请刷新后重试；原书架备份入口仍可使用。'));
+        });
     }
 
     // ===== 9.6 书架数据主权：备份导出与恢复 =====

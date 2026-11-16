@@ -3978,3 +3978,32 @@ mark.reader-search-hit.active {
 .shelf-upload-btn, .import-file-btn, .shelf-backup-import-label { position: relative; }
 .reader-file-picker { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; z-index: 1; }
 .shelf-upload-btn:focus-within, .import-file-btn:focus-within, .shelf-backup-import-label:focus-within { outline: 3px solid var(--r-accent); outline-offset: 3px; }
+
+/* Storage panel: native modal with its own file picker, safe at narrow widths. */
+.storage-guard-dialog[hidden] { display: none; }
+.storage-guard-dialog {
+    box-sizing: border-box; width: min(520px, calc(100% - 24px));
+    max-width: calc(100% - 24px); max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px); padding: 0;
+    margin: auto; border: 1px solid var(--r-bar-border); border-radius: 18px;
+    background: var(--r-bg); color: var(--r-text); overflow-y: auto;
+    overscroll-behavior: contain; overflow-wrap: anywhere;
+}
+.storage-guard-dialog::backdrop { background: rgba(0,0,0,.5); }
+.storage-guard-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--r-bar-border); }
+.storage-guard-heading h2 { font-size: 19px; margin: 0; }
+.storage-guard-body { padding: 0 16px 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); line-height: 1.6; }
+.storage-guard-body section { border-top: 1px solid var(--r-bar-border); padding: 12px 0; }
+.storage-guard-body h3 { margin: 4px 0; font-size: 15px; }
+.storage-guard-body p { font-size: 14px; }
+.storage-guard-note { color: var(--r-text-muted); }
+.storage-guard-dialog button, .storage-backup-import { box-sizing: border-box; min-height: 44px; padding: 10px 12px; border: 1px solid var(--r-bar-border); border-radius: 10px; color: var(--r-text); background: var(--r-card-bg); font: inherit; cursor: pointer; }
+.storage-guard-dialog button:disabled { opacity: .6; cursor: wait; }
+.storage-guard-dialog button:focus-visible, .storage-backup-import:focus-within { outline: 3px solid var(--r-accent); outline-offset: 2px; }
+.storage-usage-track { height: 6px; background: var(--r-card-bg); border-radius: 4px; overflow: hidden; }
+#storage-usage-bar-fill { height: 100%; width: 0; background: var(--r-accent); }
+.storage-meta-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; text-align: center; }
+.storage-meta-grid dd { margin: 0; font-weight: 600; }
+.storage-backup-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.storage-backup-actions > * { flex: 1 1 170px; text-align: center; }
+.storage-backup-import { position: relative; display: inline-flex; align-items: center; justify-content: center; }

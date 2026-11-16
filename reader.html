@@ -104,6 +104,7 @@
                             <button type="button" class="view-switch-btn" id="btn-view-list" data-mode="list" title="详细列表视图" aria-label="列表视图" role="radio" aria-checked="false">☰</button>
                             <button type="button" class="view-switch-btn" id="btn-view-shelf" data-mode="shelf" title="实木层架视图" aria-label="层架视图" role="radio" aria-checked="false">☶</button>
                         </div>
+                        <button type="button" class="shelf-online-search-btn" id="shelf-btn-storage-guard" aria-haspopup="dialog" aria-controls="storage-guard-dialog">存储与备份</button>
                         <button type="button" class="shelf-online-search-btn" id="shelf-btn-online-search" title="在线开源书库搜索与一键导入" aria-label="在线搜书">
                             <span aria-hidden="true">🌐</span> <span>在线找书</span>
                         </button>
@@ -687,6 +688,35 @@
         <p id="reader-audio-status" role="status" aria-live="polite">就绪 · 选择声音后点击播放</p>
         <button type="button" id="reader-audio-play" aria-pressed="false">播放声音</button>
         <details><summary>当前声音来源与许可</summary><p id="reader-audio-credits"></p></details>
+    </dialog>
+
+
+    <dialog id="storage-guard-dialog" class="storage-guard-dialog" aria-labelledby="storage-dialog-title" hidden>
+        <div class="storage-guard-heading"><h2 id="storage-dialog-title">存储与备份</h2><button type="button" id="storage-guard-close-btn" aria-label="关闭存储面板" autofocus>✕</button></div>
+        <div class="storage-guard-body">
+            <p>书籍与阅读记录保存在当前设备、当前网址中，不会自动跨设备或跨网址同步。</p>
+            <section aria-labelledby="storage-persist-badge">
+                <h3 id="storage-persist-badge" role="status">正在检测…</h3>
+                <p id="storage-persist-desc">正在查询浏览器的持久存储状态。</p>
+                <button type="button" id="storage-request-persist-btn" hidden>申请持久存储</button>
+            </section>
+            <section aria-label="本地存储估算">
+                <h3>本站存储估算</h3>
+                <p id="storage-usage-num" role="status">正在估算…</p>
+                <div class="storage-usage-track" aria-hidden="true"><div id="storage-usage-bar-fill"></div></div>
+                <p class="storage-guard-note">容量由浏览器估算，包含本站其他本地数据，不是阅读器独占空间。</p>
+                <dl class="storage-meta-grid"><div><dt>书籍</dt><dd id="storage-meta-books">—</dd></div><div><dt>划线</dt><dd id="storage-meta-highlights">—</dd></div><div><dt>书签</dt><dd id="storage-meta-bookmarks">—</dd></div></dl>
+            </section>
+            <section aria-label="书架备份操作">
+                <h3>定期备份，保护阅读记录</h3>
+                <p>换设备、清理网站数据或卸载应用前，请导出备份并妥善保存。备份包含书籍与阅读记录，请勿随意分享。</p>
+                <div class="storage-backup-actions">
+                    <button type="button" id="storage-dialog-btn-export">导出完整书架备份</button>
+                    <label class="storage-backup-import">从备份恢复<input type="file" id="storage-backup-file-input" class="reader-file-picker" accept=".json,application/json" aria-label="选择书架备份文件"></label>
+                </div>
+                <p id="storage-panel-feedback" role="status"></p>
+            </section>
+        </div>
     </dialog>
 
     <script src="memo-config.js" defer></script>
