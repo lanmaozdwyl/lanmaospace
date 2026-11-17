@@ -833,7 +833,10 @@
         <div class="pomodoro-panel" id="pomodoro-panel" hidden>
             <div class="pomodoro-panel-header">
                 <span class="pomodoro-panel-title">🍅 学术专注钟</span>
-                <button type="button" class="pomodoro-panel-close" id="pomodoro-close" aria-label="收起面板">✕</button>
+                <div class="pomodoro-panel-actions">
+                    <button type="button" class="pomodoro-sound-btn" id="pomodoro-sound-toggle" aria-label="提示音开关" title="提示音开启/关闭 (快捷键 M)">🔔</button>
+                    <button type="button" class="pomodoro-panel-close" id="pomodoro-close" aria-label="收起面板">✕</button>
+                </div>
             </div>
             <div class="pomodoro-modes">
                 <button type="button" class="pomodoro-mode-btn active" data-time="1500" id="mode-focus">25m 深度专注</button>

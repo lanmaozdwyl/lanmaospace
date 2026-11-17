@@ -5,12 +5,75 @@ const originalTitle=typeof document!=='undefined'?document.title:'';
 let state=freshFocus(Date.now()),key=null,ended=false,working=false,audio=null,timer=null,lastSignal=null;
 const status=$('focus-storage-status');
 function notify(text){if(status)status.textContent=text;}
-function sound(){
- if(!state.sound)return;
- try{if(audio?.state==='running'){const t=audio.currentTime;for(const [f,delay] of [[587.33,0],[880,.2]]){const o=audio.createOscillator(),g=audio.createGain();o.frequency.value=f;g.gain.setValueAtTime(.12,t+delay);g.gain.exponentialRampToValueAtTime(.001,t+delay+.7);o.connect(g);g.connect(audio.destination);o.start(t+delay);o.stop(t+delay+.7);}}}catch{}
- try{navigator.vibrate?.([200,100,200]);}catch{}
+function sendDesktopNotification(mode){
+ try{
+  if(typeof Notification!=='undefined'&&Notification.permission==='granted'&&document.hidden){
+   const isBreak=mode==='short-break'||mode==='long-break';
+   const title=isBreak?'☕ 休息时间到！':'🎯 深度专注达成！';
+   const body=isBreak?'精力已充分蓄满，准备好开启下一轮专注了吗？':'太棒了，本次专注目标已达成！开始一段轻松小憩吧 ↗';
+   new Notification(title,{body,icon:'/images/icon-192.png',tag:'lanmao-focus-notify'});
+  }
+ }catch(_){}
 }
-function unlockAudio(){try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume().catch(()=>{});}catch{}}
+function requestNotificationPermission(){
+ try{
+  if(typeof Notification!=='undefined'&&Notification.permission==='default'){
+   Notification.requestPermission().catch(()=>{});
+  }
+ }catch(_){}
+}
+async function sound(mode='focus'){
+ if(!state.sound)return;
+ try{sendDesktopNotification(mode);}catch(_){}
+ try{
+  audio??=new(window.AudioContext||window.webkitAudioContext)();
+  if(audio.state==='suspended')await audio.resume().catch(()=>{});
+  const t=audio.currentTime;
+  const isBreak=mode==='short-break'||mode==='long-break';
+  const notes=isBreak
+   ?[[783.99,0,0.4],[659.25,0.22,0.4],[523.25,0.44,0.85]]
+   :[[523.25,0,0.3],[659.25,0.16,0.3],[783.99,0.32,0.3],[1046.50,0.48,0.95]];
+  for(const [f,delay,dur] of notes){
+   const o1=audio.createOscillator(),g1=audio.createGain();
+   o1.type='sine';
+   o1.frequency.setValueAtTime(f,t+delay);
+   g1.gain.setValueAtTime(0.001,t+delay);
+   g1.gain.linearRampToValueAtTime(0.24,t+delay+0.03);
+   g1.gain.exponentialRampToValueAtTime(0.001,t+delay+dur);
+   o1.connect(g1);g1.connect(audio.destination);
+   o1.start(t+delay);o1.stop(t+delay+dur);
+
+   const o2=audio.createOscillator(),g2=audio.createGain();
+   o2.type='triangle';
+   o2.frequency.setValueAtTime(f*2,t+delay);
+   g2.gain.setValueAtTime(0.001,t+delay);
+   g2.gain.linearRampToValueAtTime(0.08,t+delay+0.02);
+   g2.gain.exponentialRampToValueAtTime(0.001,t+delay+dur*0.7);
+   o2.connect(g2);g2.connect(audio.destination);
+   o2.start(t+delay);o2.stop(t+delay+dur*0.7);
+  }
+ }catch(_){}
+ try{
+  const pattern=(mode==='short-break'||mode==='long-break')?[150,100,150]:[200,100,200,100,350];
+  navigator.vibrate?.(pattern);
+ }catch(_){}
+}
+function previewChime(){
+ if(!state.sound)return;
+ try{
+  audio??=new(window.AudioContext||window.webkitAudioContext)();
+  if(audio.state==='suspended')audio.resume().catch(()=>{});
+  const t=audio.currentTime;
+  const o=audio.createOscillator(),g=audio.createGain();
+  o.type='sine';o.frequency.setValueAtTime(880,t);
+  g.gain.setValueAtTime(0.001,t);
+  g.gain.linearRampToValueAtTime(0.18,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.001,t+0.3);
+  o.connect(g);g.connect(audio.destination);
+  o.start(t);o.stop(t+0.3);
+ }catch(_){}
+}
+function unlockAudio(){try{audio??=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume().catch(()=>{});}catch{}}
 function text(id,value){if($(id))$(id).textContent=value;}
 function syncAmbientButton(){
  let enabled=true;
@@ -56,12 +119,26 @@ function paint(allowStart=false){
  text('pomodoro-status',msg);text('focus-main-status',msg);text('focus-sound-icon',state.sound?'🔔':'🔕');
  $('focus-sound-toggle')?.setAttribute('aria-pressed',String(state.sound));
  $('focus-sound-toggle')?.setAttribute('aria-label',state.sound?'关闭提示音':'开启提示音');
+ const pSound=$('pomodoro-sound-toggle');
+ if(pSound){
+  pSound.textContent=state.sound?'🔔':'🔕';
+  pSound.setAttribute('aria-pressed',String(state.sound));
+  pSound.setAttribute('aria-label',state.sound?'关闭提示音':'开启提示音');
+  pSound.classList.toggle('off',!state.sound);
+ }
  for(const [id,value,unit] of [['focus-completed-count',state.completedCount,'个番茄'],['focus-total-minutes',state.totalMinutes,'分钟']]){const el=$(id);if(el){const small=document.createElement('small');small.textContent=unit;el.replaceChildren(document.createTextNode(value+' '),small);}}
  for(const btn of document.querySelectorAll('.pomodoro-mode-btn,.focus-mode-btn')){const active=Number(btn.dataset.time)===MODES[state.mode];btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active));}
  syncAmbientButton();
  const circle=$('focus-progress-circle');if(circle){circle.style.strokeDashoffset=String(653.45*(1-sec/MODES[state.mode]));circle.style.stroke=state.mode==='focus'?'#0071e3':state.mode==='short-break'?'#34c759':'#af52de';}
  const signal=state.isRunning+':'+state.mode;if(signal!==lastSignal){lastSignal=signal;window.dispatchEvent(new CustomEvent('lanmao-focus-state',{detail:{running:state.isRunning,mode:state.mode,allowStart}}));}
- document.title=state.isRunning?'('+str+') 蓝昴空间 · 专注中':(originalTitle||'Lanmao Space | 蓝昴空间');
+ const isDone=sec===0&&!state.isRunning;
+ if(isDone){
+  document.title=(state.mode==='focus'?'🔔 【专注达成！】':'☕ 【休息结束！】')+(originalTitle||'Lanmao Space | 蓝昴空间');
+ }else if(state.isRunning){
+  document.title='('+str+') 蓝昴空间 · '+(state.mode==='focus'?'专注中':'休息中');
+ }else{
+  document.title=originalTitle||'Lanmao Space | 蓝昴空间';
+ }
 
  function updateNextActionPills(){
   const mainWrap=$('focus-next-action-wrap');
@@ -107,13 +184,14 @@ function load(){try{return readFocus(localStorage.getItem(key),Date.now());}catc
 function persist(){try{localStorage.setItem(key,JSON.stringify(state));}catch{notify('保存失败；离开页面后可能丢失本次计时。');}}
 async function mutate(action){
  if(!key||ended||working)return;working=true;
- const work=()=>{if(ended)return;const previous=load();const result=changeFocus(previous,action,Date.now());state=result.state;persist();paint(action==='toggle');if(result.completed)sound();};
+ const work=()=>{if(ended)return;const previous=load();const result=changeFocus(previous,action,Date.now());state=result.state;persist();paint(action==='toggle');if(action==='sound'&&state.sound)previewChime();if(result.completed)sound(previous.mode);};
  try{if(navigator.locks)await navigator.locks.request(key,work);else work();}finally{working=false;}
 }
 function pulse(){if(!key||ended)return;const result=reconcileFocus(state,Date.now());if(result.completed||state.date!==result.state.date)mutate('tick');else{state=result.state;paint();}}
-for(const id of ['pomodoro-start','focus-main-start'])$(id)?.addEventListener('click',()=>{unlockAudio();mutate('toggle');});
+for(const id of ['pomodoro-start','focus-main-start'])$(id)?.addEventListener('click',()=>{unlockAudio();requestNotificationPermission();mutate('toggle');});
 for(const id of ['pomodoro-reset','focus-main-reset'])$(id)?.addEventListener('click',()=>mutate('reset'));
-$('focus-sound-toggle')?.addEventListener('click',()=>{unlockAudio();mutate('sound');});
+$('focus-sound-toggle')?.addEventListener('click',()=>{unlockAudio();requestNotificationPermission();mutate('sound');});
+$('pomodoro-sound-toggle')?.addEventListener('click',()=>{unlockAudio();requestNotificationPermission();mutate('sound');});
 $('focus-ambient-toggle')?.addEventListener('click',()=>{unlockAudio();toggleAmbientSync();});
 $('pomodoro-ambient-toggle')?.addEventListener('click',()=>{unlockAudio();toggleAmbientSync();});
 for(const btn of document.querySelectorAll('.pomodoro-mode-btn,.focus-mode-btn'))btn.addEventListener('click',()=>mutate(Object.keys(MODES).find(k=>MODES[k]===Number(btn.dataset.time))));
@@ -175,12 +253,12 @@ document.addEventListener('keydown',e=>{
   if(state.remainingSeconds===0&&!state.isRunning){
    advanceToNextPhase();
   }else{
-   unlockAudio();mutate('toggle');
+   unlockAudio();requestNotificationPermission();mutate('toggle');
   }
  }else if(k==='r'){
   e.preventDefault();mutate('reset');
  }else if(k==='m'){
-  e.preventDefault();unlockAudio();mutate('sound');
+  e.preventDefault();unlockAudio();requestNotificationPermission();mutate('sound');
  }else if(k==='z'){
   e.preventDefault();toggleZenMode();
  }

@@ -78,3 +78,27 @@ test('学术专注钟移动端轻量化与触控人机工程：隐藏无意义�
     // 3. 触控靶心人机工程学
     assert(/@media\s*\([^)]*max-width:\s*600px[^)]*\)[\s\S]*?\.focus-btn\s*\{[^}]*min-height:\s*44px/i.test(styleCss), '移动端控制按钮需满足最小 44px 触控靶心');
 });
+
+test('学术专注钟：专注与休息双场景提示音（Web Audio双振荡器晶莹钟声）、挂起自唤醒、后台桌面通知与标签页状态标语', () => {
+    const focusJs = readFileSync(new URL('../focus.js', import.meta.url), 'utf8');
+    const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const styleCss = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+
+    // 1. 结构与按钮声明
+    assert(indexHtml.includes('id="focus-sound-toggle"'), '主专注卡片需包含提示音切换按钮');
+    assert(indexHtml.includes('id="pomodoro-sound-toggle"'), '悬浮番茄钟小面板需包含快捷提示音切换按钮');
+    assert(styleCss.includes('.pomodoro-sound-btn'), 'style.css 需定义小面板提示音按钮样式');
+    assert(styleCss.includes('.pomodoro-sound-btn.off'), '需定义提示音静音状态置灰样式');
+
+    // 2. 双场景钟声与泛音振荡器合成算法
+    assert(focusJs.includes('async function sound('), '需声明异步 sound 函数支持挂起自恢复');
+    assert(focusJs.includes("mode==='short-break'||mode==='long-break'"), '需精准区分专注完成与休息完成双场景');
+    assert(focusJs.includes("o1.type='sine'") && focusJs.includes("o2.type='triangle'"), '需采用正弦基频+三角波八度泛音双振荡器实现通透晶莹钟声');
+    assert(focusJs.includes("audio.state==='suspended'") && focusJs.includes('audio.resume()'), '当音频上下文处于 suspended 挂起态时必须主动 resume 唤醒以防后台哑火');
+    assert(focusJs.includes('previewChime'), '开启提示音时需具备即时试听反馈短音');
+
+    // 3. 后台可见性与桌面通知、标签页动态标语
+    assert(focusJs.includes('sendDesktopNotification'), '需支持页面挂在后台时发送系统桌面级通知');
+    assert(focusJs.includes('requestNotificationPermission'), '需在用户交互时申请桌面通知权限');
+    assert(focusJs.includes('🔔 【专注达成！】') && focusJs.includes('☕ 【休息结束！】'), '计时结束时需更新 document.title 给予标签页明确通知');
+});
