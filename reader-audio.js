@@ -1,6 +1,6 @@
 import {installViewport} from './lib/viewport.mjs';
 installViewport();
-import {AMBIENT_SOUNDS, AmbientPlayer} from './lib/ambient.mjs';
+import {AMBIENT_SOUNDS, AmbientPlayer, readAmbientPreferences, saveAmbientSound, saveAmbientVolume, normalizeAmbientVolume} from './lib/ambient.mjs?v=20261125';
 const byId = id => document.getElementById(id);
 const trigger = byId('reader-toggle-noise');
 const panel = byId('reader-audio-panel');
@@ -8,6 +8,8 @@ if (panel) {
     const select = byId('reader-audio-select');
     const toggle = byId('reader-audio-play');
     const status = byId('reader-audio-status');
+    const volInput = byId('reader-audio-volume');
+    const volValue = byId('reader-audio-volume-value');
     let lastActiveTrigger = trigger;
 
     const player = new AmbientPlayer({
@@ -88,13 +90,40 @@ if (panel) {
         }
     });
 
-    toggle.addEventListener('click', () => ['playing', 'loading'].includes(player.state) ? player.pause() : player.play(select.value));
+    toggle.addEventListener('click', () => {
+        if (['playing', 'loading'].includes(player.state)) {
+            player.pause();
+        } else {
+            saveAmbientSound(select.value);
+            player.play(select.value);
+        }
+    });
     select.addEventListener('change', () => {
+        saveAmbientSound(select.value);
         credit();
         if (['playing', 'loading'].includes(player.state)) player.play(select.value);
     });
-    const volInput = byId('reader-audio-volume');
-    if (volInput) volInput.addEventListener('input', e => player.setVolume(Number(e.target.value) / 100));
+    function applyVolume(volume) {
+        if (volInput) volInput.value = String(volume);
+        if (volValue) volValue.textContent = `${volume}%`;
+        player.setVolume(volume / 100);
+    }
+
+    function restorePreferences() {
+        const {sound, volume} = readAmbientPreferences();
+        select.value = sound;
+        applyVolume(volume);
+        credit();
+    }
+
+    volInput?.addEventListener('input', event => {
+        const volume = normalizeAmbientVolume(event.target.value);
+        applyVolume(volume);
+        saveAmbientVolume(volume);
+    });
+    window.addEventListener('pageshow', event => {
+        if (event.persisted) restorePreferences();
+    });
     window.addEventListener('pagehide', () => player.dispose());
-    credit();
+    restorePreferences();
 }

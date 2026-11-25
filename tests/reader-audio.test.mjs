@@ -1,8 +1,32 @@
-import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {AMBIENT_SOUNDS} from '../lib/ambient.mjs';
-function fixture(){const map=new Map(),calls=[],events={};let config;
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {AMBIENT_SOUNDS, readAmbientPreferences, saveAmbientSound, saveAmbientVolume, normalizeAmbientVolume} from '../lib/ambient.mjs';
+function fixture(preferences = new Map()){const map=new Map(),calls=[],events={};let config;
 function el(id){if(!map.has(id))map.set(id,{id,value:'',textContent:'',open:false,events:{},attrs:{},children:[],append(...x){this.children.push(...x);if(id==='reader-audio-select'&&!this.value)this.value=x[0].value;},replaceChildren(){this.children=[];},addEventListener(k,f){this.events[k]=f;},setAttribute(k,v){this.attrs[k]=v;},showModal(){this.open=true;},close(){this.open=false;this.events.close?.();},focus(){this.focused=true;}});return map.get(id);}
 class Player{constructor(c){config=c;this.state='paused';}play(id){calls.push(['play',id]);this.state='playing';config.onState({id,state:'playing'});}pause(){calls.push(['pause']);this.state='paused';config.onState({id:'stream',state:'paused'});}setVolume(v){calls.push(['volume',v]);}dispose(){calls.push(['dispose']);}}
-const code=fs.readFileSync(new URL('../reader-audio.js',import.meta.url),'utf8').replace(/^import .*;\s*/gm,'');vm.runInNewContext(code,{installViewport(){},AMBIENT_SOUNDS,AmbientPlayer:Player,document:{getElementById:el,createElement:el},window:{addEventListener:(k,f)=>events[k]=f}});return {el,calls,events,notify:d=>config.onState(d)};}
-test('阅读器耳机按钮只打开面板不自动播放，关闭后焦点回到按钮',()=>{const f=fixture();assert.equal(f.el('reader-audio-select').children.length,8);f.el('reader-toggle-noise').events.click();assert(f.el('reader-audio-panel').open);assert.equal(f.calls.length,0);f.el('reader-audio-close').events.click();assert(f.el('reader-toggle-noise').focused);assert.equal(f.el('reader-toggle-noise').attrs['aria-expanded'],'false');});
-test('阅读器播放当前声音并在播放中换声，音量和清理均传给共用引擎',()=>{const f=fixture();f.el('reader-audio-select').value='temple-bell';f.el('reader-audio-select').events.change();assert.equal(f.calls.length,0);f.el('reader-audio-play').events.click();assert.deepEqual(f.calls[0],['play','temple-bell']);assert.match(f.el('reader-audio-status').textContent,/寺院远钟/);f.el('reader-audio-select').value='forest';f.el('reader-audio-select').events.change();assert.deepEqual(f.calls.at(-1),['play','forest']);f.el('reader-audio-volume').events.input({target:{value:'0'}});assert.deepEqual(f.calls.at(-1),['volume',0]);f.events.pagehide();assert.deepEqual(f.calls.at(-1),['dispose']);});
+const storage = {getItem: key => preferences.get(key) ?? null, setItem: (key, value) => preferences.set(key, value)};
+const code=fs.readFileSync(new URL('../reader-audio.js',import.meta.url),'utf8').replace(/^import .*;\s*/gm,'');
+vm.runInNewContext(code,{installViewport(){},AMBIENT_SOUNDS,AmbientPlayer:Player,document:{getElementById:el,createElement:el},window:{addEventListener:(k,f)=>events[k]=f},
+readAmbientPreferences: () => readAmbientPreferences(storage), saveAmbientSound: id => saveAmbientSound(id, storage),
+saveAmbientVolume: volume => saveAmbientVolume(volume, storage), normalizeAmbientVolume});
+return {el,calls,events,notify:d=>config.onState(d)};}
+test('阅读器耳机按钮只打开面板不自动播放，关闭后焦点回到按钮',()=>{const f=fixture();assert.equal(f.el('reader-audio-select').children.length,8);f.el('reader-toggle-noise').events.click();assert(f.el('reader-audio-panel').open);assert.deepEqual(f.calls,[['volume',0.4]]);f.el('reader-audio-close').events.click();assert(f.el('reader-toggle-noise').focused);assert.equal(f.el('reader-toggle-noise').attrs['aria-expanded'],'false');});
+test('阅读器播放当前声音并在播放中换声，音量和清理均传给共用引擎',()=>{const f=fixture();f.el('reader-audio-select').value='temple-bell';f.el('reader-audio-select').events.change();assert.deepEqual(f.calls,[['volume',0.4]]);f.el('reader-audio-play').events.click();assert.deepEqual(f.calls.at(-1),['play','temple-bell']);assert.match(f.el('reader-audio-status').textContent,/寺院远钟/);f.el('reader-audio-select').value='forest';f.el('reader-audio-select').events.change();assert.deepEqual(f.calls.at(-1),['play','forest']);f.el('reader-audio-volume').events.input({target:{value:'0'}});assert.deepEqual(f.calls.at(-1),['volume',0]);f.events.pagehide();assert.deepEqual(f.calls.at(-1),['dispose']);});
 test('阅读器加载失败不显示开，给出可重试状态',()=>{const f=fixture();f.notify({id:'stream',state:'loading'});assert.equal(f.el('reader-noise-state').textContent,'载入');f.notify({id:'stream',state:'error',message:'请重试'});assert.equal(f.el('reader-noise-state').textContent,'关');assert.equal(f.el('reader-audio-play').textContent,'重试播放');assert.equal(f.el('reader-audio-status').textContent,'请重试');});
+
+test('阅读器读取首页偏好并保存新的声音和音量，页面返回时仍保持暂停', () => {
+    const preferences = new Map([['lanmao_ambient_sound_v1', 'waves'], ['lanmao_ambient_vol_v1', '0']]);
+    const f = fixture(preferences);
+    const select = f.el('reader-audio-select');
+    assert.equal(select.value, 'waves');
+    assert.equal(f.el('reader-audio-volume-value').textContent, '0%');
+    select.value = 'rain-light';
+    select.events.change();
+    f.el('reader-audio-volume').events.input({target: {value: '25'}});
+    assert.equal(preferences.get('lanmao_ambient_sound_v1'), 'rain-light');
+    assert.equal(preferences.get('lanmao_ambient_vol_v1'), '25');
+    preferences.set('lanmao_ambient_sound_v1', 'missing-track');
+    preferences.set('lanmao_ambient_vol_v1', 'Infinity');
+    f.events.pageshow({persisted: true});
+    assert.equal(select.value, 'stream');
+    assert.equal(f.el('reader-audio-volume-value').textContent, '40%');
+    assert.deepEqual(f.calls, [['volume', 0], ['volume', .25], ['volume', .4]]);
+});

@@ -1,4 +1,4 @@
-import {AMBIENT_SOUNDS, AmbientPlayer} from './lib/ambient.mjs';
+import {AMBIENT_SOUNDS, AmbientPlayer, readAmbientPreferences, saveAmbientSound, saveAmbientVolume, normalizeAmbientVolume} from './lib/ambient.mjs?v=20261125';
 
 const play = document.getElementById('ambient-master-play');
 if (play) {
@@ -6,6 +6,7 @@ if (play) {
     const cards = [...document.querySelectorAll('.ambient-sound-card')];
     const timers = [...document.querySelectorAll('.ambient-timer-pill')];
     let deadline = 0, timerId;
+    let startedByFocus = false;
     const player = new AmbientPlayer({
         createContext: () => new (window.AudioContext || window.webkitAudioContext)(),
         onState: ({state, id, message}) => {
@@ -28,27 +29,25 @@ if (play) {
         },
     });
     const isActive = () => ['loading', 'playing'].includes(player.state);
-    play.addEventListener('click', () => isActive() ? player.pause() : player.play());
+    function playManually(id = player.current, toggle = true) {
+        startedByFocus = false;
+        saveAmbientSound(id);
+        if (toggle && id === player.current && isActive()) player.pause();
+        else player.play(id);
+    }
+    play.addEventListener('click', () => playManually());
     cards.forEach((card, index) => {
-        card.addEventListener('click', () => card.dataset.sound === player.current && isActive() ? player.pause() : player.play(card.dataset.sound));
+        card.addEventListener('click', () => playManually(card.dataset.sound));
         card.addEventListener('keydown', event => {
             const delta = {ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1}[event.key];
             if (!delta && !['Home', 'End'].includes(event.key)) return;
             event.preventDefault();
             const next = event.key === 'Home' ? 0 : event.key === 'End' ? cards.length - 1 : (index + delta + cards.length) % cards.length;
             cards[next].focus();
-            player.play(cards[next].dataset.sound);
+            playManually(cards[next].dataset.sound, false);
         });
     });
-    const STORAGE_KEY_AMBIENT_VOL = 'lanmao_ambient_vol_v1';
-    let savedVol = null;
-    try {
-        if (typeof localStorage !== 'undefined') {
-            savedVol = localStorage.getItem(STORAGE_KEY_AMBIENT_VOL);
-        }
-    } catch (_) {}
-    let initialVol = savedVol !== null && !isNaN(Number(savedVol)) ? Math.max(0, Math.min(100, Number(savedVol))) : 40;
-    let lastNonZeroVol = initialVol > 0 ? initialVol : 40;
+    let lastNonZeroVol = 40;
 
     function syncVolumeDisplay(vol) {
         const volInput = byId('ambient-volume');
@@ -71,17 +70,11 @@ if (play) {
     }
 
     function setVol(vol, persist = true) {
-        vol = Math.max(0, Math.min(100, Math.round(vol)));
+        vol = normalizeAmbientVolume(vol);
         player.setVolume(vol / 100);
         syncVolumeDisplay(vol);
         if (vol > 0) lastNonZeroVol = vol;
-        if (persist) {
-            try {
-                if (typeof localStorage !== 'undefined') {
-                    localStorage.setItem(STORAGE_KEY_AMBIENT_VOL, String(vol));
-                }
-            } catch (_) {}
-        }
+        if (persist) saveAmbientVolume(vol);
     }
 
     byId('ambient-volume')?.addEventListener('input', event => setVol(Number(event.target.value)));
@@ -95,7 +88,12 @@ if (play) {
         }
     });
 
-    setVol(initialVol, false);
+    function restorePreferences() {
+        const {sound, volume} = readAmbientPreferences();
+        setVol(volume, false);
+        player.current = sound;
+        player.notify('paused', '就绪 · 选择一种声音，低音量开始');
+    }
     const clearTimer = () => {
         clearTimeout(timerId);
         deadline = 0;
@@ -112,8 +110,15 @@ if (play) {
         if (seconds > 0) { deadline = Date.now() + seconds * 1000; checkTimer(); }
     });
     document.addEventListener('visibilitychange', checkTimer);
-    window.addEventListener('pageshow', checkTimer);
-    window.addEventListener('pagehide', () => player.dispose());
+    window.addEventListener('pageshow', event => {
+        if (event.persisted) restorePreferences();
+        checkTimer();
+    });
+    window.addEventListener('pagehide', () => {
+        clearTimer();
+        startedByFocus = false;
+        player.dispose();
+    });
 
     const STORAGE_KEY_AMBIENT_SYNC = 'lanmao_ambient_sync_v1';
 
@@ -132,6 +137,7 @@ if (play) {
     }
 
     function syncAmbientSyncUI(enabled) {
+        if (!enabled) startedByFocus = false;
         const check = byId('ambient-pomodoro-sync');
         if (check && check.checked !== enabled) {
             check.checked = enabled;
@@ -185,11 +191,12 @@ if (play) {
         if (!getAmbientSyncState()) return;
         if (detail.running && detail.mode === 'focus') {
             if (detail.allowStart && !isActive()) {
+                startedByFocus = true;
                 player.play();
-                const cur = byId('ambient-current-status');
-                if (cur) cur.textContent = '🎧 深度专注中 · 伴读声音相伴心流';
             }
-        } else if (isActive()) {
+        } else if (startedByFocus) {
+            startedByFocus = false;
+            if (!isActive()) return;
             if (detail.mode === 'short-break' || detail.mode === 'long-break') {
                 player.pause('☕ 专注休息中 · 伴读声音已自动静音淡出');
             } else {
@@ -227,5 +234,5 @@ if (play) {
         });
         credits.append(line);
     }
-    player.notify('paused', '就绪 · 选择一种声音，低音量开始');
+    restorePreferences();
 }
