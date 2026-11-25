@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#16161a" media="(prefers-color-scheme: dark)">
+    <title>学习空间 | 蓝昴空间</title>
+    <link rel="preconnect" href="https://kyhhzaftsyakibdisiqj.supabase.co" crossorigin>
+    <link rel="icon" href="/images/icon-192.png">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/mobile.css">
+    <link rel="stylesheet" href="/study/study.css">
+</head>
+<body class="study-page">
+    <a href="#study-main" class="skip-link">跳到学习空间</a>
+    <header class="study-top">
+        <a href="/" class="study-brand">蓝昴空间</a>
+        <nav aria-label="学习空间导航">
+            <a href="#focus">计时</a>
+            <a href="#study-plan">目标与复盘</a>
+            <a href="#ambient">自然声音</a>
+            <button id="theme-toggle" type="button" aria-label="切换明暗外观" class="study-theme"><span aria-hidden="true">◐</span></button>
+        </nav>
+    </header>
+    <main id="study-main">
+        <div class="study-intro">
+            <h1>学习空间</h1>
+            <p>定个目标，专注一段时间，留下一句复盘。</p>
+            <a href="/reader.html" target="_blank" rel="noopener">在新标签页打开阅读器 ↗</a>
+        </div>
+        <div class="study-grid">
+            <section class="section section-light" id="focus" aria-labelledby="focus-title">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" id="focus-title"><span aria-hidden="true">🍅</span> 学术专注番茄钟</h2>
+                <p class="section-desc">25 分钟沉浸阅读与研究，5 分钟小憩放松 · 当前账号在本机独立保存</p>
+            </div>
+
+            <div class="focus-card">
+                <button type="button" class="focus-zen-close-btn" id="focus-zen-close" aria-label="退出禅定模式 (按 Esc 退出)" title="退出禅定模式 (按 Esc 退出)">✕</button>
+                <div class="focus-modes" role="tablist" aria-label="专注模式切换">
+                    <button type="button" class="focus-mode-btn active" data-time="1500" data-mode="focus">🍅 25m 深度专注</button>
+                    <button type="button" class="focus-mode-btn" data-time="300" data-mode="short-break">☕ 5m 短暂小憩</button>
+                    <button type="button" class="focus-mode-btn" data-time="900" data-mode="long-break">🌿 15m 深度长休</button>
+                </div>
+
+                <div class="focus-display-wrap">
+                    <div class="focus-circle-progress" aria-hidden="true">
+                        <svg viewBox="0 0 240 240" class="focus-svg">
+                            <circle class="focus-circle-bg" cx="120" cy="120" r="104"></circle>
+                            <circle class="focus-circle-bar" id="focus-progress-circle" cx="120" cy="120" r="104"></circle>
+                        </svg>
+                        <div class="focus-center-text">
+                            <span class="focus-timer-text" id="focus-main-timer">25:00</span>
+                            <span class="focus-status-text" id="focus-main-status">准备开启专注</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="focus-next-action-wrap" id="focus-next-action-wrap" hidden>
+                    <button type="button" class="focus-next-pill-btn" id="focus-next-pill-btn" aria-label="开始短暂小憩">
+                        <span class="next-pill-icon" aria-hidden="true" id="focus-next-pill-icon">☕</span>
+                        <span class="next-pill-text" id="focus-next-pill-text">太棒了！专注达成，开始 5 分钟小憩 ↗</span>
+                    </button>
+                </div>
+
+                <div class="focus-controls">
+                    <button type="button" class="focus-btn focus-btn-primary" id="focus-main-start">
+                        <span aria-hidden="true" id="focus-start-icon">▶</span>
+                        <span id="focus-start-label">开始专注</span>
+                    </button>
+                    <button type="button" class="focus-btn focus-btn-secondary" id="focus-main-reset">
+                        <span>重置</span>
+                    </button>
+                    <button type="button" class="focus-btn focus-btn-icon" id="focus-sound-toggle" aria-label="提示音开关" title="提示音开启/关闭 (快捷键 M)">
+                        <span id="focus-sound-icon" aria-hidden="true">🔔</span>
+                    </button>
+                    <button type="button" class="focus-btn focus-btn-icon" id="focus-ambient-toggle" aria-label="伴读白噪音联动开关" title="伴读声音联动开关 (专注自动播放/休息静音)" aria-pressed="true">
+                        <span id="focus-ambient-icon" aria-hidden="true">🎧</span>
+                    </button>
+                    <button type="button" class="focus-btn focus-btn-icon" id="focus-zen-toggle" aria-label="全屏禅定沉浸模式" title="全屏禅定沉浸模式 (快捷键 Z)">
+                        <span id="focus-zen-icon" aria-hidden="true">⛶</span>
+                    </button>
+                </div>
+
+                <div class="focus-shortcuts-hint" aria-hidden="true">
+                    <span><kbd>Space</kbd> 启停</span>
+                    <span><kbd>R</kbd> 重置</span>
+                    <span><kbd>M</kbd> 提示音</span>
+                    <span><kbd>Z</kbd> 禅定模式</span>
+                </div>
+
+                <p id="focus-storage-status" role="status" class="focus-storage-note">专注记录在本机保存；锁屏和后台提醒受手机系统限制。</p><div class="focus-stats-row">
+                    <div class="focus-stat-item">
+                        <span class="focus-stat-label">今日已专注</span>
+                        <span class="focus-stat-val" id="focus-completed-count">0 <small>个番茄</small></span>
+                    </div>
+                    <div class="focus-stat-divider"></div>
+                    <div class="focus-stat-item">
+                        <span class="focus-stat-label">累计专注时长</span>
+                        <span class="focus-stat-val" id="focus-total-minutes">0 <small>分钟</small></span>
+                    </div>
+                    <div class="focus-stat-divider"></div>
+                    <div class="focus-stat-item">
+                        <span class="focus-stat-label">保存范围</span>
+                        <span class="focus-stat-val focus-sync-badge">仅此账号 · 当前浏览器</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+            <section class="study-plan" id="study-plan" aria-labelledby="study-plan-title">
+                <h2 id="study-plan-title">今日目标与复盘</h2>
+                <p>记录保存在当前浏览器。每个账号有自己的今日记录。</p>
+                <form id="study-form">
+                    <fieldset id="study-fields" disabled>
+                        <label for="study-goal">今天要完成什么？</label>
+                        <input id="study-goal" name="goal" maxlength="120" placeholder="例如：读完论文方法部分">
+                        <label for="study-review">合上资料，回想学到了什么</label>
+                        <textarea id="study-review" name="review" maxlength="600" rows="4" placeholder="用自己的话写下记得的内容和仍有疑问的地方。"></textarea>
+                        <label for="study-next">下次从哪里开始</label>
+                        <input id="study-next" name="next" maxlength="120" placeholder="例如：复现图 2 的数据处理">
+                        <button class="focus-btn focus-btn-primary" type="submit">保存今日记录</button>
+                    </fieldset>
+                </form>
+                <p role="status" id="study-status">正在读取今日记录…</p>
+            </section>
+        </div>
+        <section class="section section-light" id="ambient" aria-labelledby="ambient-title">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title" id="ambient-title"><span aria-hidden="true">🎧</span> 沉浸伴读白噪声</h2>
+                <p class="section-desc">自然实录与柔和木鱼 · 轻声陪伴阅读 · 选择后才加载音频</p>
+            </div>
+
+            <div class="ambient-card">
+                <!-- 顶部主控台 -->
+                <div class="ambient-master-bar">
+                    <div class="ambient-now-playing">
+                        <span class="ambient-playing-wave" id="ambient-wave" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span>
+                        </span>
+                        <div class="ambient-now-text">
+                            <span class="ambient-now-title" id="ambient-current-title">山间溪流</span>
+                            <span class="ambient-now-status" id="ambient-current-status" role="status" aria-live="polite">就绪 · 选择一种声音，低音量开始</span>
+                        </div>
+                    </div>
+
+                    <div class="ambient-master-controls">
+                        <button type="button" class="ambient-play-btn" id="ambient-master-play" aria-label="播放白噪声">
+                            <span id="ambient-play-icon" aria-hidden="true">▶</span>
+                            <span id="ambient-play-label">开启声音</span>
+                        </button>
+                        <div class="ambient-vol-wrap">
+                            <button type="button" class="ambient-vol-btn" id="ambient-vol-mute" aria-label="静音声音" title="静音 / 恢复音量">
+                                <span class="ambient-vol-icon" id="ambient-vol-icon" aria-hidden="true">🔉</span>
+                            </button>
+                            <input type="range" id="ambient-volume" min="0" max="100" value="40" class="ambient-vol-slider" aria-label="白噪声主音量">
+                            <span class="ambient-vol-value" id="ambient-vol-value" aria-live="polite">40%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 声音卡片网格 -->
+                <div class="ambient-grid" role="radiogroup" aria-label="选择伴读声音">
+                    <button type="button" class="ambient-sound-card active" data-sound="stream" role="radio" aria-checked="true" tabindex="0">
+                        <span class="ambient-card-icon" aria-hidden="true">💧</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">山间溪流</span>
+                            <span class="ambient-card-en">Flowing Stream</span>
+                            <span class="ambient-card-desc">细碎水流绕过石头，保留自然轻响</span>
+                        </span>
+                        <span class="ambient-card-tag">自然实录</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="rain-light" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🌦️</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">檐下小雨</span>
+                            <span class="ambient-card-en">Light Rain</span>
+                            <span class="ambient-card-desc">轻一点的雨丝，柔和安静</span>
+                        </span>
+                        <span class="ambient-card-tag">轻柔雨声</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="rain-medium" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🌧️</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">窗外中雨</span>
+                            <span class="ambient-card-en">Steady Rain</span>
+                            <span class="ambient-card-desc">均匀雨声，保留自然起伏</span>
+                        </span>
+                        <span class="ambient-card-tag">均匀雨声</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="rain-heavy" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">☔</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">绵密大雨</span>
+                            <span class="ambient-card-en">Dense Rain</span>
+                            <span class="ambient-card-desc">实录片段叠成绵密雨幕，不加雷声</span>
+                        </span>
+                        <span class="ambient-card-tag">绵密雨幕</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="wooden-fish" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🪵</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">慢敲木鱼</span>
+                            <span class="ambient-card-en">Soft Wooden Fish</span>
+                            <span class="ambient-card-desc">每 2.4 秒轻敲，温和的木质共鸣</span>
+                        </span>
+                        <span class="ambient-card-tag">柔和合成</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="temple-bell" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🔔</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">寺院远钟</span>
+                            <span class="ambient-card-en">Distant Temple Bell</span>
+                            <span class="ambient-card-desc">每 24 秒一次，钟声渐渐散去</span>
+                        </span>
+                        <span class="ambient-card-tag">留白悠长</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="waves" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🌊</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">缓缓海浪</span>
+                            <span class="ambient-card-en">Gentle Ocean Waves</span>
+                            <span class="ambient-card-desc">浪涌轻推沙岸，缓缓来去</span>
+                        </span>
+                        <span class="ambient-card-tag">自然实录</span>
+                    </button>
+                    <button type="button" class="ambient-sound-card" data-sound="forest" role="radio" aria-checked="false" tabindex="-1">
+                        <span class="ambient-card-icon" aria-hidden="true">🌿</span>
+                        <span class="ambient-card-info">
+                            <span class="ambient-card-title">林间鸟鸣</span>
+                            <span class="ambient-card-en">Birdsong & Forest Wind</span>
+                            <span class="ambient-card-desc">鸟鸣和树叶风声混合，轻盈自然</span>
+                        </span>
+                        <span class="ambient-card-tag">实录混音</span>
+                    </button>
+                </div>
+
+                <p class="ambient-hint">建议从低音量开始。首次播放约加载 0.55 MB；切换时轻柔淡入淡出。木鱼为合成音，其余来自实录；三档雨声由同一录音选段、柔化与叠加制作。</p>
+                <details class="ambient-source-notes">
+                    <summary>声音来源与许可</summary>
+                    <p>本站对录音进行了选段、滤波柔化、响度调整及循环衔接；森林为混音，大雨有片段叠加。原作者、许可与修改说明如下：</p>
+                    <div id="ambient-credits"></div>
+                </details>
+
+                <!-- 底部智能设置与联动 -->
+                <div class="ambient-footer-bar">
+                    <label class="ambient-feature-toggle" for="ambient-pomodoro-sync">
+                        <input type="checkbox" id="ambient-pomodoro-sync" checked>
+                        <span class="ambient-toggle-box"></span>
+                        <span class="ambient-toggle-text">🍅 联动专注钟：开始专注时自动播放，休息时淡出自动播放的声音</span>
+                    </label>
+
+                    <div class="ambient-timer-select">
+                        <span class="ambient-timer-label">⏱️ 定时关闭：</span>
+                        <button type="button" class="ambient-timer-pill active" data-timer="0" aria-pressed="true">常开</button>
+                        <button type="button" class="ambient-timer-pill" data-timer="900" aria-pressed="false">15m</button>
+                        <button type="button" class="ambient-timer-pill" data-timer="1800" aria-pressed="false">30m</button>
+                        <button type="button" class="ambient-timer-pill" data-timer="3600" aria-pressed="false">60m</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    </main>
+    <script src="/memo-config.js" defer></script>
+    <script type="module" src="/auth-guard.js"></script>
+    <script type="module" src="/mobile-nav.js"></script>
+    <script type="module" src="/ambient.js"></script>
+    <script type="module" src="/focus.js"></script>
+    <script type="module" src="/study/study.js"></script>
+</body>
+</html>

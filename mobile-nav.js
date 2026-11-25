@@ -2,12 +2,12 @@ import {initTheme} from './lib/theme.mjs';
 import {installViewport} from './lib/viewport.mjs';
 installViewport();
 const nav=document.createElement('nav');nav.className='mobile-dock';nav.setAttribute('aria-label','手机主要功能');
-const items=[['/','首页','⌂'],['/reader.html','阅读','▤'],['/#focus','专注','◷'],['/space.html','我的','♙']];
+const items=[['/','首页','⌂'],['/reader.html','阅读','▤'],['/study/','专注','◷'],['/space.html','我的','♙']];
 const dockLinks=[];
 function active(path){
  let p=location.pathname.replace(/\.html$/,'').replace(/\/$/,'')||'/';if(p==='/index')p='/';
  if(path==='/')return p==='/'&&location.hash!=='#focus';
- if(path==='/#focus')return p==='/'&&location.hash==='#focus';
+ if(path==='/study/')return p==='/study'||p==='/study/index'||(p==='/'&&location.hash==='#focus');
  if(path==='/space.html')return ['/space','/account','/profile','/memo'].includes(p);
  return p===path.replace(/\.html$/,'');
 }
@@ -15,7 +15,7 @@ function updateDock(overrideFocus=null){
  for(const [a,href] of dockLinks){
   let isAct=false;
   if(overrideFocus!==null){
-   if(href==='/#focus')isAct=overrideFocus;
+   if(href==='/study/')isAct=overrideFocus;
    else if(href==='/')isAct=!overrideFocus;
    else isAct=active(href);
   }else{
@@ -29,7 +29,7 @@ window.addEventListener?.('hashchange',()=>updateDock());
 if(typeof IntersectionObserver==='function'){
  try{
   const focusSec=document.getElementById('focus');
-  if(focusSec){
+  if(focusSec&&['/','/index','/index.html'].includes(location.pathname)){
    const obs=new IntersectionObserver((entries)=>{
     for(const e of entries){
      if(e.isIntersecting&&e.intersectionRatio>=0.35)updateDock(true);
@@ -44,7 +44,7 @@ for(const [href,label,icon] of items){const a=document.createElement('a');a.href
 const more=document.createElement('button');more.type='button';more.innerHTML='<span class="dock-symbol" aria-hidden="true">•••</span><span>更多</span>';more.setAttribute('aria-haspopup','dialog');nav.append(more);
 const sheet=document.createElement('dialog');sheet.className='mobile-sheet';sheet.id='mobile-menu';sheet.setAttribute('aria-labelledby','mobile-menu-title');more.setAttribute('aria-controls',sheet.id);more.setAttribute('aria-expanded','false');
 const header=document.createElement('div');header.className='mobile-sheet-header';const title=document.createElement('h2');title.id='mobile-menu-title';title.textContent='常用功能';const close=document.createElement('button');close.type='button';close.textContent='关闭';header.append(title,close);sheet.append(header);
-for(const [href,label,note] of [['/#ambient','自然声音','溪流、雨声与柔和伴读'],['/#contact','留言板','交流与反馈'],['/account.html','账号安全','改密与全设备退出'],['/profile.html','设置头像','预设与图片上传'],['/memo.html','店主备忘录','需要店主身份和独立口令']]){const a=document.createElement('a');a.href=href;const name=document.createElement('strong'),detail=document.createElement('span');name.textContent=label;detail.textContent=note;a.append(name,detail);a.addEventListener('click',()=>sheet.close());sheet.append(a);}
+for(const [href,label,note] of [['/study/#ambient','自然声音','溪流、雨声与柔和伴读'],['/#contact','留言板','交流与反馈'],['/account.html','账号安全','改密与全设备退出'],['/profile.html','设置头像','预设与图片上传'],['/memo.html','店主备忘录','需要店主身份和独立口令']]){const a=document.createElement('a');a.href=href;const name=document.createElement('strong'),detail=document.createElement('span');name.textContent=label;detail.textContent=note;a.append(name,detail);a.addEventListener('click',()=>sheet.close());sheet.append(a);}
 function action(label,fn){const b=document.createElement('button');b.type='button';b.className='mobile-sheet-action';b.textContent=label;b.addEventListener('click',fn);sheet.append(b);return b;}
 let themeStorage;try{themeStorage=localStorage;}catch{}
 const theme=initTheme({root:document.documentElement,body:document.body,button:document.getElementById('theme-toggle'),storage:themeStorage,media:matchMedia('(prefers-color-scheme:dark)')});

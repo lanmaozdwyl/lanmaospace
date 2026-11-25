@@ -11,13 +11,15 @@ import { readFileSync, readdirSync } from 'node:fs';
 const ROOT = new URL('../', import.meta.url);
 const ORIGIN = 'https://lanmaospace.pages.dev';
 
-// 页面清单取自构建白名单，外加 tools/ 子目录：新页面一进白名单就必须表态。
+// 页面清单取自构建白名单和公开子目录。
 const buildSource = readFileSync(new URL('scripts/build.mjs', ROOT), 'utf8');
 const whitelisted = buildSource.match(/const files=\[([^\]]+)\]/)[1]
     .split(',')
     .map(part => part.trim().replace(/^'|'$/g, ''))
     .filter(name => name.endsWith('.html'));
-const pages = [...whitelisted, ...readdirSync(new URL('tools/', ROOT)).filter(name => name.endsWith('.html')).map(name => `tools/${name}`)];
+const subpages = ['tools', 'study'].flatMap(dir =>
+    readdirSync(new URL(`${dir}/`, ROOT)).filter(name => name.endsWith('.html')).map(name => `${dir}/${name}`));
+const pages = [...whitelisted, ...subpages];
 
 // 站内 URL 路径：index.html 走裸路径，其余按文件名。
 function urlPath(file) {

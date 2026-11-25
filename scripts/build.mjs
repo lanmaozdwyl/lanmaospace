@@ -12,5 +12,5 @@ for(const file of files)copyFileSync(join(root,file),join(out,file));
 // 上游在 lib/pageflipopen/ 里附带了一份与根目录字节完全相同的 pdf.worker.mjs（各 2.2 MB），
 // 而 reader.js 只引用 /pdf.worker.mjs，过滤掉副本以免 dist 白增 2.2 MB。
 // functions/ 已随 Pages Functions 版 sbproxy 一起删除：git 不跟踪空目录，列入会让 cpSync ENOENT 打断构建。
-for(const dir of ['lib','tools','images','audio'])cpSync(join(root,dir),join(out,dir),{recursive:true,filter:src=>!src.replaceAll('\\','/').endsWith('/pdf.worker.mjs')});
+for(const dir of ['lib','tools','study','images','audio'])cpSync(join(root,dir),join(out,dir),{recursive:true,filter:src=>!src.replaceAll('\\','/').endsWith('/pdf.worker.mjs')});
 console.log('PASS: dist contains only website runtime files');

@@ -1,6 +1,7 @@
 // 单一测试清单：npm test 与 scripts/check.mjs 共用，避免两处清单漂移。
 // permissions.test.mjs 需要 PGlite（npm run test:db 单独执行），不在默认清单内。
 export const TESTS = [
+    'tests/study.test.mjs',
     'tests/reader-storage.test.mjs',
     'tests/memo.test.mjs',
     'tests/guestbook-admin.test.mjs',

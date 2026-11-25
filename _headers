@@ -102,6 +102,15 @@
 /tools/index.html
   Cache-Control: no-cache
 
+/study/
+  Cache-Control: no-cache
+
+/study
+  Cache-Control: no-cache
+
+/study/index.html
+  Cache-Control: no-cache
+
 /sw.js
   Cache-Control: no-cache
 
