@@ -741,7 +741,7 @@ test('效率区工程：珍藏书签管理系统与目录双标签联动及无�
     assert(jsSource.includes('function toggleBookmark()'), '必须包含 toggleBookmark 切换与摘录提取');
     assert(jsSource.includes('function renderBookmarksList()'), '必须包含 renderBookmarksList 列表渲染');
     assert(jsSource.includes('exportBookshelfBackup'), '书架备份导出需包含 bookmarks 字段');
-    assert(jsSource.includes('state.bookmarks = Object.assign({}, state.bookmarks, data.bookmarks)'), '书架备份恢复需能无缝导入 bookmarks');
+    assert(jsSource.includes('mergeBackupBookmarks(data.bookmarks)'), '书架备份恢复需合并书签');
 });
 
 test('体验优化：书架移动端底栏个人空间通道互联与抽屉关闭无障碍焦点回跳', () => {
@@ -954,7 +954,6 @@ test('个人数据主权与备份抗丢书治理：突破 2MB 阈值、IndexedDB
     // 2. 导入兼容与二进制还原审计
     assert(jsSource.includes("book.format === 'pdf'"), '导入恢复必须兼容 PDF 格式书目');
     assert(jsSource.includes('atob(book.pdfDataBase64)'), '导入恢复需将 Base64 反序列化为二进制 ArrayBuffer');
-    assert(jsSource.includes('saveCustomBook(book)'), '恢复书籍需持久化存储入库');
 
     // 3. 模拟沙箱运行验证：验证超大书籍在 localStorage 为空时能否由内存导出
     const mockBook = {

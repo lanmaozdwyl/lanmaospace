@@ -894,7 +894,7 @@
                         if (typeof callback === 'function') callback(false);
                     };
                 };
-                req.onerror = () => {
+                req.onerror = req.onblocked = () => {
                     state.dbLoaded = true;
                     if (typeof callback === 'function') callback(false);
                 };
@@ -912,31 +912,22 @@
         state.books[book.id] = book;
 
         let mirrorOk = false;
-        // 1. 本地存储镜像 (限制体积在 2 MiB 以内，避免超出配额异常)
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
-            let list = raw ? JSON.parse(raw) : [];
-            if (!Array.isArray(list)) list = [];
-            list = list.filter(b => b.id !== book.id);
-            if (book.format === 'pdf') {
-                list.push({
-                    id: book.id,
-                    title: book.title,
-                    author: book.author,
-                    coverEmoji: book.coverEmoji,
-                    format: 'pdf',
-                    chapters: book.chapters
-                });
-            } else {
+        // PDF 正文必须写入 IndexedDB。只保存书名会留下刷新后无法打开的书目。
+        if (book.format !== 'pdf') {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+                let list = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(list)) list = [];
+                list = list.filter(b => b.id !== book.id);
                 list.push(book);
+                const serialized = JSON.stringify(list);
+                if (serialized.length < 2 * 1024 * 1024) {
+                    localStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, serialized);
+                    mirrorOk = true;
+                }
+            } catch (err) {
+                console.warn('localStorage custom books mirror failed:', err);
             }
-            const serialized = JSON.stringify(list);
-            if (serialized.length < 2 * 1024 * 1024) {
-                localStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, serialized);
-                mirrorOk = true;
-            }
-        } catch (err) {
-            console.warn('localStorage custom books mirror failed:', err);
         }
 
         // 2. 写入 IndexedDB (大文件持久化主通道，严格遵循事务生命周期与单次回调保护)
@@ -988,7 +979,7 @@
                     dbInstance = e.target.result;
                     executePut(dbInstance);
                 };
-                openReq.onerror = () => {
+                openReq.onerror = openReq.onblocked = () => {
                     done(mirrorOk);
                 };
             } catch (_) {
@@ -4738,11 +4729,11 @@
                             chapters: [{ title: '完整 PDF 画册文档', content: ['在线 PDF 已加载至本地内存'] }],
                             addedAt: Date.now()
                         };
-                        saveCustomBook(pdfBook, () => {
+                        saveCustomBook(pdfBook, (saved) => {
                             renderBookshelfGrid();
                             updateBookshelfHero();
                             closeDrawer('drawer-online-search');
-                            showToast(`🎉 成功导入 PDF《${bookTitle}》！`, 3500);
+                            showPdfImportResult(bookTitle, saved);
                         });
                     } else {
                         const text = await res.text();
@@ -4871,10 +4862,74 @@
         showToast(`📦 书架与阅读进度备份导出完成（共 ${safeCustomBooks.length} 本自定义书籍）！`);
     }
 
+    function showPdfImportResult(title, saved) {
+        showToast(saved
+            ? `📖 已将 PDF《${title}》保存到本机书架。`
+            : `⚠️ PDF《${title}》暂时可以阅读，但未能保存到本机。请保留原文件。`, saved ? 3200 : 4500);
+    }
+
+    const isBackupRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+    const hasPdfContent = book => Boolean(book.pdfData?.byteLength || book.pdfUrl);
+    // Only comparable timestamps can replace an existing position. Older backups
+    // without timestamps can still fill in a position on a new device.
+    function prefersBackupProgress(local, incoming) {
+        return isBackupRecord(incoming) && (!isBackupRecord(local) ||
+            (Number.isFinite(incoming.timestamp) && Number.isFinite(local.timestamp) && incoming.timestamp > local.timestamp));
+    }
+
+    function mergeBackupProgress(data) {
+        let positions;
+        try { positions = JSON.parse(localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS)); } catch (_) {}
+        const merged = Object.assign(Object.create(null), isBackupRecord(positions) ? positions : {});
+        const recent = loadSavedProgress();
+        if (recent?.bookId && prefersBackupProgress(merged[recent.bookId], recent)) {
+            merged[recent.bookId] = recent;
+        }
+        const incoming = isBackupRecord(data.bookProgress) ? data.bookProgress : {};
+        for (const [id, position] of Object.entries(incoming)) {
+            if (prefersBackupProgress(merged[id], position)) merged[id] = position;
+        }
+        const backupRecent = data.lastProgress;
+        if (typeof backupRecent?.bookId === 'string' && backupRecent.bookId && isBackupRecord(backupRecent)) {
+            const id = backupRecent.bookId;
+            if (prefersBackupProgress(merged[id], backupRecent)) merged[id] = backupRecent;
+            const restoredRecent = { ...merged[id], bookId: id };
+            if (prefersBackupProgress(recent, backupRecent)) {
+                localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(restoredRecent));
+            }
+        }
+        localStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(merged));
+    }
+
+    function mergeBackupBookmarks(incoming) {
+        for (const [bookId, bookmarks] of Object.entries(incoming)) {
+            if (!Array.isArray(bookmarks) || Object.hasOwn(Object.prototype, bookId)) continue;
+            const local = Array.isArray(state.bookmarks[bookId]) ? state.bookmarks[bookId] : [];
+            const seen = new Set(local.map(bookmark => bookmark?.id));
+            const additions = [];
+            for (const bookmark of bookmarks) {
+                if (!bookmark || typeof bookmark.id !== 'string' || seen.has(bookmark.id)) continue;
+                seen.add(bookmark.id);
+                additions.push(bookmark);
+            }
+            state.bookmarks[bookId] = [...local, ...additions];
+        }
+    }
+
+    let finishCustomBooksLoad;
+    const customBooksReady = new Promise(resolve => { finishCustomBooksLoad = resolve; });
+    let restoringBackup = false;
     function importBookshelfBackup(file) {
-        if (!file) return;
+        if (!file || restoringBackup) return;
+        restoringBackup = true;
         const reader = new FileReader();
-        reader.onload = (e) => {
+        const readFailed = () => {
+            restoringBackup = false;
+            showToast('无法读取备份文件，请重新选择。');
+        };
+        reader.onerror = readFailed;
+        reader.onabort = readFailed;
+        reader.onload = async (e) => {
             try {
                 const data = JSON.parse(e.target.result);
                 if (!data || data.app !== 'lanmao-reader-backup' || !Array.isArray(data.customBooks)) {
@@ -4882,41 +4937,38 @@
                     return;
                 }
 
+                await customBooksReady;
                 let restoredCount = 0;
-                data.customBooks.forEach(book => {
-                    if (book && book.id && book.title && (Array.isArray(book.chapters) || book.format === 'pdf')) {
-                        // 若包含 PDF Base64 字符串，反序列化为 ArrayBuffer 还原
-                        if (book.pdfDataBase64 && typeof book.pdfDataBase64 === 'string') {
-                            try {
-                                const binaryString = atob(book.pdfDataBase64);
-                                const len = binaryString.length;
-                                const bytes = new Uint8Array(len);
-                                for (let i = 0; i < len; i++) {
-                                    bytes[i] = binaryString.charCodeAt(i);
-                                }
-                                book.pdfData = bytes.buffer;
-                                delete book.pdfDataBase64;
-                            } catch (err) {
-                                console.warn('PDF Base64 restore failed:', err);
-                            }
-                        }
-                        if (!Array.isArray(book.chapters)) {
-                            book.chapters = [{ title: book.title || 'PDF 文档', page: 1 }];
-                        }
-                        saveCustomBook(book);
-                        restoredCount++;
+                let failedCount = 0;
+                for (const book of data.customBooks) {
+                    if (!book || typeof book.id !== 'string' || !book.id || typeof book.title !== 'string' ||
+                        Object.hasOwn(Object.prototype, book.id) || (!Array.isArray(book.chapters) && book.format !== 'pdf')) {
+                        failedCount++;
+                        continue;
                     }
-                });
+                    const existing = state.books[book.id];
+                    if (existing && (existing.format !== 'pdf' || hasPdfContent(existing))) continue;
 
-                if (data.bookProgress && typeof data.bookProgress === 'object') {
-                    let currentProg = {};
-                    try {
-                        const raw = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
-                        if (raw) currentProg = JSON.parse(raw) || {};
-                    } catch (_) {}
-                    const mergedProg = Object.assign({}, currentProg, data.bookProgress);
-                    localStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(mergedProg));
+                    if (book.format === 'pdf') {
+                        try {
+                            const binary = atob(book.pdfDataBase64);
+                            if (!binary.length) throw new Error('Empty PDF');
+                            const bytes = new Uint8Array(binary.length);
+                            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                            book.pdfData = bytes.buffer;
+                            delete book.pdfDataBase64;
+                        } catch (_) {
+                            failedCount++;
+                            continue;
+                        }
+                        if (!Array.isArray(book.chapters)) book.chapters = [{ title: book.title, page: 1 }];
+                    }
+                    const saved = await new Promise(resolve => saveCustomBook(book, resolve));
+                    if (saved) restoredCount++;
+                    else failedCount++;
                 }
+
+                if (isBackupRecord(data.bookProgress) || isBackupRecord(data.lastProgress)) mergeBackupProgress(data);
 
                 if (data.settings && typeof data.settings === 'object') {
                     state.settings = Object.assign({}, state.settings, data.settings);
@@ -4924,8 +4976,8 @@
                     applySettings();
                 }
 
-                if (data.bookmarks && typeof data.bookmarks === 'object') {
-                    state.bookmarks = Object.assign({}, state.bookmarks, data.bookmarks);
+                if (isBackupRecord(data.bookmarks)) {
+                    mergeBackupBookmarks(data.bookmarks);
                     saveBookmarks();
                     renderBookmarksList();
                 }
@@ -4951,12 +5003,15 @@
 
                 renderBookshelfGrid();
                 updateBookshelfHero();
-                showToast(`🎉 成功恢复 ${restoredCount} 本图书及阅读进度！`, 3600);
+                const summary = `已保存 ${restoredCount} 本书，阅读记录已合并。`;
+                showToast(failedCount ? `${summary} ${failedCount} 本未能保存，请保留原备份。` : summary, 4500);
             } catch (err) {
-                showToast('解析备份文件失败，请检查文件完整性');
+                showToast('未能完成备份恢复，请检查备份文件和本机存储后重试。');
+            } finally {
+                restoringBackup = false;
             }
         };
-        reader.readAsText(file);
+        try { reader.readAsText(file); } catch (_) { readFailed(); }
     }
 
     function setImportingState(isImporting, message) {
@@ -5036,13 +5091,7 @@
                     chapters: [{ title: cleanName || '本地 PDF 文档', page: 1 }],
                     totalPages: 1
                 };
-                saveCustomBook(bookObj, (success) => {
-                    if (success) {
-                        showToast(`📖 已载入 PDF《${bookObj.title}》，已保存在本机书架！`, 3200);
-                    } else {
-                        showToast(`⚠️ 《${bookObj.title}》已载入临时阅读，但本机存储已满，刷新可能不会保留`, 4000);
-                    }
-                });
+                saveCustomBook(bookObj, saved => showPdfImportResult(bookObj.title, saved));
                 renderBookshelfGrid();
                 switchView('reader', bookObj.id, 0, 1);
                 closeAllDrawers();
@@ -6727,6 +6776,7 @@
 
         // 2. 同步加载本机离线书籍 (localStorage 快速镜像 + 异步 IndexedDB)
         initCustomBooksStorage((hasNew) => {
+            finishCustomBooksLoad();
             // IndexedDB 异步读取完成回调：优先使用初始地址捕获的目标，防止被初始书架路由覆盖
             const targetBookId = initialBook || new URLSearchParams(window.location.search).get('book');
             const targetBook = targetBookId ? state.books[targetBookId] : null;

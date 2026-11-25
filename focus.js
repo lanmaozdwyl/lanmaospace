@@ -233,20 +233,21 @@ $('focus-zen-toggle')?.addEventListener('click',toggleZenMode);
 $('focus-zen-close')?.addEventListener('click',()=>setZenMode(false));
 
 function isInputActive(target){
- if(!target)return false;
- const tag=target.tagName?target.tagName.toUpperCase():'';
- return tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||Boolean(target.isContentEditable);
+ return Boolean(target?.isContentEditable || target?.closest?.(
+  'input, textarea, select, button, a[href], summary, [role="button"], [role="link"], [role="radio"], [role="checkbox"], [role="switch"], [role="tab"]'
+ ));
 }
 
 window.addEventListener('storage',e=>{if(key&&e.key===key){state=reconcileFocus(load(),Date.now()).state;paint();}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&key){state=load();pulse();}});
 document.addEventListener('keydown',e=>{
+ if(e.defaultPrevented||e.isComposing)return;
  if(e.key==='Escape'){
   if(document.body?.classList.contains('focus-zen-active')){setZenMode(false);e.preventDefault();return;}
   panel(false);
   return;
  }
- if(isInputActive(e.target)||e.metaKey||e.ctrlKey||e.altKey)return;
+ if(!key||ended||e.repeat||isInputActive(e.target)||e.metaKey||e.ctrlKey||e.altKey)return;
  const k=e.key?e.key.toLowerCase():'';
  if(e.code==='Space'||e.key===' '){
   e.preventDefault();

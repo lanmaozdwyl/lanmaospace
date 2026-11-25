@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {freshFocus,readFocus,reconcileFocus,changeFocus} from '../lib/focus.mjs';
+import vm from 'node:vm';
+import {MODES,freshFocus,readFocus,reconcileFocus,changeFocus} from '../lib/focus.mjs';
 const now=new Date(2026,10,3,12,0,0).getTime();
 test('倒计时按真实经过时间恢复，暂停不丢失后台经过时间',()=>{const s=changeFocus(freshFocus(now),'toggle',now).state;const paused=changeFocus(s,'toggle',now+12500).state;assert.equal(paused.remainingSeconds,1488);assert.equal(paused.isRunning,false);assert.equal(paused.endTime,0);});
 test('同一轮完成只累计一次',()=>{const s=changeFocus(freshFocus(now),'toggle',now).state;const first=reconcileFocus(s,now+1500000);assert(first.completed);assert.equal(first.state.completedCount,1);assert.equal(first.state.totalMinutes,25);const again=reconcileFocus(first.state,now+1600000);assert.equal(again.completed,false);assert.equal(again.state.completedCount,1);});
@@ -9,6 +10,40 @@ test('隔天打开不会把昨日已结束计时计为今天完成',()=>{const s
 test('休息完成不增加专注统计，切换模式停止旧计时',()=>{const s=changeFocus(freshFocus(now),'short-break',now).state;const running=changeFocus(s,'toggle',now).state;assert.equal(reconcileFocus(running,now+300000).state.completedCount,0);const next=changeFocus(running,'long-break',now+1000).state;assert.equal(next.isRunning,false);assert.equal(next.remainingSeconds,900);});
 test('损坏或不可信本地数据不能变成 HTML 或无穷计时',()=>{assert.deepEqual(readFocus('{bad',now),freshFocus(now));const s=readFocus(JSON.stringify({mode:'constructor',completedCount:'<img>',totalMinutes:-5,remainingSeconds:1e100,endTime:now+9e12,isRunning:true}),now);assert.equal(s.mode,'focus');assert.equal(s.completedCount,0);assert.equal(s.totalMinutes,0);assert.equal(s.remainingSeconds,1500);assert.equal(s.isRunning,false);});
 test('重置和提示音设置不重置已有专注统计',()=>{const s={...freshFocus(now),completedCount:4,totalMinutes:100};const next=changeFocus(changeFocus(s,'reset',now).state,'sound',now).state;assert.equal(next.completedCount,4);assert.equal(next.totalMinutes,100);assert.equal(next.sound,false);});
+
+test('已聚焦的按钮保留原生空格操作，页面空格仍可启停', async () => {
+    const handlers = new Map();
+    const storage = new Map();
+    const key = 'lanmao_focus_v3_test';
+    const on = (event, handler) => handlers.set(event, handler);
+    const code = readFileSync(new URL('../focus.js', import.meta.url), 'utf8').replace(/^import .*;\s*$/gm, '');
+    vm.runInNewContext(code, {
+        MODES, freshFocus, readFocus, reconcileFocus, changeFocus,
+        document: {getElementById: () => null, querySelectorAll: () => [], addEventListener: on},
+        window: {dispatchEvent() {}, addEventListener: on}, CustomEvent: class {},
+        localStorage: {getItem: name => storage.get(name) ?? null, setItem: (name, value) => storage.set(name, value)},
+        navigator: {}, setInterval() {},
+        getSupabase: async () => ({auth: {
+            async getSession() { return {data: {session: {user: {id: 'test'}}}}; },
+            onAuthStateChange() {},
+        }}),
+    });
+    function space(overrides = {}) {
+        const event = {key: ' ', code: 'Space', preventDefault() {this.defaultPrevented = true;}, ...overrides};
+        handlers.get('keydown')(event);
+        return Boolean(event.defaultPrevented);
+    }
+    assert.equal(space(), false);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(space({target: {closest: selectors => selectors.includes('button') ? {} : null}}), false);
+    assert.equal(JSON.parse(storage.get(key)).isRunning, false);
+    assert.equal(space(), true);
+    assert.equal(JSON.parse(storage.get(key)).isRunning, true);
+    assert.equal(space({repeat: true}), false);
+    assert.equal(JSON.parse(storage.get(key)).isRunning, true);
+    assert.equal(space(), true);
+    assert.equal(JSON.parse(storage.get(key)).isRunning, false);
+});
 
 test('学术专注钟：桌面端快捷键（Space启停/R重置/M提示音/Z禅定）与沉浸全屏禅定模式', () => {
     const focusJs = readFileSync(new URL('../focus.js', import.meta.url), 'utf8');

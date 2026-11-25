@@ -85,6 +85,23 @@ test('较慢的初始检测不会覆盖主动申请结果', async () => {
     assert.match(f.node('storage-persist-badge').textContent, /已获/);
 });
 
+test('申请持久存储期间，已在进行的容量估算仍能显示', async () => {
+    let finishEstimate;
+    const f = fixture({
+        persisted: async () => false,
+        persist: async () => true,
+        estimate: () => new Promise(resolve => { finishEstimate = resolve; }),
+    });
+    f.node('shelf-btn-storage-guard').click();
+    await settle();
+    await f.node('storage-request-persist-btn').click();
+    finishEstimate({usage: 1048576, quota: 4194304});
+    await settle();
+    assert.match(f.node('storage-persist-badge').textContent, /已获/);
+    assert.match(f.node('storage-usage-num').textContent, /已用 1.0 MB/);
+    assert.equal(f.node('storage-usage-bar-fill').style.width, '25%');
+});
+
 test('不支持与容量查询失败提供降级提示；关闭支持 Esc', async () => {
     const f = fixture(undefined);
     f.node('shelf-btn-storage-guard').click(); await settle();
