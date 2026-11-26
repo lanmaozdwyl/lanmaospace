@@ -840,6 +840,23 @@
     }
 
     // ===== 4. 本地书籍离线持久化 (IndexedDB + LocalStorage 镜像兜底) =====
+    function isGutenbergArchive(book) {
+        return book?.id?.startsWith('gb_') && book.chapters?.length === 1 &&
+            book.chapters[0]?.title === '前言与原著文献说明';
+    }
+
+    function labelShelfEdition(book) {
+        if (book.id.startsWith('curated_')) {
+            const title = book.title.endsWith('（节选）') ? book.title : book.title + '（节选）';
+            return {...book, title, tag: '名著节选'};
+        }
+        if (book.id.startsWith('ol_') || isGutenbergArchive(book)) {
+            const title = book.title.endsWith('（书目）') ? book.title : book.title + '（书目）';
+            return {...book, title, tag: '书目 · 无正文'};
+        }
+        return book;
+    }
+
     function initCustomBooksStorage(callback) {
         // 1. 同步加载 localStorage 镜像，首屏零延迟渲染
         try {
@@ -848,8 +865,8 @@
                 const list = JSON.parse(raw);
                 if (Array.isArray(list)) {
                     list.forEach(b => {
-                        if (b && b.id && b.title && Array.isArray(b.chapters)) {
-                            state.books[b.id] = b;
+                        if (typeof b?.id === 'string' && typeof b.title === 'string' && Array.isArray(b.chapters)) {
+                            state.books[b.id] = labelShelfEdition(b);
                         }
                     });
                 }
@@ -879,9 +896,9 @@
                         const books = getAllReq.result || [];
                         let hasNew = false;
                         books.forEach(b => {
-                            if (b && b.id && b.title && Array.isArray(b.chapters)) {
+                            if (typeof b?.id === 'string' && typeof b.title === 'string' && Array.isArray(b.chapters)) {
                                 if (!state.books[b.id] || (b.pdfData && !state.books[b.id].pdfData)) hasNew = true;
-                                state.books[b.id] = b;
+                                state.books[b.id] = labelShelfEdition(b);
                             }
                         });
                         state.dbLoaded = true;
@@ -991,6 +1008,19 @@
         } else {
             done(mirrorOk);
         }
+    }
+
+    function saveOnlineBook(book) {
+        const previous = state.books[book.id];
+        return new Promise(resolve => {
+            saveCustomBook(book, saved => {
+                if (!saved && state.books[book.id] === book) {
+                    if (previous) state.books[book.id] = previous;
+                    else delete state.books[book.id];
+                }
+                resolve(saved);
+            });
+        });
     }
 
     function confirmDeleteCustomBook(bookId) {
@@ -4193,7 +4223,8 @@
             onlineBtn.addEventListener('click', () => {
                 openDrawer('drawer-online-search', onlineBtn);
                 const resultsContainer = document.getElementById('online-search-results');
-                if (resultsContainer && !resultsContainer.hasChildNodes()) {
+                const classicsTab = document.getElementById('tab-online-classics');
+                if (resultsContainer && !resultsContainer.firstElementChild && classicsTab?.getAttribute('aria-selected') === 'true') {
                     const searchInputEl = document.getElementById('online-book-search-input');
                     const q = searchInputEl ? searchInputEl.value.trim() : '';
                     if (window._renderOnlineClassics) window._renderOnlineClassics(q);
@@ -4309,7 +4340,7 @@
             });
 
             if (list.length === 0) {
-                resultsContainer.innerHTML = '<div class="online-empty-tip">未找到匹配的公版典藏，可切换到「Open Library」搜索海量国际藏书</div>';
+                resultsContainer.innerHTML = '<div class="online-empty-tip">未找到匹配的节选。可切换到 Open Library 查询书目。</div>';
                 return;
             }
 
@@ -4329,21 +4360,22 @@
                         <div class="card-cover-spine"></div>
                     </div>
                     <div class="online-card-info">
-                        <h4 class="online-card-title">${escapeHtml(b.title)}</h4>
-                        <span class="online-card-author">${escapeHtml(b.author)} · ${escapeHtml(b.tag || '名著')}</span>
+                        <h4 class="online-card-title">${escapeHtml(b.title)}（节选）</h4>
+                        <span class="online-card-author">${escapeHtml(b.author)} · 本站收录 ${b.chapters.length} 节</span>
                         <p class="online-card-desc">${escapeHtml(b.description || '')}</p>
                         <button type="button" class="online-card-import-btn" data-book-id="${escapeHtml(b.id)}">
-                            ${alreadyOnShelf ? '✓ 已在书架中' : '📥 一键存入书架'}
+                            ${alreadyOnShelf ? '✓ 已保存节选' : '保存节选'}
                         </button>
                     </div>
                 `;
                 const importBtn = card.querySelector('.online-card-import-btn');
                 if (importBtn) {
                     if (alreadyOnShelf) importBtn.disabled = true;
-                    importBtn.addEventListener('click', () => {
-                        importCuratedBook(b);
-                        importBtn.textContent = '✓ 已在书架中';
+                    importBtn.addEventListener('click', async () => {
                         importBtn.disabled = true;
+                        const saved = await importCuratedBook(b);
+                        importBtn.textContent = saved ? '✓ 已保存节选' : '重试保存节选';
+                        importBtn.disabled = saved;
                     });
                 }
                 resultsContainer.appendChild(card);
@@ -4351,8 +4383,8 @@
         }
 
         // 导入精选公版书
-        function importCuratedBook(curatedBook) {
-            const bookToSave = {
+        async function importCuratedBook(curatedBook) {
+            const bookToSave = labelShelfEdition({
                 id: curatedBook.id,
                 title: curatedBook.title,
                 author: curatedBook.author,
@@ -4361,12 +4393,14 @@
                 description: curatedBook.description,
                 chapters: curatedBook.chapters,
                 addedAt: Date.now()
-            };
-            saveCustomBook(bookToSave, () => {
+            });
+            const saved = await saveOnlineBook(bookToSave);
+            if (saved) {
                 renderBookshelfGrid();
                 updateBookshelfHero();
-                showToast(`🎉 成功收录《${curatedBook.title}》至我的书架！`, 3200);
-            });
+            }
+            showToast(saved ? '节选已保存到书架。' : '节选未能保存，请检查本机存储后重试。');
+            return saved;
         }
 
         // 渲染古登堡计划提示与推荐搜索词
@@ -4375,7 +4409,7 @@
             resultsContainer.innerHTML = `
                 <div class="online-empty-tip">
                     <p style="font-size: 14.5px; font-weight: 600; margin-bottom: 6px;">📜 古登堡计划 (Project Gutenberg)</p>
-                    <p style="color: var(--r-text-muted); font-size: 12.5px; line-height: 1.5;">汇集全球逾 70,000 本正版公版经典原著，全库免费开放，支持免翻墙检索与一键解析全文章节入库。</p>
+                    <p style="color: var(--r-text-muted); font-size: 12.5px; line-height: 1.5;">搜索古登堡计划的书目。条目提供纯文本且可以下载时，可将正文导入书架。</p>
                     <div style="margin-top: 14px; text-align: left;">
                         <span style="font-size: 12px; font-weight: 600; color: var(--r-text);">🔥 热门中文与世界经典推荐（点击即搜）：</span>
                         <div class="online-chip-group">
@@ -4426,7 +4460,7 @@
                     const downloads = item.download_count ? ` · ⬇️ ${item.download_count}次下载` : '';
                     const theme = getCoverThemeByTitle(title);
                     const bookId = 'gb_' + item.id;
-                    const alreadyOnShelf = Boolean(state.books[bookId]);
+                    const alreadyOnShelf = Boolean(state.books[bookId]) && !isGutenbergArchive(state.books[bookId]);
 
                     const card = document.createElement('div');
                     card.className = 'online-book-card';
@@ -4444,42 +4478,31 @@
                         <div class="online-card-info">
                             <h4 class="online-card-title">${escapeHtml(title)}</h4>
                             <span class="online-card-author">${escapeHtml(author)}${downloads}</span>
-                            <p class="online-card-desc">古登堡计划全权公版原著 · 原汁原味纯文本正版数字化</p>
+                            <p class="online-card-desc">${textUrl ? '来源：古登堡计划。正文加载成功后才加入书架。' : '该条目没有可导入的纯文本。'}</p>
+                            ${Number.isSafeInteger(item.id) && item.id > 0 ? `<a href="https://www.gutenberg.org/ebooks/${item.id}" target="_blank" rel="noopener noreferrer">查看原站 ↗</a>` : ''}
                             <button type="button" class="online-card-import-btn" data-book-id="${escapeHtml(bookId)}">
-                                ${alreadyOnShelf ? '✓ 已在书架中' : (textUrl ? '📥 一键解析并存入书架' : '📖 收录图书档案')}
+                                ${alreadyOnShelf ? '✓ 正文已在书架中' : (textUrl ? '导入正文' : '暂无纯文本')}
                             </button>
                         </div>
                     `;
 
                     const importBtn = card.querySelector('.online-card-import-btn');
                     if (importBtn) {
-                        if (alreadyOnShelf) importBtn.disabled = true;
+                        if (alreadyOnShelf || !textUrl) importBtn.disabled = true;
                         importBtn.addEventListener('click', async () => {
-                            if (alreadyOnShelf) return;
+                            if (importBtn.disabled) return;
                             importBtn.disabled = true;
-                            importBtn.textContent = '⏳ 正在极速抓取全文章节…';
+                            importBtn.textContent = '正在下载正文…';
                             try {
-                                let chapters = [];
-                                if (textUrl) {
-                                    const textRes = await fetch(textUrl);
-                                    if (textRes.ok) {
-                                        const rawText = await textRes.text();
-                                        const parsed = parseUploadedFile(title, rawText);
-                                        if (parsed && parsed.chapters && parsed.chapters.length > 0) {
-                                            chapters = parsed.chapters;
-                                        }
-                                    }
+                                const textRes = await fetch(textUrl);
+                                if (!textRes.ok) throw new Error('Download failed');
+                                const rawText = await textRes.text();
+                                const type = textRes.headers?.get('content-type') || '';
+                                if (!rawText.trim() || type.includes('text/html') || /^\s*<(?:!doctype\s+html|html\b)/i.test(rawText)) {
+                                    throw new Error('No book text');
                                 }
-                                if (chapters.length === 0) {
-                                    chapters = [{
-                                        title: '前言与原著文献说明',
-                                        content: [
-                                            `《${title}》由 ${author} 创作。`,
-                                            '本书来源于古登堡计划 (Project Gutenberg) 国际公版公益数字书库。',
-                                            '您已成功收录本书，可在书房中调整排版开启阅读。'
-                                        ]
-                                    }];
-                                }
+                                const chapters = parseUploadedFile(title, rawText).chapters;
+                                if (!chapters.length) throw new Error('Empty book');
                                 const newBook = {
                                     id: bookId,
                                     title: title,
@@ -4490,16 +4513,21 @@
                                     addedAt: Date.now(),
                                     chapters: chapters
                                 };
-                                saveCustomBook(newBook, () => {
-                                    renderBookshelfGrid();
-                                    updateBookshelfHero();
-                                    showToast(`🎉 成功收录《${title}》（共 ${chapters.length} 章节）！`, 3200);
-                                });
-                                importBtn.textContent = '✓ 已在书架中';
+                                if (!await saveOnlineBook(newBook)) {
+                                    showToast('正文已下载，但未能保存到本机。请检查存储空间。');
+                                    importBtn.textContent = '重试导入';
+                                    importBtn.disabled = false;
+                                    return;
+                                }
+                                renderBookshelfGrid();
+                                updateBookshelfHero();
+                                showToast(`正文已保存（${chapters.length} 节）。`);
+                                importBtn.textContent = '✓ 正文已在书架中';
                             } catch (err) {
                                 console.error('Gutenberg fetch error:', err);
-                                showToast('正文抓取超时，已转为图书档案收录');
-                                importBtn.textContent = '✓ 已在书架中';
+                                showToast('没有取到正文。可重试，或打开原站下载后导入。');
+                                importBtn.textContent = '重试导入';
+                                importBtn.disabled = false;
                             }
                         });
                     }
@@ -4507,7 +4535,7 @@
                 });
             } catch (err) {
                 console.error('Gutenberg search error:', err);
-                resultsContainer.innerHTML = '<div class="online-empty-tip">检索古登堡书库超时或网络异常，可切换至「精选公版名著」或「开源小说书源导航」</div>';
+                resultsContainer.innerHTML = '<div class="online-empty-tip">暂时无法搜索古登堡书库。可重试，或切换到「名著节选」。</div>';
             }
         }
 
@@ -4595,7 +4623,7 @@
             if (!resultsContainer) return;
             resultsContainer.innerHTML = `
                 <div class="online-empty-tip">
-                    <p style="font-size: 14px; margin-bottom: 6px;">🏛️ Open Library 汇聚全球数百万公版书籍与图书档案</p>
+                    <p style="font-size: 14px; margin-bottom: 6px;">查询 Open Library 的书目和出版信息</p>
                     <p style="color: var(--r-text-muted);">请输入英文或中文书名搜索，如: <em>Little Prince</em>, <em>Hamlet</em>, <em>Three Kingdoms</em></p>
                 </div>
             `;
@@ -4625,7 +4653,9 @@
                     const year = item.first_publish_year ? `${item.first_publish_year}年` : '未知年份';
                     const coverUrl = item.cover_i ? `https://covers.openlibrary.org/b/id/${item.cover_i}-M.jpg` : '';
                     const theme = getCoverThemeByTitle(title);
-                    const bookId = 'ol_' + (item.cover_edition_key || item.key ? item.key.replace(/\//g, '_') : Date.now() + '_' + idx);
+                    const sourcePath = /^\/works\/OL\d+W$/.test(item.key) ? item.key :
+                        /^OL\d+M$/.test(item.cover_edition_key) ? '/books/' + item.cover_edition_key : '';
+                    const bookId = 'ol_' + (sourcePath ? sourcePath.replace(/\//g, '_') : Date.now() + '_' + idx);
                     const alreadyOnShelf = Boolean(state.books[bookId]);
 
                     const card = document.createElement('div');
@@ -4644,9 +4674,10 @@
                         <div class="online-card-info">
                             <h4 class="online-card-title">${escapeHtml(title)}</h4>
                             <span class="online-card-author">${escapeHtml(author)} · ${escapeHtml(year)}</span>
-                            <p class="online-card-desc">Open Library 国际公开藏书档案 · 自由借阅与离线伴读</p>
+                            <p class="online-card-desc">本站可保存书名、作者和出版信息。正文可用性请在原站查看。</p>
+                            ${sourcePath ? `<a href="https://openlibrary.org${sourcePath}" target="_blank" rel="noopener noreferrer">查看原站 ↗</a>` : ''}
                             <button type="button" class="online-card-import-btn">
-                                ${alreadyOnShelf ? '✓ 已在书架中' : '📥 收录至书架'}
+                                ${alreadyOnShelf ? '✓ 已保存书目' : '保存书目'}
                             </button>
                         </div>
                     `;
@@ -4654,8 +4685,11 @@
                     const importBtn = card.querySelector('.online-card-import-btn');
                     if (importBtn) {
                         if (alreadyOnShelf) importBtn.disabled = true;
-                        importBtn.addEventListener('click', () => {
-                            const newBook = {
+                        importBtn.addEventListener('click', async () => {
+                            if (importBtn.disabled) return;
+                            importBtn.disabled = true;
+                            importBtn.textContent = '正在保存书目…';
+                            const newBook = labelShelfEdition({
                                 id: bookId,
                                 title: title,
                                 author: author,
@@ -4665,22 +4699,22 @@
                                 addedAt: Date.now(),
                                 chapters: [
                                     {
-                                        title: '前言与档案概述',
+                                        title: '书目资料',
                                         content: [
                                             `《${title}》由 ${author} 创作，首次出版于 ${year}。`,
-                                            '本书档案来源于 Open Library (开放图书馆) 全球公益图书文献库。',
-                                            '您已成功将本书收录至个人数字书房。您可以通过顶部阅读设置随时调整字号、行距与排版，开启沉浸式研读。'
+                                            '本站保存了 Open Library 的书目资料。这条记录没有正文。'
                                         ]
                                     }
                                 ]
-                            };
-                            saveCustomBook(newBook, () => {
+                            });
+                            const saved = await saveOnlineBook(newBook);
+                            if (saved) {
                                 renderBookshelfGrid();
                                 updateBookshelfHero();
-                                showToast(`🎉 成功将《${title}》收录入书架！`, 3200);
-                            });
-                            importBtn.textContent = '✓ 已在书架中';
-                            importBtn.disabled = true;
+                            }
+                            showToast(saved ? '书目已保存。' : '书目未能保存，请检查本机存储后重试。');
+                            importBtn.textContent = saved ? '✓ 已保存书目' : '重试保存书目';
+                            importBtn.disabled = saved;
                         });
                     }
 
@@ -4780,6 +4814,7 @@
     // ===== 9.6 书架数据主权：备份导出与恢复 =====
     async function exportBookshelfBackup() {
         showToast('⏳ 正在整理书架全量图书与进度备份…', 1500);
+        await customBooksReady;
 
         let customBooks = [];
         // 1. 优先从 IndexedDB 全量提取大文件和所有自定义书目（突破 localStorage 2MB 阈值）
@@ -4794,20 +4829,22 @@
                 });
             } catch (_) {}
         }
-        // 2. 若 IndexedDB 提取为空，从内存 state.books 兜底提取全部自定义书目
-        if (!customBooks || customBooks.length === 0) {
-            customBooks = Object.values(state.books).filter(b => b && b.id && !BUILTIN_BOOKS[b.id]);
+        let mirrorBooks = [];
+        try {
+            const list = JSON.parse(localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS));
+            if (Array.isArray(list)) mirrorBooks = list;
+        } catch (_) {}
+
+        // 同一次备份可能要从多个位置收集书籍。缺正文的 PDF 镜像不能覆盖完整文件。
+        const booksById = new Map();
+        for (const book of [...mirrorBooks, ...customBooks, ...Object.values(state.books)]) {
+            if (!book?.id || Object.hasOwn(BUILTIN_BOOKS, book.id)) continue;
+            const existing = booksById.get(book.id);
+            if (book.format === 'pdf' && !book.pdfData?.byteLength && existing?.pdfData?.byteLength) continue;
+            booksById.set(book.id, book);
         }
-        // 3. 若内存中仍为空，尝试从 localStorage 镜像提取
-        if (!customBooks || customBooks.length === 0) {
-            try {
-                const customBooksRaw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
-                if (customBooksRaw) {
-                    const list = JSON.parse(customBooksRaw);
-                    if (Array.isArray(list)) customBooks = list;
-                }
-            } catch (_) {}
-        }
+        const missingPdfCount = [...booksById.values()].filter(book => book.format === 'pdf' && !book.pdfData?.byteLength).length;
+        customBooks = [...booksById.values()].filter(book => book.format !== 'pdf' || book.pdfData?.byteLength);
 
         // 4. 对自定义书籍列表进行安全克隆与序列化增强，支持 PDF 二进制 ArrayBuffer 跨机导出
         const safeCustomBooks = (customBooks || []).map(book => {
@@ -4826,6 +4863,7 @@
                     delete clone.pdfData;
                 } catch (e) {
                     console.warn('PDF ArrayBuffer export to Base64 failed:', e);
+                    throw new Error('PDF 正文备份失败，请重试。');
                 }
             }
             return clone;
@@ -4862,7 +4900,8 @@
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        showToast(`📦 书架与阅读进度备份导出完成（共 ${safeCustomBooks.length} 本自定义书籍）！`);
+        const summary = `书架备份已导出（${safeCustomBooks.length} 本自定义书籍）。`;
+        showToast(missingPdfCount ? `${summary}另有 ${missingPdfCount} 本 PDF 缺少正文，请保留或重新导入原文件。` : summary, 4800);
     }
 
     function showPdfImportResult(title, saved) {
@@ -4966,7 +5005,7 @@
                         }
                         if (!Array.isArray(book.chapters)) book.chapters = [{ title: book.title, page: 1 }];
                     }
-                    const saved = await new Promise(resolve => saveCustomBook(book, resolve));
+                    const saved = await new Promise(resolve => saveCustomBook(labelShelfEdition(book), resolve));
                     if (saved) restoredCount++;
                     else failedCount++;
                 }
@@ -6246,7 +6285,10 @@
         // 书架备份导出与恢复
         const btnExportBackup = document.getElementById('shelf-btn-export-backup');
         if (btnExportBackup) {
-            btnExportBackup.addEventListener('click', exportBookshelfBackup);
+            btnExportBackup.addEventListener('click', async () => {
+                try { await exportBookshelfBackup(); }
+                catch (_) { showToast('导出未完成，请检查本机存储后重试。'); }
+            });
         }
         const inputImportBackup = document.getElementById('shelf-backup-file-input');
         if (inputImportBackup) {

@@ -22,6 +22,7 @@ function backupFixture(database = null) {
     vm.createContext(c);
     for (const [from, to] of [
         ['loadSavedProgress', 'loadBookProgress'],
+        ['isGutenbergArchive', 'initCustomBooksStorage'],
         ['saveCustomBook', 'confirmDeleteCustomBook'],
         ['showPdfImportResult', 'setImportingState'],
     ]) {
@@ -80,6 +81,120 @@ test('PDF 只有在 IndexedDB 完成后才算保存，失败仍可临时阅读',
     durable.c.saveCustomBook(book, saved => results.push(saved));
     tx.onabort();
     assert.deepEqual(results, [true, false]);
+});
+
+test('备份合并不同存储位置的书籍，恢复后仍有完整 PDF 正文', async () => {
+    const pdf = {id: 'pdf', title: '测试 PDF', format: 'pdf', chapters: [], pdfData: Uint8Array.of(37, 80, 68, 70).buffer};
+    const {pdfData, ...pdfMirror} = pdf;
+    const database = {transaction() {return {objectStore: () => ({getAll() {
+        const request = {result: [pdf]};
+        queueMicrotask(() => request.onsuccess());
+        return request;
+    }})};}};
+    const {c, storage, notices} = backupFixture(database);
+    storage.set('books', JSON.stringify([{id: 'txt', title: '镜像正文', chapters: [{title: '第一章', content: ['可恢复正文']}]}, pdfMirror]));
+    c.state.books = {pdf: pdfMirror, missing: {id: 'missing', title: '旧 PDF', format: 'pdf', chapters: []}};
+    let backupBlob;
+    Object.assign(c, {Blob, btoa, setTimeout() {}, BUILTIN_BOOKS: {}, STORAGE_KEY_SETTINGS: 'settings',
+        URL: {createObjectURL: blob => {backupBlob = blob; return 'blob:fake';}},
+        document: {createElement: () => ({click() {}}), body: {appendChild() {}, removeChild() {}}}});
+    vm.runInContext(source.slice(source.indexOf('    async function exportBookshelfBackup('), source.indexOf('    function showPdfImportResult(')), c);
+    await c.exportBookshelfBackup();
+    const backup = JSON.parse(await backupBlob.text());
+    assert.deepEqual(backup.customBooks.map(book => book.id), ['txt', 'pdf']);
+    assert.equal(backup.customBooks[1].pdfDataBase64, 'JVBERg==');
+    assert.match(notices.at(-1), /1 本 PDF 缺少正文/);
+
+    const target = backupFixture({transaction() {
+        const tx = {objectStore: () => ({put() { queueMicrotask(() => tx.oncomplete()); return {}; }})};
+        return tx;
+    }});
+    await target.restore({customBooks: backup.customBooks});
+    assert.equal(target.c.state.books.txt.chapters[0].content[0], '可恢复正文');
+    assert.deepEqual([...new Uint8Array(target.c.state.books.pdf.pdfData)], [...new Uint8Array(pdfData)]);
+});
+
+async function onlineSearch(name, nextFunction, searchResults, download, save = true) {
+    const cards = [];
+    const saved = [];
+    const notices = [];
+    const context = vm.createContext({
+        resultsContainer: {appendChild: card => cards.push(card)}, state: {books: {}},
+        document: {createElement() {
+            const button = {addEventListener: (_, handler) => {button.click = handler;}};
+            return {button, querySelector: () => button};
+        }},
+        getCoverThemeByTitle: () => '', escapeHtml: String,
+        fetch: async url => url.endsWith('/qa.txt') ? download() : {ok: true, json: async () => searchResults},
+        parseUploadedFile: (_, text) => ({chapters: [{title: '正文', content: [text]}]}),
+        saveOnlineBook: async book => {if (save) saved.push(book); return save;},
+        renderBookshelfGrid() {}, updateBookshelfHero() {},
+        showToast: text => notices.push(text), console: {error() {}},
+    });
+    const start = source.indexOf('    async function ' + name + '(');
+    vm.runInContext(source.slice(source.indexOf('    function isGutenbergArchive('), source.indexOf('    function initCustomBooksStorage(')), context);
+    const end = source.indexOf(nextFunction, start);
+    vm.runInContext(source.slice(start, end), context);
+    await context[name]('test');
+    return {cards, saved, notices, context};
+}
+
+test('古登堡的网络错误、HTTP 错误和 HTML 回退均不保存，成功时才显示已保存', async () => {
+    const results = {results: [{id: 8, title: '测试书', formats: {'text/plain': 'https://gutenberg.invalid/qa.txt'}}]};
+    const setup = (download, save) => onlineSearch('performGutenbergSearch', '        // 渲染开源小说', results, download, save);
+    for (const download of [
+        () => {throw new Error('Network');},
+        () => ({ok: false}),
+        () => ({ok: true, text: async () => '<!doctype html><html>Error</html>'}),
+    ]) {
+        const f = await setup(download);
+        await f.cards[0].button.click();
+        assert.equal(f.saved.length, 0);
+        assert.equal(f.cards[0].button.disabled, false);
+        assert.equal(f.cards[0].button.textContent, '重试导入');
+    }
+    const content = () => ({ok: true, text: async () => '有效正文'});
+    const storageFailure = await setup(content, false);
+    await storageFailure.cards[0].button.click();
+    assert.equal(storageFailure.cards[0].button.disabled, false);
+    assert.match(storageFailure.notices.at(-1), /未能保存/);
+    const f = await setup(content);
+    await f.cards[0].button.click();
+    assert.equal(f.saved[0].chapters[0].content[0], '有效正文');
+    assert.equal(f.cards[0].button.textContent, '✓ 正文已在书架中');
+});
+
+test('Open Library 书目和已有节选在入库后都有明确的内容标签', async () => {
+    const f = await onlineSearch('performOpenLibrarySearch', '        // 自定义直链导入逻辑', {docs: [
+        {key: '/works/OL123W', title: '测试书', author_name: ['作者']},
+    ]});
+    assert.match(f.cards[0].innerHTML, /https:\/\/openlibrary\.org\/works\/OL123W/);
+    await f.cards[0].button.click();
+    assert.equal(f.saved[0].title, '测试书（书目）');
+    assert.equal(f.saved[0].tag, '书目 · 无正文');
+    const excerpt = f.context.labelShelfEdition({id: 'curated_sanguo', title: '三国演义'});
+    assert.equal(excerpt.title, '三国演义（节选）');
+    assert.equal(f.context.labelShelfEdition(excerpt).title, excerpt.title);
+});
+
+test('第一次打开在线找书时，结果容器里只有注释也会显示节选', () => {
+    let click;
+    let renders = 0;
+    const results = {hasChildNodes: () => true, firstElementChild: null};
+    const nodes = {
+        'shelf-btn-online-search': {addEventListener: (_, handler) => {click = handler;}},
+        'online-search-results': results,
+        'tab-online-classics': {getAttribute: () => 'true'},
+    };
+    const start = source.indexOf('        // 在线找书入口按钮');
+    vm.runInNewContext(source.slice(start, source.indexOf('\n    }', start)), {
+        document: {getElementById: id => nodes[id]},
+        openDrawer() {},
+        window: {_renderOnlineClassics() {renders++; results.firstElementChild = {};}},
+    });
+    click();
+    click();
+    assert.equal(renders, 1);
 });
 test('追加章节不会改变当前章节保存的相对阅读位置',()=>{
  const section={offsetTop:1200,offsetHeight:1000};

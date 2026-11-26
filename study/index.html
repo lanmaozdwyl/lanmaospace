@@ -114,6 +114,7 @@
             <section class="study-plan" id="study-plan" aria-labelledby="study-plan-title">
                 <h2 id="study-plan-title">今日目标与复盘</h2>
                 <p>记录保存在当前浏览器。每个账号有自己的今日记录。</p>
+                <p id="study-previous-next" hidden></p>
                 <form id="study-form">
                     <fieldset id="study-fields" disabled>
                         <label for="study-goal">今天要完成什么？</label>
@@ -126,6 +127,18 @@
                     </fieldset>
                 </form>
                 <p role="status" id="study-status">正在读取今日记录…</p>
+                <p id="study-conflict" role="status" hidden></p>
+                <button id="study-use-saved" class="focus-btn focus-btn-secondary" type="button" hidden>采用冲突项的已保存内容</button>
+                <details id="study-history" hidden>
+                    <summary>复盘历史</summary>
+                    <label for="study-history-day">查看日期</label>
+                    <select id="study-history-day"></select>
+                    <dl>
+                        <dt>目标</dt><dd id="study-history-goal"></dd>
+                        <dt>回想</dt><dd id="study-history-review"></dd>
+                        <dt>下次从这里开始</dt><dd id="study-history-next"></dd>
+                    </dl>
+                </details>
             </section>
         </div>
         <section class="section section-light" id="ambient" aria-labelledby="ambient-title">

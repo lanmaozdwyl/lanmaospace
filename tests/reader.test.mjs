@@ -948,7 +948,7 @@ test('个人数据主权与备份抗丢书治理：突破 2MB 阈值、IndexedDB
     // 1. 源码架构与提取优先级审计
     assert(jsSource.includes('async function exportBookshelfBackup('), 'exportBookshelfBackup 需支持异步全量导出');
     assert(jsSource.includes("tx.objectStore('custom_books')"), '导出需直连 IndexedDB custom_books 仓库');
-    assert(jsSource.includes('!BUILTIN_BOOKS[b.id]'), '导出需支持内存 state.books 兜底提取并过滤公版内置书');
+    assert(jsSource.includes('Object.hasOwn(BUILTIN_BOOKS, book.id)'), '导出需过滤内置书');
     assert(jsSource.includes('pdfDataBase64'), 'PDF 电子书需转换为 Base64 编码以在 JSON 中持久化');
 
     // 2. 导入兼容与二进制还原审计

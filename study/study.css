@@ -29,6 +29,12 @@
 .study-plan textarea { resize: vertical; }
 .study-plan button { justify-self: start; min-height: 44px; margin-top: 8px; }
 .study-plan #study-status { min-height: 1.6em; margin-bottom: 0; overflow-wrap: anywhere; }
+.study-plan #study-previous-next, .study-plan #study-conflict { padding: 10px 12px; border-inline-start: 3px solid var(--blue); white-space: pre-wrap; overflow-wrap: anywhere; }
+.study-plan #study-history { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--gray-200); }
+.study-plan #study-history summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
+.study-plan #study-history select { margin-top: 6px; min-height: 44px; max-width: 100%; padding: 6px; font: inherit; }
+.study-plan #study-history dt { font-weight: 600; }
+.study-plan #study-history dd { margin: 0 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .study-page :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 body[data-theme="dark"].study-page { background: #16161a; color: #f5f5f7; }
 body[data-theme="dark"] .study-plan { background: #222227; border-color: #3f3f46; }
