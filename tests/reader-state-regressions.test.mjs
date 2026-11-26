@@ -12,16 +12,19 @@ function backupFixture(database = null) {
         state: {books: {}, bookmarks: {}, highlights: {}},
         localStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value)},
         STORAGE_KEY_BOOK_PROGRESS: 'positions', STORAGE_KEY_PROGRESS: 'recent', STORAGE_KEY_CUSTOM_BOOKS: 'books',
+        STORAGE_KEY_BOOKMARKS: 'bookmarks',
         dbInstance: database, window: {}, console: {warn() {}}, atob,
         FileReader: class {
             readAsText(data) { fileTask = this.onload({target: {result: JSON.stringify(data)}}); }
         },
         showToast: message => notices.push(message),
-        saveBookmarks() {}, renderBookmarksList() {}, renderBookshelfGrid() {}, updateBookshelfHero() {},
+        updateBookmarkCountBadge() {}, updateBookmarkButtonState() {},
+        renderBookmarksList() {}, renderBookshelfGrid() {}, updateBookshelfHero() {},
     };
     vm.createContext(c);
     for (const [from, to] of [
         ['loadSavedProgress', 'loadBookProgress'],
+        ['saveBookmarks', 'getBookBookmarks'],
         ['isGutenbergArchive', 'initCustomBooksStorage'],
         ['saveCustomBook', 'confirmDeleteCustomBook'],
         ['showPdfImportResult', 'setImportingState'],
@@ -34,6 +37,83 @@ function backupFixture(database = null) {
         await fileTask;
     }};
 }
+
+test('备份用完整正文替换古登堡旧书目，书签写入失败会单独报告', async () => {
+    const {c, storage, notices, restore} = backupFixture();
+    const id = 'gb_1';
+    const existing = {id, title: '书名（书目）', chapters: [{title: '前言与原著文献说明', content: ['旧书目']}]};
+    const book = {id, title: '书名', chapters: [{title: '第一章', content: ['正文']}]};
+    c.state.books[id] = existing;
+    storage.set('books', JSON.stringify([existing]));
+    storage.set('bookmarks', '{}');
+    const write = c.localStorage.setItem;
+    c.localStorage.setItem = (key, value) => {
+        if (key === 'bookmarks') throw new Error('Quota');
+        return write(key, value);
+    };
+    await restore({customBooks: [book], bookmarks: {[id]: [{id: 'bookmark', chapterIndex: 0}]}});
+    assert.equal(c.state.books[id].chapters[0].content[0], '正文');
+    assert.equal(JSON.parse(storage.get('books'))[0].chapters[0].content[0], '正文');
+    assert.equal(storage.get('bookmarks'), '{}');
+    assert.match(notices.at(-1), /已保存 1 本书.*书签未能写入本机/);
+    assert.doesNotMatch(notices.at(-1), /阅读记录已合并/);
+});
+
+test('网络直链拒绝网页与无效 PDF，保留显式书名并等待实际保存', async () => {
+    const saved = [];
+    const notices = [];
+    const customUrlInput = {value: 'https://example.com/book.txt'};
+    const customTitleInput = {value: '论文 Method V2.0'};
+    const customFetchBtn = {addEventListener(type, handler) { this.click = handler; }};
+    let closed = 0;
+    let response;
+    let writable = true;
+    const context = vm.createContext({
+        URL, customFetchBtn, customUrlInput, customTitleInput,
+        fetch: async () => response,
+        saveOnlineBook: async book => { if (writable) saved.push(book); return writable; },
+        showToast: message => notices.push(message), closeDrawer: () => closed++,
+        renderBookshelfGrid() {}, updateBookshelfHero() {},
+    });
+    const parser = source.indexOf('    function parseUploadedFile(');
+    vm.runInContext(source.slice(parser, source.indexOf('\n    }', parser) + 6), context);
+    const imports = source.indexOf('        // 自定义直链导入逻辑');
+    vm.runInContext(source.slice(imports, source.indexOf('\n    }', imports)), context);
+    function respond(body, type) {
+        response = new Response(body, {headers: {'Content-Type': type}});
+    }
+    respond('<html>下载失败</html>', 'text/html');
+    await customFetchBtn.click();
+    assert.match(notices.at(-1), /返回的是网页/);
+    respond('<!doctype html><html>下载失败</html>', 'text/plain');
+    await customFetchBtn.click();
+    assert.match(notices.at(-1), /没有取到可阅读的文本/);
+    customUrlInput.value = 'https://example.com/wrong.pdf?download=1';
+    respond('下载失败', 'application/octet-stream');
+    await customFetchBtn.click();
+    assert.match(notices.at(-1), /缺少有效的 PDF 文件头/);
+    assert.equal(saved.length, 0);
+    assert.equal(closed, 0);
+    customUrlInput.value = 'https://example.com/book.txt';
+    respond('第一章\n这里是正文', 'text/plain');
+    await customFetchBtn.click();
+    assert.equal(saved[0].title, '论文 Method V2.0');
+    assert.equal(saved[0].chapters[0].content[0], '这里是正文');
+    customUrlInput.value = 'https://example.com/thesis.pdf?download=1';
+    customTitleInput.value = '';
+    respond('%PDF-1.7', 'application/octet-stream');
+    await customFetchBtn.click();
+    assert.equal(saved[1].title, 'thesis');
+    assert.equal(saved[1].format, 'pdf');
+    writable = false;
+    customUrlInput.value = 'https://example.com/another.txt';
+    respond('这里是另一份正文', 'text/plain');
+    await customFetchBtn.click();
+    assert.match(notices.at(-1), /未能保存到本机/);
+    assert.equal(saved.length, 2);
+    assert.equal(closed, 2);
+    assert.equal(customFetchBtn.disabled, false);
+});
 
 test('恢复旧书架备份保留较新或无日期的本机进度，新位置及书签可补入', async () => {
     const {c, storage, restore} = backupFixture();

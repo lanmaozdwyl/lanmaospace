@@ -727,7 +727,10 @@
     function saveSettings() {
         try {
             localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(state.settings));
-        } catch (_) {}
+            return true;
+        } catch (_) {
+            return false;
+        }
     }
 
     function loadSavedProgress() {
@@ -1127,11 +1130,15 @@
     }
 
     function saveBookmarks() {
+        let saved = true;
         try {
             localStorage.setItem(STORAGE_KEY_BOOKMARKS, JSON.stringify(state.bookmarks));
-        } catch (_) {}
+        } catch (_) {
+            saved = false;
+        }
         updateBookmarkCountBadge();
         updateBookmarkButtonState();
+        return saved;
     }
 
     function getBookBookmarks(bookId) {
@@ -4738,25 +4745,31 @@
                 customFetchBtn.textContent = '⏳ 正在抓取网络数据…';
 
                 try {
-                    const res = await fetch(url);
+                    const source = new URL(url);
+                    if (!['https:', 'http:'].includes(source.protocol)) throw new Error('请选择 HTTP 或 HTTPS 文件链接');
+                    const res = await fetch(source.href);
                     if (!res.ok) throw new Error(`HTTP 状态异常 ${res.status}`);
-                    const contentType = res.headers.get('content-type') || '';
-                    const isPdf = url.toLowerCase().endsWith('.pdf') || contentType.includes('pdf');
+                    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+                    if (contentType.includes('text/html') || contentType.includes('application/xhtml+xml')) {
+                        throw new Error('链接返回的是网页，请复制 TXT 或 PDF 文件的下载直链');
+                    }
+                    const isPdf = source.pathname.toLowerCase().endsWith('.pdf') || contentType.includes('application/pdf');
 
                     let bookTitle = customTitle;
                     if (!bookTitle) {
                         try {
-                            const urlObj = new URL(url);
-                            const pathname = urlObj.pathname;
-                            bookTitle = decodeURIComponent(pathname.split('/').pop().replace(/\.[^/.]+$/, '')) || '网络导入书籍';
+                            bookTitle = decodeURIComponent(source.pathname.split('/').pop()).replace(/\.(?:txt|md|pdf)$/i, '').trim() || '网络导入书籍';
                         } catch (_) {
                             bookTitle = '网络导入书籍';
                         }
                     }
 
+                    let book;
                     if (isPdf) {
                         const buffer = await res.arrayBuffer();
-                        const pdfBook = {
+                        const header = String.fromCharCode(...new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 5)));
+                        if (header !== '%PDF-') throw new Error('返回的文件缺少有效的 PDF 文件头');
+                        book = {
                             id: 'pdf_url_' + Date.now(),
                             title: bookTitle,
                             author: '网络直链导入',
@@ -4766,23 +4779,20 @@
                             chapters: [{ title: '完整 PDF 画册文档', content: ['在线 PDF 已加载至本地内存'] }],
                             addedAt: Date.now()
                         };
-                        saveCustomBook(pdfBook, (saved) => {
-                            renderBookshelfGrid();
-                            updateBookshelfHero();
-                            closeDrawer('drawer-online-search');
-                            showPdfImportResult(bookTitle, saved);
-                        });
                     } else {
                         const text = await res.text();
-                        const parsedBook = parseUploadedFile(bookTitle, text);
-                        parsedBook.addedAt = Date.now();
-                        saveCustomBook(parsedBook, () => {
-                            renderBookshelfGrid();
-                            updateBookshelfHero();
-                            closeDrawer('drawer-online-search');
-                            showToast(`🎉 成功抓取并导入《${bookTitle}》！`, 3500);
-                        });
+                        if (!text.trim() || /^\s*<(?:!doctype\s+html|html\b|head\b|body\b)/i.test(text)) {
+                            throw new Error('没有取到可阅读的文本，请检查文件直链');
+                        }
+                        book = parseUploadedFile(bookTitle, text);
+                        book.title = bookTitle;
+                        book.addedAt = Date.now();
                     }
+                    if (!await saveOnlineBook(book)) throw new Error('文件已下载，但未能保存到本机，请检查存储空间');
+                    renderBookshelfGrid();
+                    updateBookshelfHero();
+                    closeDrawer('drawer-online-search');
+                    showToast(`《${bookTitle}》已保存到书架。`, 3500);
                 } catch (err) {
                     showToast(`导入失败: ${err.message}`, 3500);
                 } finally {
@@ -4989,7 +4999,11 @@
                         continue;
                     }
                     const existing = state.books[book.id];
-                    if (existing && (existing.format !== 'pdf' || hasPdfContent(existing))) continue;
+                    const fillsPdf = existing?.format === 'pdf' && !hasPdfContent(existing) && book.format === 'pdf';
+                    const fillsGutenberg = isGutenbergArchive(existing) && book.format !== 'pdf' &&
+                        !isGutenbergArchive(book) && book.chapters.some(chapter => Array.isArray(chapter?.content) &&
+                            chapter.content.some(line => typeof line === 'string' && line.trim()));
+                    if (existing && !fillsPdf && !fillsGutenberg) continue;
 
                     if (book.format === 'pdf') {
                         try {
@@ -5005,22 +5019,26 @@
                         }
                         if (!Array.isArray(book.chapters)) book.chapters = [{ title: book.title, page: 1 }];
                     }
-                    const saved = await new Promise(resolve => saveCustomBook(labelShelfEdition(book), resolve));
+                    const saved = await saveOnlineBook(labelShelfEdition(book));
                     if (saved) restoredCount++;
                     else failedCount++;
                 }
 
-                if (isBackupRecord(data.bookProgress) || isBackupRecord(data.lastProgress)) mergeBackupProgress(data);
+                const unsaved = [];
+                if (isBackupRecord(data.bookProgress) || isBackupRecord(data.lastProgress)) {
+                    try { mergeBackupProgress(data); }
+                    catch (_) { unsaved.push('阅读进度'); }
+                }
 
                 if (data.settings && typeof data.settings === 'object') {
                     state.settings = Object.assign({}, state.settings, data.settings);
-                    saveSettings();
+                    if (!saveSettings()) unsaved.push('排版设置');
                     applySettings();
                 }
 
                 if (isBackupRecord(data.bookmarks)) {
                     mergeBackupBookmarks(data.bookmarks);
-                    saveBookmarks();
+                    if (!saveBookmarks()) unsaved.push('书签');
                     renderBookmarksList();
                 }
 
@@ -5038,15 +5056,19 @@
                         });
                         state.highlights[bookId] = merged.slice(0, MAX_HIGHLIGHTS_PER_BOOK);
                     });
-                    saveHighlights();
+                    if (!saveHighlights()) unsaved.push('划线');
                     renderHighlightsList();
                     applyChapterHighlights();
                 }
 
                 renderBookshelfGrid();
                 updateBookshelfHero();
-                const summary = `已保存 ${restoredCount} 本书，阅读记录已合并。`;
-                showToast(failedCount ? `${summary} ${failedCount} 本未能保存，请保留原备份。` : summary, 4500);
+                const summary = [`已保存 ${restoredCount} 本书。`];
+                if (failedCount) summary.push(`${failedCount} 本未能保存。`);
+                if (unsaved.length) summary.push(`${unsaved.join('、')}未能写入本机。`);
+                if (failedCount || unsaved.length) summary.push('请保留原备份，检查存储后重试。');
+                else summary.push('阅读记录已合并。');
+                showToast(summary.join(' '), 5000);
             } catch (err) {
                 showToast('未能完成备份恢复，请检查备份文件和本机存储后重试。');
             } finally {

@@ -10,9 +10,10 @@ const now = new Date(2026, 10, 26, 15).getTime();
 async function fixture(user, storage, at = now) {
     const listeners = {};
     let authChanged;
+    let clock = at;
     const fields = {disabled: true};
     const status = {};
-    const elements = {goal: {value: ''}, review: {value: ''}, next: {value: ''}};
+    const elements = Object.fromEntries(['goal', 'review', 'next'].map(name => [name, {name, value: ''}]));
     const form = {elements, addEventListener: (type, handler) => { listeners[type] = handler; },
         reset() { for (const input of Object.values(elements)) input.value = ''; }};
     const nodes = {'study-form': form, 'study-fields': fields, 'study-status': status};
@@ -23,7 +24,7 @@ async function fixture(user, storage, at = now) {
         append(item) { this.children.push(item); },
     };
     await vm.runInNewContext(source, {
-        dayAt, Date: {now: () => at}, document: {getElementById: node, createElement: () => ({})},
+        dayAt, Date: {now: () => clock}, document: {getElementById: node, createElement: () => ({})},
         window: {addEventListener() {}}, navigator: {},
         localStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value),
             get length() { return storage.size; }, key: index => [...storage.keys()][index] ?? null},
@@ -33,8 +34,41 @@ async function fixture(user, storage, at = now) {
         }}),
     });
     return {fields, status, elements, node, save: () => listeners.submit({preventDefault() {}}),
+        setClock: time => { clock = time; },
+        input(name, value, hasBeforeInput = true) {
+            const target = elements[name];
+            if (hasBeforeInput) listeners.beforeinput({target});
+            target.value = value;
+            listeners.input({target});
+        },
         useSaved: () => listeners['study-use-savedclick'](), signOut: () => authChanged('SIGNED_OUT')};
 }
+
+test('页面一直打开时，午夜后新输入写入新一天，旧草稿可留在原日期', async () => {
+    const storage = new Map();
+    const before = new Date(2026, 10, 26, 23, 59).getTime();
+    const after = before + 120000;
+    const newDraft = await fixture('a', storage, before);
+    newDraft.setClock(after);
+    newDraft.input('goal', '今天的目标', false);
+    await newDraft.save();
+    const prefix = 'lanmao_study_notes_v1_a_';
+    assert.equal(storage.has(prefix + dayAt(before)), false);
+    assert.equal(JSON.parse(storage.get(prefix + dayAt(after))).goal, '今天的目标');
+
+    const oldDraft = await fixture('a', storage, before);
+    oldDraft.input('review', '昨天的复盘');
+    oldDraft.setClock(after);
+    oldDraft.input('next', '下次复习');
+    assert.match(oldDraft.status.textContent, new RegExp(dayAt(before)));
+    await oldDraft.save();
+    assert.equal(JSON.parse(storage.get(prefix + dayAt(before))).review, '昨天的复盘');
+    assert.equal(JSON.parse(storage.get(prefix + dayAt(before))).next, '下次复习');
+    assert.match(oldDraft.status.textContent, /已切换至/);
+    assert.equal(oldDraft.elements.goal.value, '今天的目标');
+    assert.equal(oldDraft.elements.review.value, '');
+    assert.match(oldDraft.node('study-previous-next').textContent, /下次复习/);
+});
 
 test('学习页按账号和日期保存记录，退出清空可见值，访客无编辑入口', async () => {
     const storage = new Map();

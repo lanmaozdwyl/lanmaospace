@@ -89,6 +89,13 @@ async function initStudyNotes() {
             status.textContent = '暂时无法读取本机记录。';
         }
     }
+    function syncStudyDay() {
+        const today = dayAt(Date.now());
+        if (today === day || dirty || busy || fields.disabled) return false;
+        day = today;
+        load();
+        return true;
+    }
     load();
     fields.disabled = false;
     historyDay.addEventListener('change', showHistory);
@@ -108,16 +115,22 @@ async function initStudyNotes() {
         }
     });
 
-    form.addEventListener('input', () => {
-        if (dirty) return;
+    form.addEventListener('beforeinput', syncStudyDay);
+    form.addEventListener('input', event => {
+        // Some input methods send only input. Keep the new field value if a day changes here.
+        const target = event.target;
+        const value = target?.value;
+        if (syncStudyDay() && names.includes(target?.name)) target.value = value;
         dirty = true;
-        status.textContent = '有未保存的修改。';
+        status.textContent = day === dayAt(Date.now()) ? '有未保存的修改。' : `正在编辑 ${day} 的草稿，保存后将切换到今天。`;
     });
     form.addEventListener('submit', async event => {
         event.preventDefault();
         if (fields.disabled || busy || !baseline) return;
+        syncStudyDay();
         busy = true;
         const key = prefix + day;
+        let savedDay = '';
         function save() {
             if (fields.disabled) return;
             const latest = read(day);
@@ -135,6 +148,7 @@ async function initStudyNotes() {
             for (const name of changes) latest[name] = form.elements[name].value.trim().slice(0, limits[name]);
             localStorage.setItem(key, JSON.stringify(latest));
             fill(latest);
+            savedDay = day;
             status.textContent = `已保存 ${day} 的学习记录。`;
         }
         try {
@@ -144,12 +158,12 @@ async function initStudyNotes() {
             status.textContent = '保存失败，当前输入仍在，请稍后重试。';
         } finally {
             busy = false;
+            if (savedDay && syncStudyDay()) status.textContent = `已保存 ${savedDay} 的学习记录，已切换至 ${day}。`;
         }
     });
     window.addEventListener('focus', () => {
         if (dirty || busy || fields.disabled) return;
-        day = dayAt(Date.now());
-        load();
+        if (!syncStudyDay()) load();
     });
 
     client.auth.onAuthStateChange((event, session) => {

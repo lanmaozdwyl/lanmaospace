@@ -1,5 +1,5 @@
 import {getSupabase} from './lib/supabase-client.js';
-import {MODES,freshFocus,readFocus,reconcileFocus,changeFocus} from './lib/focus.mjs';
+import {MODES,freshFocus,readFocus,reconcileFocus,changeFocus} from './lib/focus.mjs?v=20261126-next';
 const $=id=>document.getElementById(id);
 const originalTitle=typeof document!=='undefined'?document.title:'';
 let state=freshFocus(Date.now()),key=null,ended=false,working=false,audio=null,timer=null,lastSignal=null;
@@ -184,7 +184,7 @@ function load(){try{return readFocus(localStorage.getItem(key),Date.now());}catc
 function persist(){try{localStorage.setItem(key,JSON.stringify(state));}catch{notify('保存失败；离开页面后可能丢失本次计时。');}}
 async function mutate(action){
  if(!key||ended||working)return;working=true;
- const work=()=>{if(ended)return;const previous=load();const result=changeFocus(previous,action,Date.now());state=result.state;persist();paint(action==='toggle');if(action==='sound'&&state.sound)previewChime();if(result.completed)sound(previous.mode);};
+ const work=()=>{if(ended)return;const previous=load();const result=changeFocus(previous,action,Date.now());state=result.state;persist();paint(action==='toggle'||(action==='next'&&state.mode!==previous.mode));if(action==='sound'&&state.sound)previewChime();if(result.completed)sound(previous.mode);};
  try{if(navigator.locks)await navigator.locks.request(key,work);else work();}finally{working=false;}
 }
 function pulse(){if(!key||ended)return;const result=reconcileFocus(state,Date.now());if(result.completed||state.date!==result.state.date)mutate('tick');else{state=result.state;paint();}}
@@ -195,20 +195,12 @@ $('pomodoro-sound-toggle')?.addEventListener('click',()=>{unlockAudio();requestN
 $('focus-ambient-toggle')?.addEventListener('click',()=>{unlockAudio();toggleAmbientSync();});
 $('pomodoro-ambient-toggle')?.addEventListener('click',()=>{unlockAudio();toggleAmbientSync();});
 for(const btn of document.querySelectorAll('.pomodoro-mode-btn,.focus-mode-btn'))btn.addEventListener('click',()=>mutate(Object.keys(MODES).find(k=>MODES[k]===Number(btn.dataset.time))));
-async function advanceToNextPhase(targetMode){
+function advanceToNextPhase(){
  unlockAudio();
- const mode=targetMode||(state.mode==='focus'?(state.completedCount>0&&state.completedCount%4===0?'long-break':'short-break'):'focus');
- await mutate(mode);
- await mutate('toggle');
+ return mutate('next');
 }
-$('focus-next-pill-btn')?.addEventListener('click',e=>{
- const mode=e.currentTarget?.getAttribute('data-target-mode');
- advanceToNextPhase(mode);
-});
-$('pomodoro-next-btn')?.addEventListener('click',e=>{
- const mode=e.currentTarget?.getAttribute('data-target-mode');
- advanceToNextPhase(mode);
-});
+$('focus-next-pill-btn')?.addEventListener('click',advanceToNextPhase);
+$('pomodoro-next-btn')?.addEventListener('click',advanceToNextPhase);
 function panel(open){if($('pomodoro-panel'))$('pomodoro-panel').hidden=!open;$('pomodoro-toggle')?.setAttribute('aria-expanded',String(open));}
 $('pomodoro-toggle')?.addEventListener('click',()=>panel($('pomodoro-panel').hidden));$('pomodoro-close')?.addEventListener('click',()=>panel(false));
 

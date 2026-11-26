@@ -45,6 +45,45 @@ test('已聚焦的按钮保留原生空格操作，页面空格仍可启停', as
     assert.equal(JSON.parse(storage.get(key)).isRunning, false);
 });
 
+test('两个页面同时开始下一轮只会启动一次，已开始的计时保持运行', async () => {
+    const key = 'lanmao_focus_v3_test';
+    const storage = new Map([[key, JSON.stringify({...freshFocus(now), completedCount: 4, remainingSeconds: 0})]]);
+    const code = readFileSync(new URL('../focus.js', import.meta.url), 'utf8').replace(/^import .*;\s*$/gm, '');
+    let queue = Promise.resolve();
+    const locks = {request(name, work) {
+        assert.equal(name, key);
+        const task = queue.then(work);
+        queue = task.catch(() => {});
+        return task;
+    }};
+    function loadTab() {
+        const context = vm.createContext({
+            MODES, freshFocus, readFocus, reconcileFocus, changeFocus,
+            Date: {now: () => now},
+            document: {getElementById: () => null, querySelectorAll: () => [], addEventListener() {}},
+            window: {dispatchEvent() {}, addEventListener() {}}, CustomEvent: class {},
+            localStorage: {getItem: name => storage.get(name), setItem: (name, value) => storage.set(name, value)},
+            navigator: {locks}, setInterval() {},
+            getSupabase: async () => ({auth: {
+                async getSession() { return {data: {session: {user: {id: 'test'}}}}; },
+                onAuthStateChange() {},
+            }}),
+        });
+        vm.runInContext(code, context);
+        return context;
+    }
+    const home = loadTab();
+    const study = loadTab();
+    await new Promise(resolve => setImmediate(resolve));
+    await Promise.all([home.advanceToNextPhase(), study.advanceToNextPhase()]);
+    const current = JSON.parse(storage.get(key));
+    assert.equal(current.mode, 'long-break');
+    assert.equal(current.remainingSeconds, 900);
+    assert.equal(current.endTime, now + 900000);
+    assert.equal(current.isRunning, true);
+    assert.equal(current.completedCount, 4);
+});
+
 test('学术专注钟：桌面端快捷键（Space启停/R重置/M提示音/Z禅定）与沉浸全屏禅定模式', () => {
     const focusJs = readFileSync(new URL('../focus.js', import.meta.url), 'utf8');
     const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
