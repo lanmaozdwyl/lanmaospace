@@ -10,11 +10,12 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="lib/openpageflip/openpageflip.css">
     <link rel="stylesheet" href="lib/pageflipopen/pageflipopen.css">
-    <link rel="stylesheet" href="reader.css">
+    <link rel="stylesheet" href="reader.css?v=20261127-account">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
     <link rel="manifest" href="manifest.json">
 </head>
 <body class="reader-body">
+    <p id="reader-session-status" role="status">正在打开当前账号的书架…</p>
 
     <!-- ==================== 视图一：我的书架总览大厅 ==================== -->
     <div class="reader-view-container" id="view-bookshelf">
@@ -163,7 +164,11 @@
                     </div>
                     <span class="import-big-icon" aria-hidden="true">📥</span>
                     <h4>打开手机 / 电脑中的本地电子书</h4>
-                    <p>支持 <b>.txt</b>、<b>.md</b> 文本与 <b>.pdf</b> 文档，支持 3D 拟真翻页与平滑滑动，数据纯本地保存。换浏览器或清除站点数据前，请先“导出书架备份”。</p>
+                    <p>支持 <b>.txt</b>、<b>.md</b> 文本与 <b>.pdf</b> 文档。书籍和记录保存在当前账号的此浏览器中，换设备或清除网站数据前请先导出备份。</p>
+                    <div id="reader-legacy-backup" hidden>
+                        <p>这个浏览器可能有升级前的旧书架。如果这些资料属于你，请先下载备份，再用下方的「恢复书架备份」导入当前账号。</p>
+                        <button type="button" class="shelf-backup-btn" id="reader-legacy-download">下载旧书架备份</button>
+                    </div>
                     <div class="shelf-action-buttons-wrap">
                         <label class="shelf-upload-btn" for="shelf-file-input">
                             <span>挑选本地文件</span>
@@ -642,6 +647,7 @@
                         <input type="url" id="online-custom-url-input" class="online-url-input" placeholder="https://example.com/book.txt">
                         <input type="text" id="online-custom-title-input" class="online-url-input" placeholder="书籍名称 (选填)">
                         <button type="button" id="online-custom-fetch-btn" class="online-url-btn">📥 抓取并导入书架</button>
+                        <button type="button" id="online-custom-cancel-btn" class="online-url-btn" hidden>取消下载</button>
                     </div>
                 </div>
 
@@ -694,7 +700,7 @@
     <dialog id="storage-guard-dialog" class="storage-guard-dialog" aria-labelledby="storage-dialog-title" hidden>
         <div class="storage-guard-heading"><h2 id="storage-dialog-title">存储与备份</h2><button type="button" id="storage-guard-close-btn" aria-label="关闭存储面板" autofocus>✕</button></div>
         <div class="storage-guard-body">
-            <p>书籍与阅读记录保存在当前设备、当前网址中，不会自动跨设备或跨网址同步。</p>
+            <p>书籍与阅读记录按登录账号保存在此浏览器中。换设备或网址时可用备份转移。</p>
             <section aria-labelledby="storage-persist-badge">
                 <h3 id="storage-persist-badge" role="status">正在检测…</h3>
                 <p id="storage-persist-desc">正在查询浏览器的持久存储状态。</p>
@@ -725,7 +731,7 @@
     <!-- pageflipopen.js 约 1.9 MB，只有 PDF 3D 翻页用得到，由 reader.js 按需注入。 -->
     <script src="reader-highlight.js" defer></script>
     <script src="reader-gesture.js" defer></script>
-    <script src="reader.js" defer></script>
+    <script src="reader.js?v=20261127-account" defer></script>
     <script type="module" src="reader-audio.js"></script>
 </body>
 </html>

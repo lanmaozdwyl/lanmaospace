@@ -601,6 +601,12 @@
     const STORAGE_KEY_HIGHLIGHTS = 'lanmao_reader_highlights_v1';
     const STORAGE_KEY_SHELF_VIEW = 'lanmao_shelf_view_v1';
     const STORAGE_KEY_SHELF_SORT = 'lanmao_shelf_sort_v1';
+    const LEGACY_DB_NAME = 'lanmao_reader_db_v1';
+    const LEGACY_OWNER_KEY = 'lanmao_reader_legacy_backup_owner';
+    let readerStorage;
+    let readerDatabaseName;
+    let readerUserId;
+    let readerSessionActive = false;
 
     const MORANDI_COVER_THEMES = [
         'morandi-pine',
@@ -673,7 +679,7 @@
     // ===== 4. 本地设置与进度存取 =====
     function loadSavedSettings() {
         try {
-            const raw = localStorage.getItem(STORAGE_KEY_SETTINGS);
+            const raw = readerStorage.getItem(STORAGE_KEY_SETTINGS);
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (parsed && typeof parsed === 'object') {
@@ -713,11 +719,11 @@
         } catch (_) {}
 
         try {
-            const savedView = localStorage.getItem(STORAGE_KEY_SHELF_VIEW);
+            const savedView = readerStorage.getItem(STORAGE_KEY_SHELF_VIEW);
             if (['grid', 'list', 'shelf'].includes(savedView)) {
                 state.shelfViewMode = savedView;
             }
-            const savedSort = localStorage.getItem(STORAGE_KEY_SHELF_SORT);
+            const savedSort = readerStorage.getItem(STORAGE_KEY_SHELF_SORT);
             if (['recent', 'progress', 'date', 'title'].includes(savedSort)) {
                 state.shelfSortBy = savedSort;
             }
@@ -726,7 +732,7 @@
 
     function saveSettings() {
         try {
-            localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(state.settings));
+            readerStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(state.settings));
             return true;
         } catch (_) {
             return false;
@@ -735,7 +741,7 @@
 
     function loadSavedProgress() {
         try {
-            const raw = localStorage.getItem(STORAGE_KEY_PROGRESS);
+            const raw = readerStorage.getItem(STORAGE_KEY_PROGRESS);
             if (!raw) return null;
             return JSON.parse(raw);
         } catch (_) {
@@ -746,7 +752,7 @@
     function loadBookProgress(bookId) {
         if (!bookId) return null;
         try {
-            const raw = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
+            const raw = readerStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
             if (raw) {
                 const map = JSON.parse(raw);
                 if (map && map[bookId]) {
@@ -776,6 +782,7 @@
     }
 
     function saveProgress() {
+        if (!readerSessionActive || state.activeView !== 'reader') return;
         try {
             const viewport = document.getElementById('reader-viewport');
             let scrollY = 0;
@@ -798,12 +805,12 @@
                 hasRead: true,
                 timestamp: Date.now()
             };
-            localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(data));
+            readerStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(data));
 
             if (state.currentBookId) {
                 let map = {};
                 try {
-                    const raw = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
+                    const raw = readerStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
                     if (raw) map = JSON.parse(raw) || {};
                 } catch (_) {}
                 map[state.currentBookId] = {
@@ -817,7 +824,7 @@
                     hasRead: true,
                     timestamp: Date.now()
                 };
-                localStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(map));
+                readerStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(map));
             }
         } catch (_) {}
     }
@@ -863,7 +870,7 @@
     function initCustomBooksStorage(callback) {
         // 1. 同步加载 localStorage 镜像，首屏零延迟渲染
         try {
-            const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+            const raw = readerStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
             if (raw) {
                 const list = JSON.parse(raw);
                 if (Array.isArray(list)) {
@@ -883,7 +890,7 @@
         // 2. 异步打开 IndexedDB，支持长篇大体量书籍（大于 2 MiB 镜像阈值）
         try {
             if (window.indexedDB) {
-                const req = window.indexedDB.open('lanmao_reader_db_v1', 1);
+                const req = window.indexedDB.open(readerDatabaseName, 1);
                 req.onupgradeneeded = (e) => {
                     const db = e.target.result;
                     if (!db.objectStoreNames.contains('custom_books')) {
@@ -938,14 +945,14 @@
         // PDF 正文必须写入 IndexedDB。只保存书名会留下刷新后无法打开的书目。
         if (book.format !== 'pdf') {
             try {
-                const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+                const raw = readerStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
                 let list = raw ? JSON.parse(raw) : [];
                 if (!Array.isArray(list)) list = [];
                 list = list.filter(b => b.id !== book.id);
                 list.push(book);
                 const serialized = JSON.stringify(list);
                 if (serialized.length < 2 * 1024 * 1024) {
-                    localStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, serialized);
+                    readerStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, serialized);
                     mirrorOk = true;
                 }
             } catch (err) {
@@ -991,7 +998,7 @@
             executePut(dbInstance);
         } else if (window.indexedDB) {
             try {
-                const openReq = window.indexedDB.open('lanmao_reader_db_v1', 1);
+                const openReq = window.indexedDB.open(readerDatabaseName, 1);
                 openReq.onupgradeneeded = (e) => {
                     const db = e.target.result;
                     if (!db.objectStoreNames.contains('custom_books')) {
@@ -1042,12 +1049,12 @@
 
         // 1. 从 localStorage 镜像移除
         try {
-            const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
+            const raw = readerStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS);
             if (raw) {
                 let list = JSON.parse(raw);
                 if (Array.isArray(list)) {
                     list = list.filter(b => b.id !== bookId);
-                    localStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, JSON.stringify(list));
+                    readerStorage.setItem(STORAGE_KEY_CUSTOM_BOOKS, JSON.stringify(list));
                 }
             }
         } catch (_) {}
@@ -1062,17 +1069,17 @@
 
         // 3. 从进度记录中移除
         try {
-            const rawProg = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
+            const rawProg = readerStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
             if (rawProg) {
                 const map = JSON.parse(rawProg);
                 delete map[bookId];
-                localStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(map));
+                readerStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(map));
             }
         } catch (_) {}
 
         const saved = loadSavedProgress();
         if (saved && saved.bookId === bookId) {
-            localStorage.removeItem(STORAGE_KEY_PROGRESS);
+            readerStorage.removeItem(STORAGE_KEY_PROGRESS);
         }
 
         // 4. 级联清理该书的珍藏书签与划线笔记
@@ -1119,7 +1126,7 @@
     // ===== 4.8 珍藏书签管理引擎 =====
     function loadBookmarks() {
         try {
-            const raw = localStorage.getItem(STORAGE_KEY_BOOKMARKS);
+            const raw = readerStorage.getItem(STORAGE_KEY_BOOKMARKS);
             if (raw) {
                 const map = JSON.parse(raw);
                 if (map && typeof map === 'object') {
@@ -1132,7 +1139,7 @@
     function saveBookmarks() {
         let saved = true;
         try {
-            localStorage.setItem(STORAGE_KEY_BOOKMARKS, JSON.stringify(state.bookmarks));
+            readerStorage.setItem(STORAGE_KEY_BOOKMARKS, JSON.stringify(state.bookmarks));
         } catch (_) {
             saved = false;
         }
@@ -1158,8 +1165,14 @@
         const existingIdx = list.findIndex(b => b.chapterIndex === state.currentChapterIndex && b.page === state.currentPage);
 
         if (existingIdx >= 0) {
-            list.splice(existingIdx, 1);
-            saveBookmarks();
+            const [removed] = list.splice(existingIdx, 1);
+            if (!saveBookmarks()) {
+                list.splice(existingIdx, 0, removed);
+                updateBookmarkCountBadge();
+                updateBookmarkButtonState();
+                showToast('书签未能移除，请检查本机存储后重试。');
+                return;
+            }
             renderBookmarksList();
             showToast('已移除当前页书签');
         } else {
@@ -1194,7 +1207,13 @@
                 timestamp: Date.now()
             };
             list.unshift(newBookmark);
-            saveBookmarks();
+            if (!saveBookmarks()) {
+                list.shift();
+                updateBookmarkCountBadge();
+                updateBookmarkButtonState();
+                showToast('书签未能保存，请检查本机存储后重试。');
+                return;
+            }
             renderBookmarksList();
             showToast('🔖 已添加书签');
         }
@@ -1204,8 +1223,14 @@
         const list = getBookBookmarks(state.currentBookId);
         const idx = list.findIndex(b => b.id === bookmarkId);
         if (idx >= 0) {
-            list.splice(idx, 1);
-            saveBookmarks();
+            const [removed] = list.splice(idx, 1);
+            if (!saveBookmarks()) {
+                list.splice(idx, 0, removed);
+                updateBookmarkCountBadge();
+                updateBookmarkButtonState();
+                showToast('书签未能移除，请检查本机存储后重试。');
+                return;
+            }
             renderBookmarksList();
             showToast('书签已移除');
         }
@@ -1280,7 +1305,7 @@
 
     function loadHighlights() {
         try {
-            const raw = localStorage.getItem(STORAGE_KEY_HIGHLIGHTS);
+            const raw = readerStorage.getItem(STORAGE_KEY_HIGHLIGHTS);
             if (raw) {
                 const map = JSON.parse(raw);
                 if (map && typeof map === 'object' && !Array.isArray(map)) {
@@ -1293,7 +1318,7 @@
     function saveHighlights() {
         let ok = true;
         try {
-            localStorage.setItem(STORAGE_KEY_HIGHLIGHTS, JSON.stringify(state.highlights));
+            readerStorage.setItem(STORAGE_KEY_HIGHLIGHTS, JSON.stringify(state.highlights));
         } catch (_) {
             ok = false;
         }
@@ -1433,8 +1458,13 @@
         const list = getBookHighlights();
         const idx = list.findIndex(h => h.id === highlightId);
         if (idx < 0) return;
-        list.splice(idx, 1);
-        saveHighlights();
+        const [removed] = list.splice(idx, 1);
+        if (!saveHighlights()) {
+            list.splice(idx, 0, removed);
+            updateHighlightCountBadge();
+            showToast('划线未能移除，请检查本机存储后重试。');
+            return;
+        }
         applyChapterHighlights();
         renderHighlightsList();
         showToast('划线已移除');
@@ -3794,6 +3824,57 @@
     }
 
     // ===== 9. 本地文件解析引擎 (高性能流式逐行解析，降低超大文本内存分配) =====
+    function decodeBookText(buffer) {
+        const bytes = new Uint8Array(buffer, 0, Math.min(2, buffer.byteLength));
+        if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(buffer);
+        if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(buffer);
+        try {
+            return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+        } catch (_) {
+            // Also covers older Chinese TXT files using GBK or GB2312.
+            try { return new TextDecoder('gb18030').decode(buffer); }
+            catch (_) { return new TextDecoder('utf-8').decode(buffer); }
+        }
+    }
+
+    async function readDirectBookResponse(response) {
+        const limit = 25 * 1024 * 1024;
+        const tooLarge = () => new Error('直链导入最多支持 25 MB，请下载后从本地导入');
+        if (Number(response.headers.get('content-length')) > limit) {
+            await response.body?.cancel().catch(() => {});
+            throw tooLarge();
+        }
+        if (!response.body?.getReader) {
+            const buffer = await response.arrayBuffer();
+            if (buffer.byteLength > limit) throw tooLarge();
+            return buffer;
+        }
+        const stream = response.body.getReader();
+        const chunks = [];
+        let total = 0;
+        try {
+            while (true) {
+                const {done, value} = await stream.read();
+                if (done) break;
+                total += value.byteLength;
+                if (total > limit) {
+                    await stream.cancel().catch(() => {});
+                    throw tooLarge();
+                }
+                chunks.push(value);
+            }
+        } finally {
+            stream.releaseLock();
+        }
+        const bytes = new Uint8Array(total);
+        let offset = 0;
+        for (const chunk of chunks) {
+            bytes.set(chunk, offset);
+            offset += chunk.byteLength;
+        }
+        return bytes.buffer;
+    }
+
     function parseUploadedFile(fileName, rawText) {
         const cleanName = fileName.replace(/\.[^/.]+$/, '').trim() || '本地导入书籍';
         const chapters = [];
@@ -4189,7 +4270,7 @@
             sortSelect.addEventListener('change', (e) => {
                 state.shelfSortBy = e.target.value;
                 try {
-                    localStorage.setItem(STORAGE_KEY_SHELF_SORT, state.shelfSortBy);
+                    readerStorage.setItem(STORAGE_KEY_SHELF_SORT, state.shelfSortBy);
                 } catch (_) {}
                 renderBookshelfGrid();
                 performSearch();
@@ -4210,7 +4291,7 @@
                 if (mode && ['grid', 'list', 'shelf'].includes(mode)) {
                     state.shelfViewMode = mode;
                     try {
-                        localStorage.setItem(STORAGE_KEY_SHELF_VIEW, state.shelfViewMode);
+                        readerStorage.setItem(STORAGE_KEY_SHELF_VIEW, state.shelfViewMode);
                     } catch (_) {}
                     renderBookshelfGrid();
                     performSearch();
@@ -4251,6 +4332,7 @@
         const customUrlInput = document.getElementById('online-custom-url-input');
         const customTitleInput = document.getElementById('online-custom-title-input');
         const customFetchBtn = document.getElementById('online-custom-fetch-btn');
+        const customCancelBtn = document.getElementById('online-custom-cancel-btn');
 
         let currentTab = 'classics'; // 'classics' | 'openlibrary' | 'url'
 
@@ -4734,7 +4816,10 @@
 
         // 自定义直链导入逻辑
         if (customFetchBtn) {
+            let download;
+            customCancelBtn?.addEventListener('click', () => download?.abort());
             customFetchBtn.addEventListener('click', async () => {
+                if (customFetchBtn.disabled) return;
                 const url = customUrlInput ? customUrlInput.value.trim() : '';
                 const customTitle = customTitleInput ? customTitleInput.value.trim() : '';
                 if (!url) {
@@ -4743,17 +4828,29 @@
                 }
                 customFetchBtn.disabled = true;
                 customFetchBtn.textContent = '⏳ 正在抓取网络数据…';
+                if (customCancelBtn) customCancelBtn.hidden = false;
+                download = new AbortController();
+                let timedOut = false;
+                const deadline = setTimeout(() => {
+                    timedOut = true;
+                    download.abort();
+                }, 45000);
 
                 try {
                     const source = new URL(url);
                     if (!['https:', 'http:'].includes(source.protocol)) throw new Error('请选择 HTTP 或 HTTPS 文件链接');
-                    const res = await fetch(source.href);
+                    const res = await fetch(source.href, {signal: download.signal});
                     if (!res.ok) throw new Error(`HTTP 状态异常 ${res.status}`);
                     const contentType = (res.headers.get('content-type') || '').toLowerCase();
                     if (contentType.includes('text/html') || contentType.includes('application/xhtml+xml')) {
                         throw new Error('链接返回的是网页，请复制 TXT 或 PDF 文件的下载直链');
                     }
                     const isPdf = source.pathname.toLowerCase().endsWith('.pdf') || contentType.includes('application/pdf');
+                    const buffer = await readDirectBookResponse(res);
+                    if (download.signal.aborted) throw new Error('Download aborted');
+                    clearTimeout(deadline);
+                    if (customCancelBtn) customCancelBtn.hidden = true;
+                    customFetchBtn.textContent = '正在保存到本机…';
 
                     let bookTitle = customTitle;
                     if (!bookTitle) {
@@ -4766,7 +4863,6 @@
 
                     let book;
                     if (isPdf) {
-                        const buffer = await res.arrayBuffer();
                         const header = String.fromCharCode(...new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 5)));
                         if (header !== '%PDF-') throw new Error('返回的文件缺少有效的 PDF 文件头');
                         book = {
@@ -4780,7 +4876,7 @@
                             addedAt: Date.now()
                         };
                     } else {
-                        const text = await res.text();
+                        const text = decodeBookText(buffer);
                         if (!text.trim() || /^\s*<(?:!doctype\s+html|html\b|head\b|body\b)/i.test(text)) {
                             throw new Error('没有取到可阅读的文本，请检查文件直链');
                         }
@@ -4794,8 +4890,13 @@
                     closeDrawer('drawer-online-search');
                     showToast(`《${bookTitle}》已保存到书架。`, 3500);
                 } catch (err) {
-                    showToast(`导入失败: ${err.message}`, 3500);
+                    if (download.signal.aborted) showToast(timedOut ? '下载超时，请检查网络后重试。' : '已取消下载。');
+                    else showToast(`导入失败: ${err.message}`, 3500);
                 } finally {
+                    clearTimeout(deadline);
+                    download.abort();
+                    download = null;
+                    if (customCancelBtn) customCancelBtn.hidden = true;
                     customFetchBtn.disabled = false;
                     customFetchBtn.textContent = '📥 抓取并导入书架';
                 }
@@ -4822,13 +4923,13 @@
     }
 
     // ===== 9.6 书架数据主权：备份导出与恢复 =====
-    async function exportBookshelfBackup() {
+    async function exportBookshelfBackup(legacy = null) {
         showToast('⏳ 正在整理书架全量图书与进度备份…', 1500);
-        await customBooksReady;
+        if (!legacy) await customBooksReady;
 
-        let customBooks = [];
+        let customBooks = legacy ? legacy.books : [];
         // 1. 优先从 IndexedDB 全量提取大文件和所有自定义书目（突破 localStorage 2MB 阈值）
-        if (dbInstance) {
+        if (!legacy && dbInstance) {
             try {
                 customBooks = await new Promise((resolve) => {
                     const tx = dbInstance.transaction('custom_books', 'readonly');
@@ -4839,15 +4940,17 @@
                 });
             } catch (_) {}
         }
+        const storage = legacy ? window.localStorage : readerStorage;
         let mirrorBooks = [];
         try {
-            const list = JSON.parse(localStorage.getItem(STORAGE_KEY_CUSTOM_BOOKS));
+            const list = JSON.parse(storage.getItem(STORAGE_KEY_CUSTOM_BOOKS));
             if (Array.isArray(list)) mirrorBooks = list;
         } catch (_) {}
 
         // 同一次备份可能要从多个位置收集书籍。缺正文的 PDF 镜像不能覆盖完整文件。
         const booksById = new Map();
-        for (const book of [...mirrorBooks, ...customBooks, ...Object.values(state.books)]) {
+        const openBooks = legacy ? [] : Object.values(state.books);
+        for (const book of [...mirrorBooks, ...customBooks, ...openBooks]) {
             if (!book?.id || Object.hasOwn(BUILTIN_BOOKS, book.id)) continue;
             const existing = booksById.get(book.id);
             if (book.format === 'pdf' && !book.pdfData?.byteLength && existing?.pdfData?.byteLength) continue;
@@ -4879,13 +4982,21 @@
             return clone;
         }).filter(Boolean);
 
-        const bookProgRaw = localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS);
-        const settingsRaw = localStorage.getItem(STORAGE_KEY_SETTINGS);
-        const lastProgRaw = localStorage.getItem(STORAGE_KEY_PROGRESS);
+        const bookProgRaw = storage.getItem(STORAGE_KEY_BOOK_PROGRESS);
+        const settingsRaw = storage.getItem(STORAGE_KEY_SETTINGS);
+        const lastProgRaw = storage.getItem(STORAGE_KEY_PROGRESS);
 
         const bookProgress = bookProgRaw ? JSON.parse(bookProgRaw) : {};
-        const settings = settingsRaw ? JSON.parse(settingsRaw) : state.settings;
+        const settings = settingsRaw ? JSON.parse(settingsRaw) : (legacy ? {} : state.settings);
         const lastProgress = lastProgRaw ? JSON.parse(lastProgRaw) : null;
+        const bookmarks = legacy ? JSON.parse(storage.getItem(STORAGE_KEY_BOOKMARKS)) || {} : state.bookmarks;
+        const highlights = legacy ? JSON.parse(storage.getItem(STORAGE_KEY_HIGHLIGHTS)) || {} : state.highlights;
+
+        if (legacy && !booksById.size && !settingsRaw && !lastProgress &&
+            ![bookProgress, bookmarks, highlights].some(record => Object.keys(record || {}).length)) {
+            showToast('此浏览器没有可导出的旧书架数据。');
+            return;
+        }
 
         const payload = {
             app: 'lanmao-reader-backup',
@@ -4893,25 +5004,109 @@
             exportedAt: new Date().toISOString(),
             customBooks: safeCustomBooks,
             bookProgress: bookProgress,
-            bookmarks: state.bookmarks,
-            highlights: state.highlights,
+            bookmarks,
+            highlights,
             lastProgress: lastProgress,
             settings: settings
         };
 
         const jsonStr = JSON.stringify(payload, null, 2);
+        if (!readerSessionActive) throw Error('Reader session ended');
         const blob = new Blob([jsonStr], { type: 'application/json' });
+        if (legacy) {
+            const owner = storage.getItem(LEGACY_OWNER_KEY);
+            if (owner && owner !== readerUserId) throw Error('Legacy backup unavailable');
+            storage.setItem(LEGACY_OWNER_KEY, readerUserId);
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         const dateStr = new Date().toISOString().slice(0, 10);
         a.href = url;
-        a.download = `lanmao-bookshelf-backup-${dateStr}.json`;
+        a.download = `lanmao-${legacy ? 'legacy-' : ''}bookshelf-backup-${dateStr}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        const summary = `书架备份已导出（${safeCustomBooks.length} 本自定义书籍）。`;
+        const summary = legacy
+            ? `旧书架备份已开始下载（${safeCustomBooks.length} 本自定义书籍）。下载后用「恢复书架备份」导入当前账号。`
+            : `书架备份已导出（${safeCustomBooks.length} 本自定义书籍）。`;
         showToast(missingPdfCount ? `${summary}另有 ${missingPdfCount} 本 PDF 缺少正文，请保留或重新导入原文件。` : summary, 4800);
+    }
+
+    function readLegacyBooks() {
+        if (!window.indexedDB) return Promise.resolve([]);
+        return new Promise((resolve, reject) => {
+            const request = window.indexedDB.open(LEGACY_DB_NAME);
+            let missing = false;
+            request.onupgradeneeded = () => {
+                missing = true;
+                request.transaction.abort();
+            };
+            request.onerror = () => missing ? resolve([]) : reject(request.error);
+            request.onblocked = () => reject(Error('Legacy book database blocked'));
+            request.onsuccess = () => {
+                const db = request.result;
+                if (!db.objectStoreNames.contains('custom_books')) {
+                    db.close();
+                    resolve([]);
+                    return;
+                }
+                try {
+                    const tx = db.transaction('custom_books', 'readonly');
+                    const books = tx.objectStore('custom_books').getAll();
+                    tx.oncomplete = () => { db.close(); resolve(books.result || []); };
+                    tx.onabort = () => { db.close(); reject(tx.error); };
+                } catch (error) {
+                    db.close();
+                    reject(error);
+                }
+            };
+        });
+    }
+
+    async function initLegacyBackup() {
+        const panel = document.getElementById('reader-legacy-backup');
+        const button = document.getElementById('reader-legacy-download');
+        if (!panel || !button) return;
+        try {
+            const storage = window.localStorage;
+            const owner = storage.getItem(LEGACY_OWNER_KEY);
+            if (owner && owner !== readerUserId) return;
+            const legacyKeys = [STORAGE_KEY_CUSTOM_BOOKS, STORAGE_KEY_BOOK_PROGRESS, STORAGE_KEY_PROGRESS,
+                STORAGE_KEY_BOOKMARKS, STORAGE_KEY_HIGHLIGHTS, STORAGE_KEY_SETTINGS];
+            if (!owner && !legacyKeys.some(key => storage.getItem(key) !== null) &&
+                typeof window.indexedDB?.databases === 'function') {
+                const databases = await window.indexedDB.databases();
+                if (!databases.some(db => db.name === LEGACY_DB_NAME)) return;
+            }
+        } catch (_) {
+            // Keep the manual recovery entry available when the browser cannot list storage.
+        }
+        if (!readerSessionActive) return;
+        button.addEventListener('click', async () => {
+            if (button.disabled) return;
+            try {
+                const owner = window.localStorage.getItem(LEGACY_OWNER_KEY);
+                if (owner && owner !== readerUserId) {
+                    panel.hidden = true;
+                    return;
+                }
+                if (!window.confirm('请确认这台设备上的旧书架属于你。继续后，只有当前账号可以在这里重试下载旧备份。')) return;
+                button.disabled = true;
+                const run = async () => {
+                    const latestOwner = window.localStorage.getItem(LEGACY_OWNER_KEY);
+                    if (!readerSessionActive || (latestOwner && latestOwner !== readerUserId)) throw Error('Legacy backup unavailable');
+                    await exportBookshelfBackup({books: await readLegacyBooks()});
+                };
+                if (navigator.locks) await navigator.locks.request(LEGACY_OWNER_KEY, run);
+                else await run();
+            } catch (_) {
+                showToast('未能导出旧书架，请检查本机存储后重试。');
+            } finally {
+                button.disabled = false;
+            }
+        });
+        panel.hidden = false;
     }
 
     function showPdfImportResult(title, saved) {
@@ -4931,7 +5126,7 @@
 
     function mergeBackupProgress(data) {
         let positions;
-        try { positions = JSON.parse(localStorage.getItem(STORAGE_KEY_BOOK_PROGRESS)); } catch (_) {}
+        try { positions = JSON.parse(readerStorage.getItem(STORAGE_KEY_BOOK_PROGRESS)); } catch (_) {}
         const merged = Object.assign(Object.create(null), isBackupRecord(positions) ? positions : {});
         const recent = loadSavedProgress();
         if (recent?.bookId && prefersBackupProgress(merged[recent.bookId], recent)) {
@@ -4947,10 +5142,10 @@
             if (prefersBackupProgress(merged[id], backupRecent)) merged[id] = backupRecent;
             const restoredRecent = { ...merged[id], bookId: id };
             if (prefersBackupProgress(recent, backupRecent)) {
-                localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(restoredRecent));
+                readerStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(restoredRecent));
             }
         }
-        localStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(merged));
+        readerStorage.setItem(STORAGE_KEY_BOOK_PROGRESS, JSON.stringify(merged));
     }
 
     function mergeBackupBookmarks(incoming) {
@@ -5173,21 +5368,7 @@
                 return;
             }
 
-            let text = '';
-            try {
-                // 优先使用严格 UTF-8 解码，遇到非法序列抛错
-                const utf8 = new TextDecoder('utf-8', { fatal: true });
-                text = utf8.decode(buffer);
-            } catch (_) {
-                // 兼容中文电子书广泛使用的 GBK / GB2312 / GB18030 编码格式
-                try {
-                    const gbk = new TextDecoder('gb18030');
-                    text = gbk.decode(buffer);
-                } catch (err) {
-                    const fallback = new TextDecoder('utf-8');
-                    text = fallback.decode(buffer);
-                }
-            }
+            const text = decodeBookText(buffer);
             if (!text || !text.trim()) {
                 finishImport();
                 showToast('文件解析为空，请重新选择');
@@ -6702,7 +6883,7 @@
 
         const STORAGE_KEY_FAB = 'lanmao_reader_fab_pos_v1';
         try {
-            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_FAB));
+            const saved = JSON.parse(readerStorage.getItem(STORAGE_KEY_FAB));
             if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
                 const maxX = Math.max(0, window.innerWidth - fab.offsetWidth - 8);
                 const maxY = Math.max(0, window.innerHeight - fab.offsetHeight - 8);
@@ -6760,7 +6941,7 @@
             if (hasMoved) {
                 try {
                     const rect = fab.getBoundingClientRect();
-                    localStorage.setItem(STORAGE_KEY_FAB, JSON.stringify({ x: rect.left, y: rect.top }));
+                    readerStorage.setItem(STORAGE_KEY_FAB, JSON.stringify({ x: rect.left, y: rect.top }));
                 } catch (_) {}
             }
         }
@@ -6913,9 +7094,63 @@
         hideMenu();
     }
 
+    async function startReader() {
+        const pending = document.getElementById('reader-session-status');
+        try {
+            const [{getSupabase}, {readerAccountKey, readerAccountStorage}] = await Promise.all([
+                import('/lib/supabase-client.js'), import('/lib/reader-account.mjs'),
+            ]);
+            const client = await getSupabase();
+            const {data, error} = await client.auth.getSession();
+            if (error) throw error;
+            if (!data?.session?.user?.id) {
+                const next = window.location.pathname + window.location.search + window.location.hash;
+                window.location.replace('/login.html?next=' + encodeURIComponent(next));
+                return;
+            }
+            readerUserId = data.session.user.id;
+            readerStorage = readerAccountStorage(window.localStorage, readerUserId);
+            readerDatabaseName = readerAccountKey(LEGACY_DB_NAME, readerUserId);
+            const showReader = visible => document.body.toggleAttribute('data-reader-ready', visible);
+            function endSession(signOut) {
+                readerSessionActive = false;
+                showReader(false);
+                if (signOut) window.location.replace('/login.html');
+                else window.location.reload();
+            }
+            client.auth.onAuthStateChange((event, session) => {
+                if (!readerSessionActive) return;
+                if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) endSession(true);
+                else if (session?.user?.id && session.user.id !== readerUserId) endSession(false);
+            });
+            window.addEventListener('pagehide', event => {
+                if (event.persisted) showReader(false);
+            });
+            window.addEventListener('pageshow', async event => {
+                if (!event.persisted || !readerSessionActive) return;
+                try {
+                    const latest = await client.auth.getSession();
+                    if (latest.error) throw latest.error;
+                    const id = latest.data?.session?.user?.id;
+                    if (id !== readerUserId) endSession(!id);
+                    else if (readerSessionActive) showReader(true);
+                } catch (_) {
+                    endSession(false);
+                }
+            });
+            readerSessionActive = true;
+            init();
+            showReader(true);
+            initLegacyBackup();
+        } catch (_) {
+            readerSessionActive = false;
+            if (pending) pending.textContent = '暂时无法打开书架，请刷新重试或重新登录。';
+        }
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', startReader);
     } else {
-        init();
+        startReader();
     }
 })();

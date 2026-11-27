@@ -1,10 +1,12 @@
 import {getSupabase} from '../lib/supabase-client.js';
 import {dayAt} from '../lib/focus.mjs';
+import {readerAccountKey, READER_PROGRESS_KEY} from '../lib/reader-account.mjs';
 
 const form = document.getElementById('study-form');
 const fields = document.getElementById('study-fields');
 const status = document.getElementById('study-status');
 const previousNext = document.getElementById('study-previous-next');
+const continueReading = document.getElementById('study-continue-reading');
 const conflict = document.getElementById('study-conflict');
 const useSaved = document.getElementById('study-use-saved');
 const history = document.getElementById('study-history');
@@ -32,6 +34,16 @@ async function initStudyNotes() {
     let baseline;
     let conflictingNames = [];
     const prefix = `lanmao_study_notes_v1_${userId}_`;
+    const readerProgress = readerAccountKey(READER_PROGRESS_KEY, userId);
+    function updateReadingLink() {
+        let bookId;
+        try {
+            bookId = JSON.parse(localStorage.getItem(readerProgress))?.bookId;
+        } catch (_) {}
+        const canResume = !fields.disabled && typeof bookId === 'string' && bookId.length > 0;
+        continueReading.href = canResume ? '/reader.html?book=' + encodeURIComponent(bookId) : '/reader.html';
+        continueReading.textContent = canResume ? '继续阅读 ↗' : '打开书架 ↗';
+    }
     function read(date) {
         const raw = JSON.parse(localStorage.getItem(prefix + date)) ?? {};
         return Object.fromEntries(names.map(name => [name, typeof raw[name] === 'string' ? raw[name].slice(0, limits[name]) : '']));
@@ -98,6 +110,7 @@ async function initStudyNotes() {
     }
     load();
     fields.disabled = false;
+    updateReadingLink();
     historyDay.addEventListener('change', showHistory);
     useSaved.addEventListener('click', () => {
         try {
@@ -162,13 +175,18 @@ async function initStudyNotes() {
         }
     });
     window.addEventListener('focus', () => {
+        updateReadingLink();
         if (dirty || busy || fields.disabled) return;
         if (!syncStudyDay()) load();
+    });
+    window.addEventListener('storage', event => {
+        if (event.key === readerProgress || event.key === null) updateReadingLink();
     });
 
     client.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_OUT' || (session?.user?.id && session.user.id !== userId)) {
             fields.disabled = true;
+            updateReadingLink();
             form.reset();
             previousNext.hidden = conflict.hidden = history.hidden = useSaved.hidden = true;
             previousNext.textContent = conflict.textContent = '';

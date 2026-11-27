@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {dayAt} from '../lib/focus.mjs';
+import {readerAccountKey, READER_PROGRESS_KEY} from '../lib/reader-account.mjs';
 
 const source = readFileSync(new URL('../study/study.js', import.meta.url), 'utf8').replace(/^import .*;\s*$/gm, '');
 const now = new Date(2026, 10, 26, 15).getTime();
@@ -24,8 +25,9 @@ async function fixture(user, storage, at = now) {
         append(item) { this.children.push(item); },
     };
     await vm.runInNewContext(source, {
-        dayAt, Date: {now: () => clock}, document: {getElementById: node, createElement: () => ({})},
-        window: {addEventListener() {}}, navigator: {},
+        dayAt, readerAccountKey, READER_PROGRESS_KEY, Date: {now: () => clock},
+        document: {getElementById: node, createElement: () => ({})},
+        window: {addEventListener(type, handler) { listeners[type] = handler; }}, navigator: {},
         localStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value),
             get length() { return storage.size; }, key: index => [...storage.keys()][index] ?? null},
         getSupabase: async () => ({auth: {
@@ -35,6 +37,7 @@ async function fixture(user, storage, at = now) {
     });
     return {fields, status, elements, node, save: () => listeners.submit({preventDefault() {}}),
         setClock: time => { clock = time; },
+        changeStorage: key => listeners.storage({key}),
         input(name, value, hasBeforeInput = true) {
             const target = elements[name];
             if (hasBeforeInput) listeners.beforeinput({target});
@@ -44,6 +47,21 @@ async function fixture(user, storage, at = now) {
         useSaved: () => listeners['study-use-savedclick'](), signOut: () => authChanged('SIGNED_OUT')};
 }
 
+test('学习页只接续当前账号的阅读进度，切换账号和退出时清除旧入口', async () => {
+    const storage = new Map();
+    const key = readerAccountKey(READER_PROGRESS_KEY, 'a');
+    storage.set(key, JSON.stringify({bookId: 'private&reader'}));
+    const owner = await fixture('a', storage);
+    const other = await fixture('b', storage);
+    const link = 'study-continue-reading';
+    assert.equal(owner.node(link).href, '/reader.html?book=private%26reader');
+    assert.equal(other.node(link).href, '/reader.html');
+    storage.set(key, JSON.stringify({bookId: 'another'}));
+    owner.changeStorage(key);
+    assert.equal(owner.node(link).href, '/reader.html?book=another');
+    owner.signOut();
+    assert.equal(owner.node(link).href, '/reader.html');
+});
 test('页面一直打开时，午夜后新输入写入新一天，旧草稿可留在原日期', async () => {
     const storage = new Map();
     const before = new Date(2026, 10, 26, 23, 59).getTime();

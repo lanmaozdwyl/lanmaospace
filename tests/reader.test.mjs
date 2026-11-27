@@ -764,7 +764,7 @@ test('划线笔记接入：标签页、浮动按钮、脚本顺序、模式开�
     assert(htmlSource.includes('id="reader-btn-highlight-mode"'), '需包含划线模式开关按钮');
     // reader-highlight.js 必须先于 reader.js 加载
     const hlPos = htmlSource.indexOf('src="reader-highlight.js"');
-    const rdPos = htmlSource.indexOf('src="reader.js"');
+    const rdPos = htmlSource.search(/src="reader\.js(?:\?[^"]*)?"/);
     assert(hlPos > 0 && rdPos > hlPos, 'reader-highlight.js 必须在 reader.js 之前引入');
 
     // JS：存储、恢复、跳转、模式与备份
@@ -775,7 +775,7 @@ test('划线笔记接入：标签页、浮动按钮、脚本顺序、模式开�
     assert(jsSource.includes('function setHighlightMode('), '需包含划线模式开关函数');
     assert(/content\.innerHTML = htmlParts\.join\('\\n'\);\s*applyChapterHighlights\(\);/.test(jsSource), 'renderChapter 渲染正文后必须恢复划线');
     assert(jsSource.includes('if (state.highlightMode) return false;'), '划线模式下手势状态机必须让出，暂停滑动翻页手势');
-    assert(/highlights: state\.highlights,/.test(jsSource), '书架备份必须导出划线');
+    assert(/const highlights = legacy \? .* : state\.highlights;/.test(jsSource) && /\n\s+highlights,/.test(jsSource), '书架备份必须导出划线');
     assert(jsSource.includes('data.highlights'), '书架备份导入必须合并划线');
     // 列表以 textContent 构建，不把用户选中的原文拼进 innerHTML
     const listFn = jsSource.slice(jsSource.indexOf('function renderHighlightsList('), jsSource.indexOf('function bindHighlightEvents('));

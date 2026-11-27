@@ -4007,3 +4007,7 @@ mark.reader-search-hit.active {
 .storage-backup-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .storage-backup-actions > * { flex: 1 1 170px; text-align: center; }
 .storage-backup-import { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+body.reader-body:not([data-reader-ready]) > :not(#reader-session-status) { display: none !important; }
+body.reader-body[data-reader-ready] > #reader-session-status { display: none; }
+#reader-session-status { margin: 32px 16px; text-align: center; }
+#online-custom-cancel-btn[hidden] { display: none; }

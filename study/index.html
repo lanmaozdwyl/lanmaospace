@@ -11,7 +11,7 @@
     <link rel="icon" href="/images/icon-192.png">
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="/mobile.css">
-    <link rel="stylesheet" href="/study/study.css">
+    <link rel="stylesheet" href="/study/study.css?v=20261127-account">
 </head>
 <body class="study-page">
     <a href="#study-main" class="skip-link">跳到学习空间</a>
@@ -28,8 +28,15 @@
         <div class="study-intro">
             <h1>学习空间</h1>
             <p>定个目标，专注一段时间，留下一句复盘。</p>
-            <a href="/reader.html" target="_blank" rel="noopener">在新标签页打开阅读器 ↗</a>
         </div>
+        <section class="study-resume" aria-labelledby="study-resume-title">
+            <h2 id="study-resume-title">继续上次学习</h2>
+            <p id="study-previous-next" hidden></p>
+            <div class="study-resume-actions">
+                <a id="study-continue-reading" href="/reader.html" target="_blank" rel="noopener">打开书架 ↗</a>
+                <a href="#focus">前往专注钟 ↓</a>
+            </div>
+        </section>
         <div class="study-grid">
             <section class="section section-light" id="focus" aria-labelledby="focus-title">
         <div class="container">
@@ -114,7 +121,6 @@
             <section class="study-plan" id="study-plan" aria-labelledby="study-plan-title">
                 <h2 id="study-plan-title">今日目标与复盘</h2>
                 <p>记录保存在当前浏览器。每个账号有自己的今日记录。</p>
-                <p id="study-previous-next" hidden></p>
                 <form id="study-form">
                     <fieldset id="study-fields" disabled>
                         <label for="study-goal">今天要完成什么？</label>
@@ -284,6 +290,6 @@
     <script type="module" src="/mobile-nav.js"></script>
     <script type="module" src="/ambient.js"></script>
     <script type="module" src="/focus.js"></script>
-    <script type="module" src="/study/study.js"></script>
+    <script type="module" src="/study/study.js?v=20261127-account"></script>
 </body>
 </html>

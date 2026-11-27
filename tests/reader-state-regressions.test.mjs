@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
+import {readerAccountKey, readerAccountStorage} from '../lib/reader-account.mjs';
 const source=readFileSync(new URL('../reader.js',import.meta.url),'utf8');
 
 function backupFixture(database = null) {
@@ -10,7 +11,7 @@ function backupFixture(database = null) {
     let fileTask;
     const c = {
         state: {books: {}, bookmarks: {}, highlights: {}},
-        localStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value)},
+        readerStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value)},
         STORAGE_KEY_BOOK_PROGRESS: 'positions', STORAGE_KEY_PROGRESS: 'recent', STORAGE_KEY_CUSTOM_BOOKS: 'books',
         STORAGE_KEY_BOOKMARKS: 'bookmarks',
         dbInstance: database, window: {}, console: {warn() {}}, atob,
@@ -46,8 +47,8 @@ test('备份用完整正文替换古登堡旧书目，书签写入失败会单�
     c.state.books[id] = existing;
     storage.set('books', JSON.stringify([existing]));
     storage.set('bookmarks', '{}');
-    const write = c.localStorage.setItem;
-    c.localStorage.setItem = (key, value) => {
+    const write = c.readerStorage.setItem;
+    c.readerStorage.setItem = (key, value) => {
         if (key === 'bookmarks') throw new Error('Quota');
         return write(key, value);
     };
@@ -65,17 +66,20 @@ test('网络直链拒绝网页与无效 PDF，保留显式书名并等待实际�
     const customUrlInput = {value: 'https://example.com/book.txt'};
     const customTitleInput = {value: '论文 Method V2.0'};
     const customFetchBtn = {addEventListener(type, handler) { this.click = handler; }};
+    const customCancelBtn = {addEventListener(type, handler) { this.click = handler; }};
     let closed = 0;
     let response;
     let writable = true;
     const context = vm.createContext({
-        URL, customFetchBtn, customUrlInput, customTitleInput,
-        fetch: async () => response,
+        URL, AbortController, TextDecoder, clearTimeout, setTimeout, customFetchBtn, customCancelBtn, customUrlInput, customTitleInput,
+        fetch: async (...args) => typeof response === 'function' ? response(...args) : response,
         saveOnlineBook: async book => { if (writable) saved.push(book); return writable; },
         showToast: message => notices.push(message), closeDrawer: () => closed++,
         renderBookshelfGrid() {}, updateBookshelfHero() {},
     });
+    const decoder = source.indexOf('    function decodeBookText(');
     const parser = source.indexOf('    function parseUploadedFile(');
+    vm.runInContext(source.slice(decoder, parser), context);
     vm.runInContext(source.slice(parser, source.indexOf('\n    }', parser) + 6), context);
     const imports = source.indexOf('        // 自定义直链导入逻辑');
     vm.runInContext(source.slice(imports, source.indexOf('\n    }', imports)), context);
@@ -113,6 +117,87 @@ test('网络直链拒绝网页与无效 PDF，保留显式书名并等待实际�
     assert.equal(saved.length, 2);
     assert.equal(closed, 2);
     assert.equal(customFetchBtn.disabled, false);
+
+    writable = true;
+    respond(Uint8Array.from([0xd6, 0xd0, 0xce, 0xc4]), 'text/plain; charset=gbk');
+    await customFetchBtn.click();
+    assert.equal(saved[2].chapters[0].content[0], '中文');
+    response = new Response('ignored', {headers: {'Content-Length': String(26 * 1024 * 1024)}});
+    await customFetchBtn.click();
+    assert.match(notices.at(-1), /最多支持 25 MB/);
+    let streamCanceled = false;
+    response = new Response(new ReadableStream({
+        pull(controller) { controller.enqueue(new Uint8Array(13 * 1024 * 1024)); },
+        cancel() { streamCanceled = true; },
+    }));
+    await customFetchBtn.click();
+    assert.equal(streamCanceled, true);
+    assert.match(notices.at(-1), /最多支持 25 MB/);
+    response = (url, {signal}) => new Promise((resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {once: true});
+    });
+    const pending = customFetchBtn.click();
+    assert.equal(customCancelBtn.hidden, false);
+    customCancelBtn.click();
+    await pending;
+    assert.match(notices.at(-1), /已取消下载/);
+    assert.equal(customFetchBtn.disabled, false);
+    let expire;
+    context.setTimeout = callback => { expire = callback; };
+    context.clearTimeout = () => {};
+    const stalled = customFetchBtn.click();
+    expire();
+    await stalled;
+    assert.match(notices.at(-1), /下载超时/);
+});
+
+test('书架记录按账号读写，写入失败时普通书签和划线操作保留原数据', () => {
+    const {c, storage, notices} = backupFixture();
+    const disk = c.readerStorage;
+    c.readerStorage = readerAccountStorage(disk, 'account-a');
+    const bookmarksStart = source.indexOf('    function loadBookmarks(');
+    const bookmarksEnd = source.indexOf('    function updateBookmarkButtonState(');
+    vm.runInContext(source.slice(bookmarksStart, bookmarksEnd), c);
+    c.state.currentBookId = 'prince';
+    c.state.currentChapterIndex = 0;
+    c.state.currentPage = 1;
+    const bookmark = {id: 'mine', chapterIndex: 0, page: 1};
+    c.state.bookmarks = {prince: [bookmark]};
+    assert.equal(c.saveBookmarks(), true);
+    storage.set('bookmarks', '{"legacy":[]}');
+    c.readerStorage = readerAccountStorage(disk, 'account-b');
+    c.state.bookmarks = {};
+    c.loadBookmarks();
+    assert.deepEqual(c.state.bookmarks, {});
+    assert.notEqual(readerAccountKey('lanmao_reader_db_v1', 'account-a'), readerAccountKey('lanmao_reader_db_v1', 'account-b'));
+
+    c.readerStorage = readerAccountStorage(disk, 'account-a');
+    c.loadBookmarks();
+    assert.equal(c.state.bookmarks.prince[0].id, 'mine');
+    c.readerStorage.setItem = () => { throw new Error('Quota'); };
+    c.toggleBookmark();
+    assert.match(notices.at(-1), /书签未能移除/);
+    assert.equal(c.state.bookmarks.prince[0].id, 'mine');
+    c.removeBookmark('mine');
+    assert.match(notices.at(-1), /书签未能移除/);
+    assert.equal(c.state.bookmarks.prince[0].id, 'mine');
+    c.state.bookmarks.prince = [];
+    c.state.currentBook = {chapters: [{title: '第一章', content: ['正文']}]};
+    c.state.settings = {mode: 'flip'};
+    c.document = {getElementById() { return null; }};
+    c.calculateReadingProgress = () => 0;
+    c.toggleBookmark();
+    assert.match(notices.at(-1), /书签未能保存/);
+    assert.equal(c.state.bookmarks.prince.length, 0);
+
+    c.STORAGE_KEY_HIGHLIGHTS = 'highlights';
+    c.updateHighlightCountBadge = () => {};
+    c.state.highlights = {prince: [{id: 'mark', exact: '标注'}]};
+    vm.runInContext(source.slice(source.indexOf('    function saveHighlights('), source.indexOf('    // 仅文字书籍')), c);
+    vm.runInContext(source.slice(source.indexOf('    function removeHighlight('), source.indexOf('    function jumpToHighlight(')), c);
+    c.removeHighlight('mark');
+    assert.match(notices.at(-1), /划线未能移除/);
+    assert.equal(c.state.highlights.prince[0].id, 'mark');
 });
 
 test('恢复旧书架备份保留较新或无日期的本机进度，新位置及书签可补入', async () => {
@@ -175,7 +260,7 @@ test('备份合并不同存储位置的书籍，恢复后仍有完整 PDF 正文
     storage.set('books', JSON.stringify([{id: 'txt', title: '镜像正文', chapters: [{title: '第一章', content: ['可恢复正文']}]}, pdfMirror]));
     c.state.books = {pdf: pdfMirror, missing: {id: 'missing', title: '旧 PDF', format: 'pdf', chapters: []}};
     let backupBlob;
-    Object.assign(c, {Blob, btoa, setTimeout() {}, BUILTIN_BOOKS: {}, STORAGE_KEY_SETTINGS: 'settings',
+    Object.assign(c, {Blob, btoa, setTimeout() {}, BUILTIN_BOOKS: {}, STORAGE_KEY_SETTINGS: 'settings', readerSessionActive: true,
         URL: {createObjectURL: blob => {backupBlob = blob; return 'blob:fake';}},
         document: {createElement: () => ({click() {}}), body: {appendChild() {}, removeChild() {}}}});
     vm.runInContext(source.slice(source.indexOf('    async function exportBookshelfBackup('), source.indexOf('    function showPdfImportResult(')), c);
@@ -192,6 +277,36 @@ test('备份合并不同存储位置的书籍，恢复后仍有完整 PDF 正文
     await target.restore({customBooks: backup.customBooks});
     assert.equal(target.c.state.books.txt.chapters[0].content[0], '可恢复正文');
     assert.deepEqual([...new Uint8Array(target.c.state.books.pdf.pdfData)], [...new Uint8Array(pdfData)]);
+});
+
+test('旧书架单独备份并保留原件，当前书架数据不会混入，另一账号不能重复认领', async () => {
+    const {c, storage} = backupFixture();
+    const ownerKey = 'legacy-owner';
+    const oldBook = {id: 'legacy-idb-book', title: '旧书', chapters: [{title: '第一章', content: ['旧正文']}]};
+    c.state.books = {accountBook: {id: 'accountBook', title: '已隔离的新资料', chapters: []}};
+    c.state.bookmarks = {accountBook: [{id: 'new-mark'}]};
+    const oldBookmarks = JSON.stringify({'legacy-idb-book': [{id: 'old-mark'}]});
+    storage.set('bookmarks', oldBookmarks);
+    let blob;
+    Object.assign(c, {
+        Blob, btoa, setTimeout() {}, BUILTIN_BOOKS: {}, STORAGE_KEY_SETTINGS: 'settings', STORAGE_KEY_HIGHLIGHTS: 'highlights',
+        LEGACY_OWNER_KEY: ownerKey, readerSessionActive: true, readerUserId: 'a',
+        URL: {createObjectURL: value => { blob = value; return 'blob:test'; }},
+        document: {createElement: () => ({click() {}}), body: {appendChild() {}, removeChild() {}}},
+    });
+    c.window.localStorage = c.readerStorage;
+    vm.runInContext(source.slice(source.indexOf('    async function exportBookshelfBackup('), source.indexOf('    function showPdfImportResult(')), c);
+    await c.exportBookshelfBackup({books: [oldBook]});
+    const data = JSON.parse(await blob.text());
+    assert.deepEqual(data.customBooks.map(book => book.id), [oldBook.id]);
+    assert.deepEqual(data.bookmarks, JSON.parse(oldBookmarks));
+    assert.equal(storage.get('bookmarks'), oldBookmarks);
+    assert.equal(storage.get(ownerKey), 'a');
+    c.readerUserId = 'b';
+    blob = null;
+    await assert.rejects(c.exportBookshelfBackup({books: [oldBook]}), /unavailable/);
+    assert.equal(blob, null);
+    assert.equal(storage.get(ownerKey), 'a');
 });
 
 async function onlineSearch(name, nextFunction, searchResults, download, save = true) {
